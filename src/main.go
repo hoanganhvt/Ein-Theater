@@ -9,6 +9,7 @@ import (
 )
 
 func main() {
+	fmt.Println("letsssssssssssss gooooooooooo!!!!")
 	_ = mime.AddExtensionType(".js", "application/javascript; charset=utf-8")
 
 	// Static web assets
