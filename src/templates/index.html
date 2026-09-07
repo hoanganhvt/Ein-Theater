@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Network Builder</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div id="modalOverlay" onclick="closeAllModals()"></div>
+
+    <!-- ── Header ─────────────────────────────────────────────────── -->
+    <div class="header">
+        <div class="header-left">
+            <!-- File Menu Dropdown -->
+            <div class="menu-dropdown">
+                <button class="btn menu-btn" id="fileMenuBtn" onclick="toggleFileMenu(event)" title="File options">File ▾</button>
+                <div class="menu-dropdown-content" id="fileMenuDropdown">
+                    <div class="menu-item" onclick="openSelectFolderModal(); closeFileMenu();">
+                        <span class="menu-icon">📂</span>
+                        <span class="menu-text">Select Folder...</span>
+                    </div>
+                    <div class="menu-item disabled" title="Open File (coming soon)">
+                        <span class="menu-icon">📄</span>
+                        <span class="menu-text">Open File...</span>
+                        <span class="menu-badge">Soon</span>
+                    </div>
+                    <div class="menu-separator"></div>
+                    <div class="menu-item-info">
+                        <span class="menu-info-label">Working Directory:</span>
+                        <span class="menu-info-val" id="menuWorkingDir">None</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Working Directory Pill -->
+            <div class="working-dir-pill" id="headerWorkingDirPill" onclick="openSelectFolderModal()" title="No working directory selected. Click to select a folder.">
+                <span class="working-dir-icon">📁</span>
+                <span class="working-dir-label">Dir:</span>
+                <span class="working-dir-name" id="headerWorkingDirName">None</span>
+            </div>
+
+            <div class="header-divider"></div>
+
+            <div class="model-title-wrap" onclick="startRename()" title="Click to rename model">
+                <h1 id="modelTitle">Untitled Model</h1>
+                <input id="modelTitleInput" type="text" maxlength="80"
+                       onblur="commitRename()"
+                       onkeydown="if(event.key==='Enter')commitRename();if(event.key==='Escape')cancelRename();" />
+            </div>
+        </div>
+        <div class="toolbar">
+            <div class="mode-group">
+                <button class="btn mode-btn active" id="btnModeMove" onclick="setMode('move')" title="Move: Drag canvas to navigate and move blocks freely">🖐 Move</button>
+                <button class="btn mode-btn" id="btnModeSelect" onclick="setMode('select')" title="Select: Drag on canvas to select multiple nodes">⬚ Select</button>
+                <button class="btn mode-btn" id="btnModeAdd" onclick="setMode('add')" title="Add Node: Click anywhere on canvas to place a block">➕ Add Node</button>
+                <button class="btn mode-btn" id="btnModeConnect" onclick="setMode('connect')" title="Add Edge: Click &amp; drag between blocks to connect them">🔗 Add Edge</button>
+            </div>
+            <button class="btn" onclick="fitView()">Fit View</button>
+            <button class="btn btn-clear" onclick="clearGraph()">Clear Canvas</button>
+        </div>
+    </div>
+
+    <!-- ── Workspace ──────────────────────────────────────────────── -->
+    <div class="workspace">
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <!-- Working Directory Section -->
+            <div class="sidebar-section workspace-section">
+                <div class="sidebar-header">
+                    <h3>Working Directory</h3>
+                    <button class="btn-change-folder" onclick="openSelectFolderModal()" title="Select folder">📂</button>
+                </div>
+                <div class="workspace-card" onclick="openSelectFolderModal()" title="Click to change working directory">
+                    <div class="workspace-card-icon">📁</div>
+                    <div class="workspace-card-info">
+                        <div class="workspace-card-name" id="sidebarWorkingDirName">None</div>
+                        <div class="workspace-card-path" id="sidebarWorkingDirPath">No folder selected</div>
+                    </div>
+                </div>
+                <div class="workspace-file-list" id="workspaceFileList">
+                    <div class="workspace-empty-hint">No folder selected. Click to select a folder.</div>
+                </div>
+            </div>
+
+            <div class="sidebar-section models-section">
+                <div class="sidebar-header">
+                    <h3>Models</h3>
+                    <button class="btn-new-model" onclick="createProject()" title="New model">+</button>
+                </div>
+                <div class="project-list" id="projectList">
+                    <!-- rendered by JS -->
+                </div>
+            </div>
+
+            <div class="sidebar-section palette-section">
+                <div class="sidebar-header">
+                    <h3>Blocks</h3>
+                    <span class="palette-hint" title="Drag &amp; drop block onto canvas or click to add">Drag &amp; Drop</span>
+                </div>
+                <div class="palette-list" id="paletteList">
+                    <div class="palette-item" draggable="true" data-type="nn.Linear" title="Drag &amp; drop onto canvas or click to add">
+                        <span class="palette-badge badge-blue">dense</span>
+                        <span class="palette-name">nn.Linear</span>
+                        <span class="drag-handle">⋮⋮</span>
+                    </div>
+                    <div class="palette-item" draggable="true" data-type="nn.Conv2d" title="Drag &amp; drop onto canvas or click to add">
+                        <span class="palette-badge badge-green">conv</span>
+                        <span class="palette-name">nn.Conv2d</span>
+                        <span class="drag-handle">⋮⋮</span>
+                    </div>
+                    <div class="palette-item" draggable="true" data-type="nn.ReLU" title="Drag &amp; drop onto canvas or click to add">
+                        <span class="palette-badge badge-orange">act</span>
+                        <span class="palette-name">nn.ReLU</span>
+                        <span class="drag-handle">⋮⋮</span>
+                    </div>
+                    <div class="palette-item" draggable="true" data-type="nn.MaxPool2d" title="Drag &amp; drop onto canvas or click to add">
+                        <span class="palette-badge badge-purple">pool</span>
+                        <span class="palette-name">nn.MaxPool2d</span>
+                        <span class="drag-handle">⋮⋮</span>
+                    </div>
+                    <div class="palette-item" draggable="true" data-type="nn.Dropout" title="Drag &amp; drop onto canvas or click to add">
+                        <span class="palette-badge badge-red">reg</span>
+                        <span class="palette-name">nn.Dropout</span>
+                        <span class="drag-handle">⋮⋮</span>
+                    </div>
+                    <div class="palette-item" draggable="true" data-type="nn.BatchNorm2d" title="Drag &amp; drop onto canvas or click to add">
+                        <span class="palette-badge badge-blue">norm</span>
+                        <span class="palette-name">nn.BatchNorm2d</span>
+                        <span class="drag-handle">⋮⋮</span>
+                    </div>
+                    <div class="palette-item" draggable="true" data-type="nn.LayerNorm" title="Drag &amp; drop onto canvas or click to add">
+                        <span class="palette-badge badge-blue">norm</span>
+                        <span class="palette-name">nn.LayerNorm</span>
+                        <span class="drag-handle">⋮⋮</span>
+                    </div>
+                    <div class="palette-item" draggable="true" data-type="nn.LSTM" title="Drag &amp; drop onto canvas or click to add">
+                        <span class="palette-badge badge-green">rnn</span>
+                        <span class="palette-name">nn.LSTM</span>
+                        <span class="drag-handle">⋮⋮</span>
+                    </div>
+                    <div class="palette-item" draggable="true" data-type="nn.Embedding" title="Drag &amp; drop onto canvas or click to add">
+                        <span class="palette-badge badge-purple">emb</span>
+                        <span class="palette-name">nn.Embedding</span>
+                        <span class="drag-handle">⋮⋮</span>
+                    </div>
+                    <div class="palette-item" draggable="true" data-type="nn.MultiheadAttention" title="Drag &amp; drop onto canvas or click to add">
+                        <span class="palette-badge badge-orange">attn</span>
+                        <span class="palette-name">nn.MultiheadAttention</span>
+                        <span class="drag-handle">⋮⋮</span>
+                    </div>
+                    <div class="palette-item custom-palette-item" onclick="openAddNodeModal()" title="Open modal to create custom block">
+                        <span class="palette-badge badge-gray">custom</span>
+                        <span class="palette-name">+ Custom Layer...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Canvas Wrapper -->
+        <div class="canvas-container">
+            <div id="mynetwork"></div>
+            <div id="selectionBox" class="selection-box"></div>
+            <div id="modeBanner" class="mode-banner" style="display:none;"></div>
+        </div>
+    </div>
+
+    <!-- ── Context Menu ────────────────────────────────────────────── -->
+    <div id="contextMenu" class="context-menu">
+        <div class="context-menu-item has-submenu" id="cmModeParent">
+            <span class="cm-icon">⚙️</span>
+            <span class="cm-text">Mode</span>
+            <span class="cm-arrow">▶</span>
+            <div class="context-submenu" id="cmSubmenu">
+                <div class="context-menu-item" onclick="setMode('select'); hideContextMenu();">
+                    <span class="cm-icon">⬚</span>
+                    <span class="cm-text">Select</span>
+                    <span class="cm-check" id="cmCheckSelect"></span>
+                </div>
+                <div class="context-menu-item" onclick="setMode('add'); hideContextMenu();">
+                    <span class="cm-icon">➕</span>
+                    <span class="cm-text">Add Node</span>
+                    <span class="cm-check" id="cmCheckAdd"></span>
+                </div>
+                <div class="context-menu-item" onclick="setMode('connect'); hideContextMenu();">
+                    <span class="cm-icon">🔗</span>
+                    <span class="cm-text">Add Edge</span>
+                    <span class="cm-check" id="cmCheckConnect"></span>
+                </div>
+                <div class="context-menu-item" onclick="setMode('move'); hideContextMenu();">
+                    <span class="cm-icon">🖐</span>
+                    <span class="cm-text">Move</span>
+                    <span class="cm-check" id="cmCheckMove">✓</span>
+                </div>
+            </div>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" id="cmEdit" onclick="openEditNodeFromContext(); hideContextMenu();">
+            <span class="cm-icon">✏️</span>
+            <span class="cm-text">Edit</span>
+        </div>
+        <div class="context-menu-item danger" id="cmDelete" onclick="deleteSelectionFromContextMenu()">
+            <span class="cm-icon">🗑️</span>
+            <span class="cm-text" id="cmDeleteText">Delete</span>
+            <span class="cm-shortcut">Del</span>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" onclick="openAddNodeAtContext(); hideContextMenu();">
+            <span class="cm-icon">➕</span>
+            <span class="cm-text">Add Node Here...</span>
+        </div>
+        <div class="context-menu-item" onclick="fitView(); hideContextMenu();">
+            <span class="cm-icon">⤢</span>
+            <span class="cm-text">Fit View</span>
+        </div>
+    </div>
+
+    <!-- ── Select Folder Modal ─────────────────────────────────────── -->
+    <div id="selectFolderModal">
+        <div class="modal-header">
+            <h3>Select Working Directory</h3>
+            <button class="modal-close-btn" onclick="closeSelectFolderModal()" title="Close">✕</button>
+        </div>
+        <div class="folder-modal-body">
+            <div class="folder-path-bar">
+                <button class="btn btn-icon" onclick="browseParentFolder()" title="Go up one folder level">⬆️ Up</button>
+                <input type="text" id="folderPathInput" placeholder="Enter folder path and press Enter..."
+                       onkeydown="if(event.key==='Enter')applyTypedPath();" />
+                <button class="btn" onclick="applyTypedPath()">Go</button>
+            </div>
+            <div class="folder-drives-bar" id="folderDrivesBar">
+                <!-- Drive chips rendered by JS -->
+            </div>
+            <div class="folder-hint">
+                💡 Click a folder to browse into it. Use <strong>✓ Select</strong> to choose a folder, or use <strong>Select This Folder</strong> below to pick the current directory.
+            </div>
+            <div class="folder-browser-list" id="folderBrowserList">
+                <!-- Directories rendered by JS -->
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-system-browse" onclick="browseSystemFolder()" title="Open Windows native folder dialog">Browse System...</button>
+            <div class="modal-footer-spacer"></div>
+            <button class="btn" onclick="closeSelectFolderModal()">Cancel</button>
+            <button class="btn btn-primary" id="confirmFolderBtn" onclick="confirmSelectFolder()" title="Select the currently browsed directory as the working directory">Select This Folder</button>
+        </div>
+    </div>
+
+    <!-- ── Add Block Modal ─────────────────────────────────────────── -->
+    <div id="nodeModal">
+        <h3>Add Neural Block</h3>
+        <label for="nodeType">Block Type</label>
+        <select id="nodeType" onchange="toggleCustom()">
+            <option value="nn.Linear">nn.Linear</option>
+            <option value="nn.Conv2d">nn.Conv2d</option>
+            <option value="nn.ReLU">nn.ReLU</option>
+            <option value="nn.MaxPool2d">nn.MaxPool2d</option>
+            <option value="nn.Dropout">nn.Dropout</option>
+            <option value="nn.BatchNorm2d">nn.BatchNorm2d</option>
+            <option value="nn.LSTM">nn.LSTM</option>
+            <option value="nn.Embedding">nn.Embedding</option>
+            <option value="custom">Custom Layer...</option>
+        </select>
+        <div id="customNodeDiv" style="display:none;">
+            <label for="customNodeName">Custom Layer Name</label>
+            <input type="text" id="customNodeName" placeholder="e.g. MyAttentionLayer">
+        </div>
+        <div class="modal-footer">
+            <button class="btn" onclick="cancelNode()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveNode()">Add Block</button>
+        </div>
+    </div>
+
+    <!-- ── Edit Layer Modal ────────────────────────────────────────── -->
+    <div id="editLayerModal">
+        <div class="modal-header">
+            <h3>Edit Layer Parameters</h3>
+            <span class="modal-layer-badge" id="editLayerTypeBadge">nn.Linear</span>
+        </div>
+        <div id="editParamsContainer">
+            <!-- Dynamically populated parameter inputs -->
+        </div>
+        <div class="modal-footer">
+            <button class="btn" onclick="closeEditModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveEditNode()">Save Parameters</button>
+        </div>
+    </div>
+
+    <script type="module" src="/static/app.js"></script>
+</body>
+</html>
