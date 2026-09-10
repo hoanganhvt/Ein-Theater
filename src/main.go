@@ -12,8 +12,14 @@ func main() {
 	fmt.Println("letsssssssssssss gooooooooooo!!!!")
 	_ = mime.AddExtensionType(".js", "application/javascript; charset=utf-8")
 
-	// Static web assets
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+	// Static web assets (served with no-cache headers to ensure browser always executes fresh JS)
+	fs := http.FileServer(http.Dir("static"))
+	http.Handle("/static/", http.StripPrefix("/static/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+		fs.ServeHTTP(w, r)
+	})))
 
 	// App root
 	http.HandleFunc("/", handler.IndexHandler)
@@ -41,6 +47,7 @@ func main() {
 	http.HandleFunc("/api/deleteNodes", handler.DeleteNodesHandler)
 	http.HandleFunc("/api/moveNode", handler.MoveNodeHandler)
 	http.HandleFunc("/api/addEdge", handler.AddEdgeHandler)
+	http.HandleFunc("/api/updateEdge", handler.UpdateEdgeHandler)
 	http.HandleFunc("/api/deleteEdge", handler.DeleteEdgeHandler)
 	http.HandleFunc("/api/clear", handler.ClearGraphHandler)
 

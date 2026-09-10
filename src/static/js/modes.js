@@ -1,8 +1,13 @@
 // ── Canvas Interaction Modes (Move, Select, Add Node, Add Edge) ───
 import { state } from './state.js';
+import { cancelWireCreation } from './circuit.js';
 
 export function setMode(mode) {
     state.currentMode = mode;
+
+    if (mode !== 'connect') {
+        cancelWireCreation();
+    }
 
     // Update toolbar button states
     const btnMove = document.getElementById('btnModeMove');
@@ -35,6 +40,16 @@ export function setMode(mode) {
             interaction: {
                 dragView: true,
                 dragNodes: true
+            },
+            edges: {
+                color: {
+                    color:     'rgba(0,0,0,0)',
+                    highlight: 'rgba(0,0,0,0)',
+                    hover:     'rgba(0,0,0,0)',
+                    inherit:   false,
+                    opacity:   0
+                },
+                width: 10
             }
         });
         if (banner) banner.style.display = 'none';
@@ -45,6 +60,16 @@ export function setMode(mode) {
             interaction: {
                 dragView: false,
                 dragNodes: false
+            },
+            edges: {
+                color: {
+                    color:     'rgba(0,0,0,0)',
+                    highlight: 'rgba(0,0,0,0)',
+                    hover:     'rgba(0,0,0,0)',
+                    inherit:   false,
+                    opacity:   0
+                },
+                width: 10
             }
         });
         if (banner) {
@@ -53,15 +78,26 @@ export function setMode(mode) {
         }
         if (container) container.style.cursor = 'crosshair';
     } else if (mode === 'connect') {
-        state.network.addEdgeMode();
+        cancelWireCreation();
+        state.network.disableEditMode();
         state.network.setOptions({
             interaction: {
                 dragView: false,
                 dragNodes: false
+            },
+            edges: {
+                color: {
+                    color:     'rgba(0,0,0,0)',
+                    highlight: 'rgba(0,0,0,0)',
+                    hover:     'rgba(0,0,0,0)',
+                    inherit:   false,
+                    opacity:   0
+                },
+                width: 10
             }
         });
         if (banner) {
-            banner.innerHTML = '<span>🔗 <strong>Add Edge Mode</strong> — Drag from one block to another to link them. Select <strong>Move</strong> or press <strong>Esc</strong> to exit.</span>';
+            banner.innerHTML = '<span>🔗 <strong>Add Edge Mode</strong> — Click a block to start wire, click/drag on grid to add corners (<strong>Space</strong> to flip bend), click target block to connect. <strong>Esc</strong> to cancel.</span>';
             banner.style.display = 'block';
         }
         if (container) container.style.cursor = 'crosshair';
@@ -71,6 +107,16 @@ export function setMode(mode) {
             interaction: {
                 dragView: false,
                 dragNodes: false
+            },
+            edges: {
+                color: {
+                    color:     'rgba(0,0,0,0)',
+                    highlight: 'rgba(0,0,0,0)',
+                    hover:     'rgba(0,0,0,0)',
+                    inherit:   false,
+                    opacity:   0
+                },
+                width: 10
             }
         });
         if (banner) {

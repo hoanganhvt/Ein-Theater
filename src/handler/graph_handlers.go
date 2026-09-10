@@ -23,6 +23,14 @@ func DataHandler(w http.ResponseWriter, r *http.Request) {
 		data.Nodes = append(data.Nodes, n)
 	}
 	for _, e := range p.edges {
+		if len(e.Lines) == 0 {
+			fn, ok1 := p.nodes[e.From]
+			tn, ok2 := p.nodes[e.To]
+			if ok1 && ok2 {
+				e.Lines = ComputeEdgeLines(fn, tn)
+				p.edges[e.ID] = e
+			}
+		}
 		data.Edges = append(data.Edges, e)
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -56,13 +64,15 @@ func AddNodeHandler(w http.ResponseWriter, r *http.Request) {
 
 // UpdateNodeReq defines payload for updating node parameters
 type UpdateNodeReq struct {
-	ID        string                 `json:"id"`
-	Label     string                 `json:"label,omitempty"`
-	LayerType string                 `json:"layerType,omitempty"`
-	Params    map[string]interface{} `json:"params,omitempty"`
+	ID         string                 `json:"id"`
+	Label      string                 `json:"label,omitempty"`
+	LayerType  string                 `json:"layerType,omitempty"`
+	Params     map[string]interface{} `json:"params,omitempty"`
+	Parent     *string                `json:"parent,omitempty"`
+	ParentZone *string                `json:"parentZone,omitempty"`
 }
 
-// UpdateNodeHandler updates a node's label, layerType, and parameters.
+// UpdateNodeHandler updates a node's label, layerType, parameters, and parent.
 func UpdateNodeHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -98,6 +108,13 @@ func UpdateNodeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Params != nil {
 		node.Params = req.Params
+	}
+	
+	if req.Parent != nil {
+	    node.Parent = *req.Parent
+	}
+	if req.ParentZone != nil {
+	    node.ParentZone = *req.ParentZone
 	}
 
 	p.nodes[req.ID] = node
@@ -172,21 +189,72 @@ func MoveNodeHandler(w http.ResponseWriter, r *http.Request) {
 		node.X = x
 		node.Y = y
 		p.nodes[id] = node
+		// Update straight line segments for all edges connected to this node while preserving user folds
+		for k, e := range p.edges {
+			if e.From == id || e.To == id {
+				if len(e.Lines) == 0 {
+					fn, ok1 := p.nodes[e.From]
+					tn, ok2 := p.nodes[e.To]
+					if ok1 && ok2 {
+						e.Lines = ComputeEdgeLines(fn, tn)
+						p.edges[k] = e
+					}
+				} else {
+					if e.From == id {
+						e.Lines[0].First = Point{X: x, Y: y}
+						e.Lines[0].From = Point{X: x, Y: y}
+					}
+					if e.To == id {
+						lastIdx := len(e.Lines) - 1
+						e.Lines[lastIdx].Last = Point{X: x, Y: y}
+						e.Lines[lastIdx].To = Point{X: x, Y: y}
+					}
+					p.edges[k] = e
+				}
+			}
+		}
 		w.WriteHeader(http.StatusOK)
 	} else {
 		http.Error(w, "node not found", http.StatusNotFound)
 	}
 }
 
+// AddEdgeReq defines payload for adding an edge with optional custom straight lines.
+type AddEdgeReq struct {
+	From  string `json:"from"`
+	To    string `json:"to"`
+	Lines []Line `json:"lines"`
+}
+
 // AddEdgeHandler connects two nodes with an edge.
 func AddEdgeHandler(w http.ResponseWriter, r *http.Request) {
-	from := r.URL.Query().Get("from")
-	to := r.URL.Query().Get("to")
+	var from, to string
+	var customLines []Line
+
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+		var req AddEdgeReq
+		if err := json.NewDecoder(r.Body).Decode(&req); err == nil {
+			from = req.From
+			to = req.To
+			customLines = req.Lines
+		}
+	}
+
+	if from == "" {
+		from = r.URL.Query().Get("from")
+	}
+	if to == "" {
+		to = r.URL.Query().Get("to")
+	}
 
 	mu.Lock()
 	defer mu.Unlock()
 	p := cur()
 
+	if from == "" || to == "" {
+		http.Error(w, "missing from or to parameter", http.StatusBadRequest)
+		return
+	}
 	if from == to {
 		http.Error(w, "cannot connect a node to itself", http.StatusBadRequest)
 		return
@@ -199,18 +267,92 @@ func AddEdgeHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "to node not found", http.StatusBadRequest)
 		return
 	}
+	// If an edge already exists between these nodes, update its lines rather than failing.
+	for k, e := range p.edges {
+		if e.From == from && e.To == to {
+			if len(customLines) > 0 {
+				e.Lines = customLines
+			} else {
+				fn := p.nodes[from]
+				tn := p.nodes[to]
+				e.Lines = ComputeEdgeLines(fn, tn)
+			}
+			p.edges[k] = e
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(e)
+			return
+		}
+	}
 
 	id := fmt.Sprintf("e%d", p.nextEdgeID)
 	p.nextEdgeID++
-	e := Edge{ID: id, From: from, To: to}
+
+	var lines []Line
+	if len(customLines) > 0 {
+		lines = customLines
+	} else {
+		lines = ComputeEdgeLines(p.nodes[from], p.nodes[to])
+	}
+
+	e := Edge{ID: id, From: from, To: to, Lines: lines}
 	p.edges[id] = e
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(e)
 }
 
+// UpdateEdgeReq defines the payload for updating an edge's custom lines/folds.
+type UpdateEdgeReq struct {
+	ID       string `json:"id"`
+	Lines    []Line `json:"lines"`
+	EdgeType string `json:"edgeType,omitempty"`
+}
+
+// UpdateEdgeHandler updates an edge's custom straight lines (user-decided folds).
+func UpdateEdgeHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req UpdateEdgeReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.ID == "" {
+		http.Error(w, "missing edge id", http.StatusBadRequest)
+		return
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	p := cur()
+
+	edge, ok := p.edges[req.ID]
+	if !ok {
+		http.Error(w, "edge not found", http.StatusNotFound)
+		return
+	}
+
+	if req.Lines != nil {
+		edge.Lines = req.Lines
+	}
+	if req.EdgeType != "" {
+		edge.EdgeType = req.EdgeType
+	} else if req.EdgeType == "data" {
+	    edge.EdgeType = ""
+	}
+	p.edges[req.ID] = edge
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(edge)
+}
+
 // DeleteEdgeHandler deletes an edge.
 func DeleteEdgeHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("edge deletedddd\n\n")
 	id := r.URL.Query().Get("id")
 	mu.Lock()
 	defer mu.Unlock()

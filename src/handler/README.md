@@ -15,7 +15,7 @@ All handlers interact with an in-memory state protected by a `sync.Mutex` (`mu`)
 
 ## Files and Functions
 
-### 1. `graph_handlers.go`
+### 1. [`graph_handlers.go`](./graph_handlers.go)
 Handles CRUD operations for nodes and edges within the currently active model canvas.
 
 | Function / Type | HTTP Method & Route | Description |
@@ -26,14 +26,17 @@ Handles CRUD operations for nodes and edges within the currently active model ca
 | `UpdateNodeHandler(w, r)` | `POST /api/updateNode` | Parses JSON body (`UpdateNodeReq`) and updates a node's label, layer type, and hyperparameter configuration in the active project. |
 | `DeleteNodeHandler(w, r)` | `POST /api/deleteNode` | Deletes a single node by query parameter `id`, and removes any connected edges. |
 | `DeleteNodesHandler(w, r)` | `POST /api/deleteNodes` | Batch deletes multiple nodes and their attached edges. Accepts either a JSON array of IDs in request body or a comma-separated `ids` query parameter. |
-| `MoveNodeHandler(w, r)` | `POST /api/moveNode` | Updates a node's canvas coordinates (`x` and `y` query parameters) after drag operations. |
-| `AddEdgeHandler(w, r)` | `POST /api/addEdge` | Creates a directed connection between two nodes using query parameters `from` and `to`. Rejects self-loops and missing node references. Returns the created `Edge` JSON. |
+| `MoveNodeHandler(w, r)` | `POST /api/moveNode` | Updates a node's canvas coordinates (`x` and `y` query parameters) after drag operations, and synchronizes the endpoints of all connected edges while preserving existing fold waypoints. |
+| `AddEdgeReq` | *(Struct)* | Request payload struct for adding an edge: contains `from`, `to`, and optional custom `lines` slice. |
+| `AddEdgeHandler(w, r)` | `POST /api/addEdge` | Creates or updates a directed connection between two nodes using JSON body (`AddEdgeReq`) or query parameters `from` and `to`. If custom `lines` are provided (from user waypoint/drag routing), they are saved directly; otherwise falls back to `ComputeEdgeLines`. Rejects self-loops and missing node references. If an edge already exists between `from` and `to`, gracefully updates its lines with the new path and returns HTTP 200 rather than failing. Returns the created or updated `Edge` JSON. |
+| `UpdateEdgeReq` | *(Struct)* | Request payload struct for updating edge lines: contains `id` and `lines` slice. |
+| `UpdateEdgeHandler(w, r)` | `POST /api/updateEdge` | Updates an edge's custom straight lines / user-decided fold coordinates. |
 | `DeleteEdgeHandler(w, r)` | `POST /api/deleteEdge` | Deletes an edge identified by query parameter `id`. |
 | `ClearGraphHandler(w, r)` | `POST /api/clear` | Clears all nodes and edges from the currently active project canvas. |
 
 ---
 
-### 2. `index_handler.go`
+### 2. [`index_handler.go`](./index_handler.go)
 Handles serving the frontend entry point.
 
 | Function | HTTP Method & Route | Description |
@@ -42,12 +45,14 @@ Handles serving the frontend entry point.
 
 ---
 
-### 3. `models.go`
+### 3. [`models.go`](./models.go)
 Defines core data structures, shared global state, and initialization logic.
 
 #### Data Structures (Types)
+- **`Point`**: Represents a 2D coordinate (`x`, `y`) on the electrical circuit grid.
+- **`Line`**: Represents a straight line segment forming part of an orthogonal edge trace. Fields: `first`, `last`, `from`, `to` (each a `Point` coordinate).
 - **`Node`**: Represents a neural network layer block. Fields: `id`, `label`, `shape`, `color`, `layerType`, `params` (arbitrary hyperparameter key-value pairs), `x`, and `y`.
-- **`Edge`**: Represents a directed connection between two nodes. Fields: `id`, `from`, and `to`.
+- **`Edge`**: Represents a directed connection between two nodes, viewed as a compound object of multiple straight lines (`lines` slice of `Line`). Fields: `id`, `from`, `to`, and `lines`.
 - **`Project`**: Represents an individual neural network model canvas containing its own `nodes` map, `edges` map, and ID increment counters.
 - **`ProjectMeta`**: Lightweight summary struct (`id`, `name`) returned in project lists.
 - **`GraphData`**: Graph payload containing `projectId`, `name`, `nodes` slice, and `edges` slice.
@@ -59,13 +64,17 @@ Defines core data structures, shared global state, and initialization logic.
 | Function / Variable | Description |
 | :--- | :--- |
 | `mu sync.Mutex` | Global mutex synchronizing concurrent access to all project, graph, and workspace state. |
-| `makeProject(name)` | Helper that allocates a new `Project` and seeds it with default PyTorch layer palette blocks (`nn.Linear`, `nn.Conv2d`, `nn.ReLU`, etc.). |
+| `GridSize` | Constant (50.0) defining the grid dot spacing for orthogonal trace alignment. |
+| `ComputeEdgeLines(from, to)` | Computes orthogonal straight line segments with sharp 90° right angles connecting `fromNode` to `toNode` on the electrical circuit grid. Populates `first`, `last`, `from`, and `to` coordinates for each line. |
+| `moduleSeedDef` | Internal struct used when parsing `modules.json` to identify seed layers (`type` and `defaultInSeed` fields). |
+| `loadDefaultSeedPalette()` | Reads `static/data/modules.json` and returns the ordered list of layer type strings where `defaultInSeed` is `true`. Falls back to a hardcoded list if the file is missing or malformed. |
+| `makeProject(name)` | Helper that allocates a new `Project` and seeds it with default PyTorch layer palette blocks dynamically loaded from `static/data/modules.json` (with built-in fallback). |
 | `init()` | Package initializer that sets up the first project ("Untitled Model") and defaults. |
 | `cur() *Project` | Helper returning pointer to the currently active `Project`. Must be called while holding `mu`. |
 
 ---
 
-### 4. `project_handlers.go`
+### 4. [`project_handlers.go`](./project_handlers.go)
 Handles project (model) lifecycle, switching, and renaming.
 
 | Function | HTTP Method & Route | Description |
@@ -78,7 +87,7 @@ Handles project (model) lifecycle, switching, and renaming.
 
 ---
 
-### 5. `workspace_handlers.go`
+### 5. [`workspace_handlers.go`](./workspace_handlers.go)
 Handles filesystem interaction, directory browsing, and native folder picker integration.
 
 | Function | HTTP Method & Route | Description |

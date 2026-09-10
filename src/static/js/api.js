@@ -103,9 +103,28 @@ export const api = {
         return res;
     },
 
-    async addEdge(from, to) {
-        const res = await fetch(`/api/addEdge?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { method: 'POST' });
+    async addEdge(from, to, lines = null) {
+        let res;
+        if (lines && lines.length > 0) {
+            res = await fetch('/api/addEdge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ from: String(from), to: String(to), lines })
+            });
+        } else {
+            res = await fetch(`/api/addEdge?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { method: 'POST' });
+        }
         if (!res.ok) throw new Error(await res.text() || 'Failed to add edge');
+        return await res.json();
+    },
+
+    async updateEdge(id, lines, edgeType = null) {
+        const res = await fetch('/api/updateEdge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, lines, edgeType })
+        });
+        if (!res.ok) throw new Error(await res.text() || 'Failed to update edge');
         return await res.json();
     },
 

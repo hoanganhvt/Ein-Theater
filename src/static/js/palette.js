@@ -1,6 +1,38 @@
 // ── Drag & Drop / Click from Sidebar Palette to Canvas ────────────
 import { state } from './state.js';
 import { createBlock } from './graph.js';
+import { MODULES_LIST } from './schemas.js';
+import { esc } from './utils.js';
+
+let canvasListenersInitialized = false;
+
+/**
+ * Dynamically renders the sidebar layer palette from MODULES_LIST
+ * and binds drag-and-drop / click-to-add listeners.
+ */
+export function renderPalette() {
+    const paletteList = document.getElementById('paletteList');
+    if (!paletteList) return;
+
+    let html = '';
+    MODULES_LIST.forEach(mod => {
+        html += `
+            <div class="palette-item" draggable="true" data-type="${esc(mod.type)}" title="Drag &amp; drop onto canvas or click to add">
+                <span class="palette-badge ${esc(mod.badgeClass || 'badge-blue')}">${esc(mod.badge || 'layer')}</span>
+                <span class="palette-name">${esc(mod.name || mod.type)}</span>
+                <span class="drag-handle">⋮⋮</span>
+            </div>`;
+    });
+
+    html += `
+        <div class="palette-item custom-palette-item" onclick="openAddNodeModal()" title="Open modal to create custom block">
+            <span class="palette-badge badge-gray">custom</span>
+            <span class="palette-name">+ Custom Layer...</span>
+        </div>`;
+
+    paletteList.innerHTML = html;
+    setupPaletteDragAndDrop();
+}
 
 export function setupPaletteDragAndDrop() {
     const paletteItems = document.querySelectorAll('.palette-item[draggable="true"]');
@@ -30,6 +62,9 @@ export function setupPaletteDragAndDrop() {
             }
         });
     });
+
+    if (canvasListenersInitialized) return;
+    canvasListenersInitialized = true;
 
     canvasContainer.addEventListener('dragover', (e) => {
         e.preventDefault();

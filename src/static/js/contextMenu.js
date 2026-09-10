@@ -3,6 +3,7 @@ import { state } from './state.js';
 import { api } from './api.js';
 import { setMode } from './modes.js';
 import { closeAllModals } from './modals.js';
+import { getEdgeAtCanvasPos } from './circuit.js';
 
 export function setupContextMenu() {
     const container = document.getElementById('mynetwork');
@@ -22,20 +23,41 @@ export function setupContextMenu() {
         state.contextClickPos = state.network.DOMtoCanvas({ x: domX, y: domY });
 
         const clickedNode = state.network.getNodeAt({ x: domX, y: domY });
+        const clickedEdge = (!clickedNode ? getEdgeAtCanvasPos(state.contextClickPos, 14) : null) || state.network.getEdgeAt({ x: domX, y: domY });
         let currentSelected = state.network.getSelectedNodes();
+        let currentSelectedEdges = state.network.getSelectedEdges();
 
         if (clickedNode) {
+            state.contextClickedEdge = null;
             // If right-clicked node is not in current multi-selection, select only it
             if (!currentSelected.includes(clickedNode)) {
                 state.network.selectNodes([clickedNode]);
                 currentSelected = [clickedNode];
             }
+        } else if (clickedEdge) {
+            state.contextClickedEdge = String(clickedEdge);
+            state.network.setSelection({ nodes: [], edges: [String(clickedEdge)] });
+            currentSelectedEdges = [String(clickedEdge)];
+            currentSelected = [];
+            state.network.redraw();
+        } else {
+            state.contextClickedEdge = null;
         }
 
         const count = currentSelected.length;
+        const edgeCount = currentSelectedEdges.length;
         const cmEdit = document.getElementById('cmEdit');
         const cmDelete = document.getElementById('cmDelete');
         const cmDeleteText = document.getElementById('cmDeleteText');
+        const cmInvertFold = document.getElementById('cmInvertFold');
+
+        if (cmInvertFold) {
+            if (edgeCount === 1 || clickedEdge) {
+                cmInvertFold.style.display = 'flex';
+            } else {
+                cmInvertFold.style.display = 'none';
+            }
+        }
 
         if (cmEdit) {
             cmEdit.style.display = 'flex';
@@ -48,9 +70,13 @@ export function setupContextMenu() {
 
         if (cmDelete) {
             cmDelete.style.display = 'flex';
-            if (count > 0) {
+            if (count > 0 || edgeCount > 0) {
                 cmDelete.classList.remove('disabled');
-                cmDeleteText.textContent = count > 1 ? `Delete (${count} blocks)` : 'Delete';
+                if (count > 0) {
+                    cmDeleteText.textContent = count > 1 ? `Delete (${count} blocks)` : 'Delete';
+                } else {
+                    cmDeleteText.textContent = edgeCount > 1 ? `Delete (${edgeCount} wires)` : 'Delete Wire';
+                }
             } else {
                 cmDelete.classList.add('disabled');
                 cmDeleteText.textContent = 'Delete';
@@ -129,15 +155,29 @@ export async function deleteSelectionFromContextMenu() {
     hideContextMenu();
     if (!state.network) return;
 
-    const selectedNodes = state.network.getSelectedNodes();
-    const selectedEdges = state.network.getSelectedEdges();
+    const selectedNodes = (state.network.getSelectedNodes() || []).map(String);
+    let selectedEdges = (state.network.getSelectedEdges() || []).map(String);
+
+    if (selectedEdges.length === 0 && state.contextClickedEdge) {
+        selectedEdges = [String(state.contextClickedEdge)];
+    }
+    state.contextClickedEdge = null;
 
     if (selectedNodes.length === 0 && selectedEdges.length === 0) return;
 
-    // Delete selected nodes via batch API
+    // Delete selected nodes via batch API and clean up connected edges in frontend
     if (selectedNodes.length > 0) {
         try {
             await api.deleteNodes(selectedNodes);
+            if (state.edgesDataSet) {
+                const nodeSet = new Set(selectedNodes);
+                const connectedEdges = state.edgesDataSet.get().filter(
+                    e => nodeSet.has(String(e.from)) || nodeSet.has(String(e.to))
+                );
+                if (connectedEdges.length > 0) {
+                    state.edgesDataSet.remove(connectedEdges.map(e => e.id));
+                }
+            }
             if (state.nodesDataSet) {
                 state.nodesDataSet.remove(selectedNodes);
             }
@@ -148,11 +188,20 @@ export async function deleteSelectionFromContextMenu() {
 
     // Delete selected edges if any
     if (selectedEdges.length > 0) {
-        selectedEdges.forEach(edgeId => {
-            api.deleteEdge(edgeId).catch(console.error);
-        });
+        for (const edgeId of selectedEdges) {
+            try {
+                await api.deleteEdge(edgeId);
+            } catch (err) {
+                console.error(`Failed to delete edge ${edgeId}:`, err);
+            }
+        }
         if (state.edgesDataSet) {
             state.edgesDataSet.remove(selectedEdges);
         }
+    }
+
+    if (state.network) {
+        state.network.unselectAll();
+        state.network.redraw();
     }
 }

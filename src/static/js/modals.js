@@ -1,6 +1,6 @@
 // ── Modals: Add Block & Edit Layer Parameters ─────────────────────
 import { state } from './state.js';
-import { LAYER_SCHEMAS, getDefaultParams, getLayerBaseType, formatNodeLabel } from './schemas.js';
+import { MODULES_LIST, LAYER_SCHEMAS, getDefaultParams, getLayerBaseType, formatNodeLabel } from './schemas.js';
 import { esc } from './utils.js';
 import { api } from './api.js';
 import { createBlock } from './graph.js';
@@ -9,9 +9,26 @@ import { closeSelectFolderModal } from './workspace.js';
 
 // ── Add Block Modal ───────────────────────────────────────────────
 
+export function populateNodeTypeDropdown() {
+    const select = document.getElementById('nodeType');
+    if (!select) return;
+    const currentVal = select.value;
+    let html = '';
+    MODULES_LIST.forEach(mod => {
+        html += `<option value="${esc(mod.type)}">${esc(mod.type)}</option>`;
+    });
+    html += `<option value="custom">Custom Layer...</option>`;
+    select.innerHTML = html;
+    if (currentVal && Array.from(select.options).some(opt => opt.value === currentVal)) {
+        select.value = currentVal;
+    }
+}
+
 export function openAddNodeModal(nodeData = null, callback = null) {
     state.addNodeCallback = callback;
     state.tempNodeData    = nodeData;
+
+    populateNodeTypeDropdown();
 
     const overlay = document.getElementById('modalOverlay');
     const modal   = document.getElementById('nodeModal');
@@ -20,7 +37,9 @@ export function openAddNodeModal(nodeData = null, callback = null) {
 
     if (overlay) overlay.style.display = 'block';
     if (modal)   modal.style.display   = 'block';
-    if (select)  select.value = 'nn.Linear';
+    if (select && (!select.value || select.value === 'custom')) {
+        select.value = MODULES_LIST[0] ? MODULES_LIST[0].type : 'nn.Linear';
+    }
     if (customInput) customInput.value = '';
 
     toggleCustom();

@@ -4,7 +4,7 @@
 import { state } from './js/state.js';
 import { api } from './js/api.js';
 import { esc } from './js/utils.js';
-import { LAYER_SCHEMAS, getDefaultParams, getLayerBaseType, formatNodeLabel } from './js/schemas.js';
+import { initSchemas, MODULES_LIST, LAYER_SCHEMAS, getDefaultParams, getLayerBaseType, formatNodeLabel } from './js/schemas.js';
 import {
     loadProjects,
     renderProjectList,
@@ -27,6 +27,7 @@ import {
 } from './js/modes.js';
 import {
     openAddNodeModal,
+    populateNodeTypeDropdown,
     toggleCustom,
     saveNode,
     cancelNode,
@@ -38,7 +39,7 @@ import {
     saveEditNode,
     openEditNodeFromContext
 } from './js/modals.js';
-import { setupPaletteDragAndDrop } from './js/palette.js';
+import { renderPalette, setupPaletteDragAndDrop } from './js/palette.js';
 import { setupBoxSelection } from './js/selection.js';
 import {
     setupContextMenu,
@@ -57,9 +58,21 @@ import {
     toggleFileMenu,
     closeFileMenu
 } from './js/workspace.js';
+import { invertEdgeFold, getEdgeAtCanvasPos } from './js/circuit.js';
+
+export function invertSelectedEdgeFold() {
+    const selEdgeIds = state.network ? state.network.getSelectedEdges() : [];
+    if (selEdgeIds && selEdgeIds.length > 0) {
+        invertEdgeFold(selEdgeIds[0]);
+    }
+}
 
 // ── Attach Public Handlers to Window for Inline HTML Event Handlers ───
 Object.assign(window, {
+    state,
+    api,
+    getEdgeAtCanvasPos,
+    invertSelectedEdgeFold,
     // Project & Title
     createProject,
     switchProject,
@@ -103,10 +116,12 @@ Object.assign(window, {
 
 // ── Application Initialization ────────────────────────────────────
 export async function initApp() {
+    await initSchemas();
+    populateNodeTypeDropdown();
+    renderPalette();
     await initWorkspace();
     await loadProjects();
     await loadGraph();
-    setupPaletteDragAndDrop();
     setupCanvasClickAdd();
     setupBoxSelection();
     setupContextMenu();

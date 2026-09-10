@@ -4,6 +4,7 @@ import { api } from './api.js';
 import { LAYER_SCHEMAS, getDefaultParams, formatNodeLabel } from './schemas.js';
 import { setMode } from './modes.js';
 import { openAddNodeModal, openEditNodeModal } from './modals.js';
+import { setupCircuitCanvas, snapToGrid, computeOrthogonalLines, computeEdgeLines, invertEdgeFold, updateEdgeEndpoints, getEdgeAtCanvasPos, cancelWireCreation } from './circuit.js';
 
 export async function loadGraph() {
     try {
@@ -25,8 +26,37 @@ export async function loadGraph() {
             };
         });
 
+        const processedEdges = (data.edges || []).map(e => {
+            let lines = e.lines;
+            const foldMode = e.foldMode || 'horizontal';
+            if (!lines || lines.length === 0) {
+                const fn = processedNodes.find(n => String(n.id) === String(e.from));
+                const tn = processedNodes.find(n => String(n.id) === String(e.to));
+                if (fn && tn) {
+                    lines = computeOrthogonalLines({ x: fn.x, y: fn.y }, { x: tn.x, y: tn.y }, foldMode);
+                }
+            }
+            return {
+                ...e,
+                id: String(e.id),
+                from: String(e.from),
+                to: String(e.to),
+                lines: lines || [],
+                foldMode: foldMode,
+                customFold: e.customFold !== undefined ? e.customFold : null,
+                color: {
+                    color:     'rgba(0,0,0,0)',
+                    highlight: 'rgba(0,0,0,0)',
+                    hover:     'rgba(0,0,0,0)',
+                    inherit:   false,
+                    opacity:   0
+                },
+                width: 10
+            };
+        });
+
         state.nodesDataSet = new vis.DataSet(processedNodes);
-        state.edgesDataSet = new vis.DataSet(data.edges || []);
+        state.edgesDataSet = new vis.DataSet(processedEdges);
 
         if (data.name) {
             const titleEl = document.getElementById('modelTitle');
@@ -38,52 +68,7 @@ export async function loadGraph() {
 
         const options = {
             manipulation: {
-                enabled: true,
-                addNode: function (nodeData, callback) {
-                    openAddNodeModal(nodeData, callback);
-                },
-                deleteNode: function (nodeData, callback) {
-                    if (nodeData.nodes) {
-                        nodeData.nodes.forEach(id => api.deleteNode(id).catch(console.error));
-                    }
-                    if (nodeData.edges) {
-                        nodeData.edges.forEach(id => api.deleteEdge(id).catch(console.error));
-                    }
-                    callback(nodeData);
-                },
-                addEdge: function (edgeData, callback) {
-                    if (edgeData.from === edgeData.to) {
-                        alert('Cannot connect a node to itself.');
-                        callback(null);
-                        if (state.currentMode === 'connect' && state.network) {
-                            setTimeout(() => { if (state.currentMode === 'connect' && state.network) state.network.addEdgeMode(); }, 60);
-                        }
-                        return;
-                    }
-                    api.addEdge(edgeData.from, edgeData.to)
-                        .then(e => {
-                            edgeData.id = e.id;
-                            callback(edgeData);
-                            if (state.currentMode === 'connect' && state.network) {
-                                setTimeout(() => { if (state.currentMode === 'connect' && state.network) state.network.addEdgeMode(); }, 60);
-                            }
-                        })
-                        .catch(err => {
-                            alert('Failed to add edge: ' + err.message);
-                            callback(null);
-                            if (state.currentMode === 'connect' && state.network) {
-                                setTimeout(() => { if (state.currentMode === 'connect' && state.network) state.network.addEdgeMode(); }, 60);
-                            }
-                        });
-                },
-                deleteEdge: function (edgeData, callback) {
-                    if (edgeData.edges) {
-                        edgeData.edges.forEach(id => api.deleteEdge(id).catch(console.error));
-                    }
-                    callback(edgeData);
-                },
-                editNode: false,
-                editEdge: false
+                enabled: false
             },
             interaction: {
                 dragNodes: true,
@@ -107,10 +92,20 @@ export async function loadGraph() {
                 shadow: { enabled: true, color: 'rgba(0,0,0,0.08)', size: 6, x: 2, y: 2 }
             },
             edges: {
-                width: 2,
-                color: { color: '#718096', highlight: '#007acc' },
-                smooth: { type: 'cubicBezier', forceDirection: 'horizontal', roundness: 0.4 },
-                arrows: { to: { enabled: true, scaleFactor: 0.8 } }
+                // Keep Vis.js native edges completely invisible (opacity: 0, inherit: false).
+                // All visual traces are drawn as sharp orthogonal circuit lines by circuit.js.
+                width: 10,
+                selectionWidth: 0,
+                hoverWidth: 0,
+                color: {
+                    color:     'rgba(0,0,0,0)',
+                    highlight: 'rgba(0,0,0,0)',
+                    hover:     'rgba(0,0,0,0)',
+                    inherit:   false,
+                    opacity:   0
+                },
+                smooth: false,
+                arrows: { to: { enabled: false } }
             }
         };
 
@@ -118,20 +113,87 @@ export async function loadGraph() {
         state.network = new vis.Network(container, graphData, options);
         setMode(state.currentMode);
 
+        // Initialise PCB-style grid background and orthogonal edge rendering
+        setupCircuitCanvas();
+
+        state.network.on('dragging', function (params) {
+            // Live update edge lines while dragging nodes preserving intermediate user waypoints
+            if (params.nodes && params.nodes.length > 0 && state.edgesDataSet) {
+                const positions = state.network.getPositions();
+                params.nodes.forEach(nodeId => {
+                    state.edgesDataSet.get().forEach(edge => {
+                        if (String(edge.from) === String(nodeId) || String(edge.to) === String(nodeId)) {
+                            const fn = positions[String(edge.from)];
+                            const tn = positions[String(edge.to)];
+                            if (fn && tn) {
+                                edge.lines = updateEdgeEndpoints(edge, fn, tn);
+                                state.edgesDataSet.update(edge);
+                            }
+                        }
+                    });
+                });
+            }
+        });
+
         state.network.on('dragEnd', function (params) {
             if (params.nodes && params.nodes.length > 0) {
                 params.nodes.forEach(nodeId => {
-                    const pos = (state.network.getPositions([nodeId]) || {})[nodeId];
-                    if (pos) {
-                        api.moveNode(nodeId, pos.x, pos.y).catch(console.error);
-                    }
+                    const raw = (state.network.getPositions([nodeId]) || {})[nodeId];
+                    if (!raw) return;
+                    // Snap released node to nearest grid point
+                    const { x, y } = snapToGrid(raw.x, raw.y);
+                    state.nodesDataSet.update({ id: nodeId, x, y });
+                    api.moveNode(nodeId, x, y).catch(console.error);
                 });
+
+                // Update connected edge lines with final snapped positions preserving waypoints
+                if (state.edgesDataSet) {
+                    const positions = state.network.getPositions();
+                    params.nodes.forEach(nodeId => {
+                        state.edgesDataSet.get().forEach(edge => {
+                            if (String(edge.from) === String(nodeId) || String(edge.to) === String(nodeId)) {
+                                const fn = positions[String(edge.from)];
+                                const tn = positions[String(edge.to)];
+                                if (fn && tn) {
+                                    edge.lines = updateEdgeEndpoints(edge, fn, tn);
+                                    state.edgesDataSet.update(edge);
+                                    api.updateEdge(edge.id, edge.lines).catch(console.error);
+                                }
+                            }
+                        });
+                    });
+                }
+                state.network.redraw();
+            }
+        });
+
+        state.network.on('click', function (params) {
+            if (state.currentMode === 'move' || state.currentMode === 'select') {
+                if (!params.nodes || params.nodes.length === 0) {
+                    let edgeId = (params.edges && params.edges.length > 0) ? params.edges[0] : null;
+                    if (!edgeId && params.pointer && params.pointer.canvas) {
+                        edgeId = getEdgeAtCanvasPos(params.pointer.canvas, 14);
+                    }
+                    if (edgeId) {
+                        state.network.setSelection({ nodes: [], edges: [String(edgeId)] });
+                        state.network.redraw();
+                    }
+                }
             }
         });
 
         state.network.on('doubleClick', function (params) {
             if (params.nodes && params.nodes.length === 1) {
                 openEditNodeModal(params.nodes[0]);
+            } else {
+                let edgeId = (params.edges && params.edges.length === 1) ? params.edges[0] : null;
+                if (!edgeId && params.pointer && params.pointer.canvas) {
+                    edgeId = getEdgeAtCanvasPos(params.pointer.canvas, 14);
+                }
+                if (edgeId) {
+                    // Double-clicking an edge inverts its fold orientation (H ⇄ V)
+                    invertEdgeFold(edgeId);
+                }
             }
         });
     } catch (err) {
@@ -145,7 +207,10 @@ export async function createBlock(label, posX, posY) {
         const defaultParams = LAYER_SCHEMAS[baseType] ? getDefaultParams(baseType) : {};
         const formattedLabel = formatNodeLabel(baseType, defaultParams);
 
-        const newNode = await api.addNode(formattedLabel, baseType, posX, posY);
+        // Snap placement position to nearest grid point
+        const { x: snappedX, y: snappedY } = snapToGrid(posX, posY);
+
+        const newNode = await api.addNode(formattedLabel, baseType, snappedX, snappedY);
 
         const nodeObj = {
             id:        String(newNode.id),
@@ -153,8 +218,8 @@ export async function createBlock(label, posX, posY) {
             layerType: baseType,
             params:    defaultParams,
             shape:     'box',
-            x:         (typeof newNode.x === 'number' && !isNaN(newNode.x)) ? newNode.x : posX,
-            y:         (typeof newNode.y === 'number' && !isNaN(newNode.y)) ? newNode.y : posY
+            x:         (typeof newNode.x === 'number' && !isNaN(newNode.x)) ? newNode.x : snappedX,
+            y:         (typeof newNode.y === 'number' && !isNaN(newNode.y)) ? newNode.y : snappedY
         };
 
         if (state.nodesDataSet) {
@@ -176,9 +241,14 @@ export function fitView() {
 export async function clearGraph() {
     if (!confirm('Clear the entire canvas? This cannot be undone.')) return;
     try {
+        cancelWireCreation();
         await api.clearGraph();
         if (state.nodesDataSet) state.nodesDataSet.clear();
         if (state.edgesDataSet) state.edgesDataSet.clear();
+        if (state.network) {
+            state.network.unselectAll();
+            state.network.redraw();
+        }
     } catch (e) {
         console.error('Failed to clear graph:', e);
         loadGraph();

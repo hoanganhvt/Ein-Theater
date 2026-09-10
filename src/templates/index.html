@@ -59,6 +59,7 @@
                 <button class="btn mode-btn" id="btnModeConnect" onclick="setMode('connect')" title="Add Edge: Click &amp; drag between blocks to connect them">🔗 Add Edge</button>
             </div>
             <button class="btn" onclick="fitView()">Fit View</button>
+            <button class="btn" id="btnDeleteSelection" onclick="deleteSelectionFromContextMenu()" title="Delete selected block or wire (Del / Backspace)">🗑️ Delete</button>
             <button class="btn btn-clear" onclick="clearGraph()">Clear Canvas</button>
         </div>
     </div>
@@ -102,60 +103,7 @@
                     <span class="palette-hint" title="Drag &amp; drop block onto canvas or click to add">Drag &amp; Drop</span>
                 </div>
                 <div class="palette-list" id="paletteList">
-                    <div class="palette-item" draggable="true" data-type="nn.Linear" title="Drag &amp; drop onto canvas or click to add">
-                        <span class="palette-badge badge-blue">dense</span>
-                        <span class="palette-name">nn.Linear</span>
-                        <span class="drag-handle">⋮⋮</span>
-                    </div>
-                    <div class="palette-item" draggable="true" data-type="nn.Conv2d" title="Drag &amp; drop onto canvas or click to add">
-                        <span class="palette-badge badge-green">conv</span>
-                        <span class="palette-name">nn.Conv2d</span>
-                        <span class="drag-handle">⋮⋮</span>
-                    </div>
-                    <div class="palette-item" draggable="true" data-type="nn.ReLU" title="Drag &amp; drop onto canvas or click to add">
-                        <span class="palette-badge badge-orange">act</span>
-                        <span class="palette-name">nn.ReLU</span>
-                        <span class="drag-handle">⋮⋮</span>
-                    </div>
-                    <div class="palette-item" draggable="true" data-type="nn.MaxPool2d" title="Drag &amp; drop onto canvas or click to add">
-                        <span class="palette-badge badge-purple">pool</span>
-                        <span class="palette-name">nn.MaxPool2d</span>
-                        <span class="drag-handle">⋮⋮</span>
-                    </div>
-                    <div class="palette-item" draggable="true" data-type="nn.Dropout" title="Drag &amp; drop onto canvas or click to add">
-                        <span class="palette-badge badge-red">reg</span>
-                        <span class="palette-name">nn.Dropout</span>
-                        <span class="drag-handle">⋮⋮</span>
-                    </div>
-                    <div class="palette-item" draggable="true" data-type="nn.BatchNorm2d" title="Drag &amp; drop onto canvas or click to add">
-                        <span class="palette-badge badge-blue">norm</span>
-                        <span class="palette-name">nn.BatchNorm2d</span>
-                        <span class="drag-handle">⋮⋮</span>
-                    </div>
-                    <div class="palette-item" draggable="true" data-type="nn.LayerNorm" title="Drag &amp; drop onto canvas or click to add">
-                        <span class="palette-badge badge-blue">norm</span>
-                        <span class="palette-name">nn.LayerNorm</span>
-                        <span class="drag-handle">⋮⋮</span>
-                    </div>
-                    <div class="palette-item" draggable="true" data-type="nn.LSTM" title="Drag &amp; drop onto canvas or click to add">
-                        <span class="palette-badge badge-green">rnn</span>
-                        <span class="palette-name">nn.LSTM</span>
-                        <span class="drag-handle">⋮⋮</span>
-                    </div>
-                    <div class="palette-item" draggable="true" data-type="nn.Embedding" title="Drag &amp; drop onto canvas or click to add">
-                        <span class="palette-badge badge-purple">emb</span>
-                        <span class="palette-name">nn.Embedding</span>
-                        <span class="drag-handle">⋮⋮</span>
-                    </div>
-                    <div class="palette-item" draggable="true" data-type="nn.MultiheadAttention" title="Drag &amp; drop onto canvas or click to add">
-                        <span class="palette-badge badge-orange">attn</span>
-                        <span class="palette-name">nn.MultiheadAttention</span>
-                        <span class="drag-handle">⋮⋮</span>
-                    </div>
-                    <div class="palette-item custom-palette-item" onclick="openAddNodeModal()" title="Open modal to create custom block">
-                        <span class="palette-badge badge-gray">custom</span>
-                        <span class="palette-name">+ Custom Layer...</span>
-                    </div>
+                    <!-- Blocks dynamically populated from modules.json -->
                 </div>
             </div>
         </div>
@@ -198,6 +146,11 @@
             </div>
         </div>
         <div class="context-menu-separator"></div>
+        <div class="context-menu-item" id="cmInvertFold" onclick="invertSelectedEdgeFold(); hideContextMenu();" style="display:none;">
+            <span class="cm-icon">⤹</span>
+            <span class="cm-text">Invert Edge Fold (H ⇄ V)</span>
+        </div>
+
         <div class="context-menu-item" id="cmEdit" onclick="openEditNodeFromContext(); hideContextMenu();">
             <span class="cm-icon">✏️</span>
             <span class="cm-text">Edit</span>
@@ -254,15 +207,7 @@
         <h3>Add Neural Block</h3>
         <label for="nodeType">Block Type</label>
         <select id="nodeType" onchange="toggleCustom()">
-            <option value="nn.Linear">nn.Linear</option>
-            <option value="nn.Conv2d">nn.Conv2d</option>
-            <option value="nn.ReLU">nn.ReLU</option>
-            <option value="nn.MaxPool2d">nn.MaxPool2d</option>
-            <option value="nn.Dropout">nn.Dropout</option>
-            <option value="nn.BatchNorm2d">nn.BatchNorm2d</option>
-            <option value="nn.LSTM">nn.LSTM</option>
-            <option value="nn.Embedding">nn.Embedding</option>
-            <option value="custom">Custom Layer...</option>
+            <!-- Options dynamically populated from modules.json -->
         </select>
         <div id="customNodeDiv" style="display:none;">
             <label for="customNodeName">Custom Layer Name</label>
@@ -289,6 +234,6 @@
         </div>
     </div>
 
-    <script type="module" src="/static/app.js"></script>
+    <script type="module" src="/static/app.js?v=2"></script>
 </body>
 </html>
