@@ -1,0 +1,45 @@
+﻿<!-- ── Canvas Mode Sidebar ────────────────────────────────────────── -->
+<div class="sidebar" id="canvasSidebar">
+    <!-- Working Directory Section -->
+    <div class="sidebar-section workspace-section">
+        <div class="sidebar-header">
+            <h3>Working Directory</h3>
+            <div style="display: flex; gap: 4px;">
+                <button class="btn-change-folder" onclick="promptCreateFolderSidebar()" title="Create new folder in working directory">➕</button>
+                <button class="btn-change-folder" onclick="openSelectFolderModal()" title="Select folder">📂</button>
+            </div>
+        </div>
+        <div class="workspace-card" onclick="openSelectFolderModal()" title="Click to change working directory">
+            <div class="workspace-card-icon">📁</div>
+            <div class="workspace-card-info">
+                <div class="workspace-card-name" id="sidebarWorkingDirName">None</div>
+                <div class="workspace-card-path" id="sidebarWorkingDirPath">No folder selected</div>
+            </div>
+        </div>
+        <div class="workspace-file-list" id="workspaceFileList">
+            <div class="workspace-empty-hint">No folder selected. Click to select a folder.</div>
+        </div>
+    </div>
+
+    <!-- Models Section -->
+    <div class="sidebar-section models-section">
+        <div class="sidebar-header">
+            <h3>Models</h3>
+            <button class="btn-new-model" onclick="createProject()" title="New model">+</button>
+        </div>
+        <div class="project-list" id="projectList">
+            <!-- Rendered dynamically by projects.js -->
+        </div>
+    </div>
+
+    <!-- Fundamental Blocks Palette Section -->
+    <div class="sidebar-section palette-section">
+        <div class="sidebar-header">
+            <h3>Fundemental Blocks</h3>
+            <span class="palette-hint" title="Drag &amp; drop block onto canvas or click to add">Drag &amp; Drop</span>
+        </div>
+        <div class="palette-list" id="paletteList">
+            <!-- Populated dynamically by palette.js -->
+        </div>
+    </div>
+</div>

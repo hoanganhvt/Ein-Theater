@@ -128,44 +128,55 @@ Ein Theater/
 ├── idea/                       # Prototyping directory: experimental model ideas & test suite
 │   ├── test_models.py          # Validation test suite (UNet, CNN, Linear, ViT, Transformer, etc.)
 │   └── outputs/                # Generated model code artifacts & test outputs
-└── src/                        # Go web server & web assets
+└── src/                        # Go application root (web-app module)
     ├── go.mod                  # Go module definition (web-app)
-    ├── main.go                 # HTTP server entry point, route registrations & PORT configuration
-    ├── data/
-    │   └── modules.json        # PyTorch 152-module schema definitions, templates & parameter bounds
-    ├── handler/                # Go backend HTTP handlers
-    │   ├── document.md         # Detailed Go handler architecture & REST reference
-    │   ├── graph_handlers.go   # CRUD for nodes, edges, batch deletion & canvas clear
-    │   ├── index_handler.go    # Root template rendering
-    │   ├── models.go           # Core structs (Node, Edge, Line, Project), mutex, 0-indexed ID generator
-    │   ├── project_handlers.go # Multi-model lifecycle & renaming
-    │   └── workspace_handlers.go # Filesystem browsing, folder creation, model save/load pipeline
-    ├── utils/                  # Utility services & compilers
-    │   └── generate code/      # Template-driven PyTorch code synthesis engine
-    │       ├── document.md     # Code generator engine architecture & CLI documentation
-    │       └── gen_code.py     # Core FX tracer, connection classifier, AST code generator & CLI compiler
-    ├── static/                 # Frontend client assets
-    │   ├── data/
-    │   │   └── modules.json    # Static asset copy of 152 PyTorch module schemas
-    │   ├── style.css           # Modern dark/light circuit schematic theme, model badges & toast styling
-    │   ├── app.js              # Application entry point, global keybindings (Ctrl+S) & orchestration
-    │   └── js/                 # ES6 modular client architecture
-    │       ├── document.md     # Detailed frontend architecture & module reference
-    │       ├── api.js          # REST API client wrapper (graph, workspace, model save/load, folders)
-    │       ├── circuit.js      # PCB dot-grid renderer & orthogonal edge drawing
-    │       ├── contextMenu.js  # Right-click context menu & shortcuts
-    │       ├── graph.js        # Vis.js network lifecycle, node placement & grid snap
-    │       ├── modals.js       # Add/Edit layer modals, live search & code preview
-    │       ├── modes.js        # Mode switcher (Move, Select, Add, Connect)
-    │       ├── palette.js      # Fundamental blocks sidebar rendering & drag-and-drop
-    │       ├── projects.js     # Project tabs, switching & renaming
-    │       ├── schemas.js      # Schema loading, parameter defaults & clean human-readable label formatting
-    │       ├── selection.js    # Rubber-band marquee box selection
-    │       ├── state.js        # Central shared reactive state container
-    │       ├── utils.js        # Utility helpers & string escaping
-    │       └── workspace.js    # Working directory explorer, model detection, folder creation & toasts
-    └── templates/
-        └── index.html          # Main single-page application markup with menu bar, toolbar & modal containers
+    ├── main.go                 # Main HTTP server orchestrator (registers all studio modes)
+    ├── templates/
+    │   └── index.html          # Unified global HTML shell & Mode Tab view switcher
+    ├── static/
+    │   └── style.css           # Unified global stylesheet & shared design system
+    └── Canvas/                 # [Mode: Canvas] Neural Architecture Design Studio
+        ├── canvas.go           # Standalone Canvas mode runner & server entry point
+        ├── data/
+        │   └── modules.json    # PyTorch 152-module schema definitions, templates & parameter bounds
+        ├── handler/            # Canvas Go backend HTTP handlers
+        │   ├── document.md     # Detailed Canvas handler architecture & REST reference
+        │   ├── routes.go       # Centralized route registration helper (RegisterRoutes) & multiDirFS
+        │   ├── graph_handlers.go   # CRUD for nodes, edges, batch deletion & canvas clear
+        │   ├── index_handler.go    # Root template rendering & dynamic template locator
+        │   ├── models.go       # Core structs (Node, Edge, Line, Project), mutex, 0-indexed ID generator
+        │   ├── models_test.go  # Unit & integration tests for model handlers
+        │   ├── project_handlers.go # Multi-model lifecycle & renaming
+        │   └── workspace_handlers.go # Filesystem browsing, folder creation, model save/load pipeline
+        ├── utils/              # Canvas utility services & compilers
+        │   └── generate code/  # Template-driven PyTorch code synthesis engine
+        │       ├── document.md # Code generator engine architecture & CLI documentation
+        │       └── gen_code.py # Core FX tracer, connection classifier, AST code generator & CLI compiler
+        ├── static/             # Canvas mode static assets
+        │   ├── data/
+        │   │   └── modules.json# Static asset copy of 152 PyTorch module schemas
+        │   ├── canvas.css      # Mode-specific stylesheet (PCB grid, palette, block modals, wiring)
+        │   ├── app.js          # Canvas application entry point, global keybindings & orchestration
+        │   └── js/             # ES6 modular client architecture
+        │       ├── document.md # Detailed frontend architecture & module reference
+        │       ├── api.js      # REST API client wrapper (graph, workspace, model save/load, folders)
+        │       ├── circuit.js  # PCB dot-grid renderer & orthogonal edge drawing
+        │       ├── clipboard.js# Clipboard operations (copy, cut, paste, select all)
+        │       ├── contextMenu.js # Right-click context menu & shortcuts
+        │       ├── graph.js    # Vis.js network lifecycle, node placement & grid snap
+        │       ├── modals.js   # Add/Edit layer modals, live search & code preview
+        │       ├── modes.js    # Canvas tools switcher (Move, Select, Add, Connect)
+        │       ├── palette.js  # Fundamental blocks sidebar rendering & drag-and-drop
+        │       ├── projects.js # Project tabs, switching & renaming
+        │       ├── schemas.js  # Schema loading, parameter defaults & label formatting
+        │       ├── selection.js# Rubber-band marquee box selection
+        │       ├── sidebarLoader.js # Custom dynamic sidebar loader & mode switcher
+        │       ├── state.js    # Central shared reactive state container
+        │       ├── utils.js    # Utility helpers & string escaping
+        │       └── workspace.js# Working directory explorer, model detection, folder creation & toasts
+        └── templates/
+            ├── canvas.html     # Mode-specific HTML template
+            └── sidebar.html    # Canvas mode sidebar fragment loaded dynamically
 ```
 
 ---
@@ -448,7 +459,7 @@ The Go HTTP backend exposes RESTful endpoints for graph state, project managemen
 | `/api/workspace/browse` | `GET` | Query: `dir` | Browses subfolders, files, and system drives. Detects verified model packages (`isModel: true`). |
 | `/api/workspace/select-native` | `POST` | None | Launches Windows native folder picker dialog via PowerShell (`FolderBrowserDialog`). |
 | `/api/workspace/create-folder` | `POST` | JSON: `{ dir, name }` | Creates a new subdirectory in the target parent folder. |
-| `/api/workspace/save-model`<br>`/api/saveModel` | `POST` | JSON: `{ projectId?, dir? }` | Serializes model canvas, runs `src/utils/generate code/gen_code.py` generator, and saves `<model_name>/<model_name>.json` and `.py`. |
+| `/api/workspace/save-model`<br>`/api/saveModel` | `POST` | JSON: `{ projectId?, dir? }` | Serializes model canvas, runs `src/Canvas/utils/generate code/gen_code.py` generator, and saves `<model_name>/<model_name>.json` and `.py`. |
 | `/api/workspace/load-model`<br>`/api/loadModel` | `POST` | JSON: `{ path?, dir? }` | Validates model naming, reads `<model_name>.json`, restores nodes and edges, and switches active canvas. |
 
 ---
@@ -457,6 +468,6 @@ The Go HTTP backend exposes RESTful endpoints for graph state, project managemen
 
 For in-depth developer documentation of internal subsystems, refer to:
 
-- [`src/handler/document.md`](./src/handler/document.md) — Detailed Go backend architecture, concurrency model, data structs, and handler implementations.
-- [`src/static/js/document.md`](./src/static/js/document.md) — Comprehensive frontend client architecture, Vis.js custom rendering pipeline, PCB circuit line algorithms, and reactive state management.
-- [`src/utils/generate code/document.md`](./src/utils/generate%20code/document.md) — PyTorch FX symbolic tracing, connection classification, AST code generation engine, and CLI compiler reference.
+- [`src/Canvas/handler/document.md`](./src/Canvas/handler/document.md) — Detailed Go backend architecture, concurrency model, data structs, and handler implementations.
+- [`src/Canvas/static/js/document.md`](./src/Canvas/static/js/document.md) — Comprehensive frontend client architecture, Vis.js custom rendering pipeline, PCB circuit line algorithms, and reactive state management.
+- [`src/Canvas/utils/generate code/document.md`](./src/Canvas/utils/generate%20code/document.md) — PyTorch FX symbolic tracing, connection classification, AST code generation engine, and CLI compiler reference.

@@ -263,8 +263,12 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
 
 func findGenCodePyPath() string {
 	candidates := []string{
+		filepath.Join("Canvas", "utils", "generate code", "gen_code.py"),
+		filepath.Join("src", "Canvas", "utils", "generate code", "gen_code.py"),
 		filepath.Join("utils", "generate code", "gen_code.py"),
 		filepath.Join("src", "utils", "generate code", "gen_code.py"),
+		filepath.Join("..", "Canvas", "utils", "generate code", "gen_code.py"),
+		filepath.Join("..", "src", "Canvas", "utils", "generate code", "gen_code.py"),
 		filepath.Join("..", "src", "utils", "generate code", "gen_code.py"),
 		filepath.Join("..", "utils", "generate code", "gen_code.py"),
 		filepath.Join("..", "idea", "test.py"),
@@ -279,7 +283,7 @@ func findGenCodePyPath() string {
 			return c
 		}
 	}
-	return filepath.Join("src", "utils", "generate code", "gen_code.py")
+	return filepath.Join("Canvas", "utils", "generate code", "gen_code.py")
 }
 
 // CreateFolderHandler creates a new folder within the specified or active directory.

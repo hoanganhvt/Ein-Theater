@@ -230,10 +230,16 @@ type moduleSeedDef struct {
 
 func loadDefaultSeedPalette() []string {
 	paths := []string{
+		filepath.Join("Canvas", "data", "modules.json"),
+		filepath.Join("src", "Canvas", "data", "modules.json"),
+		filepath.Join("Canvas", "static", "data", "modules.json"),
+		filepath.Join("src", "Canvas", "static", "data", "modules.json"),
 		filepath.Join("static", "data", "modules.json"),
 		filepath.Join("src", "static", "data", "modules.json"),
 		filepath.Join("data", "modules.json"),
 		filepath.Join("src", "data", "modules.json"),
+		filepath.Join("..", "data", "modules.json"),
+		filepath.Join("..", "Canvas", "data", "modules.json"),
 	}
 	for _, p := range paths {
 		data, err := os.ReadFile(p)

@@ -12,7 +12,7 @@
 <body>
     <div id="modalOverlay" onclick="closeAllModals()"></div>
 
-    <!-- ── Global Header ────────────────────────────────────────────── -->
+    <!-- ── Header ─────────────────────────────────────────────────── -->
     <div class="header">
         <div class="header-left">
             <!-- File Menu Dropdown -->
@@ -52,30 +52,29 @@
 
             <div class="header-divider"></div>
 
-            <!-- Global Mode Switcher Tabs -->
+            <!-- Application Mode Switcher Tabs -->
             <div class="mode-tabs" id="appModeTabs">
-                <button class="mode-tab active" data-mode="canvas" onclick="switchMode('canvas')" title="Canvas Neural Architecture Editor">
+                <button class="mode-tab active" data-mode="canvas" onclick="switchMode('canvas')" title="Active: Canvas Neural Architecture Editor">
                     <span class="mode-tab-icon">🎨</span>
                     <span>Canvas</span>
                 </button>
-                <button class="mode-tab disabled" data-mode="data" onclick="switchMode('data')" title="Data Mode (coming soon)">
+                <button class="mode-tab disabled" data-mode="data" onclick="switchMode('data')" title="Data Preparation & Dataloader (Coming Soon)">
                     <span class="mode-tab-icon">📊</span>
                     <span>Data</span>
                     <span class="mode-tab-badge">Soon</span>
                 </button>
-                <button class="mode-tab disabled" data-mode="train" onclick="switchMode('train')" title="Train Mode (coming soon)">
+                <button class="mode-tab disabled" data-mode="train" onclick="switchMode('train')" title="Training & Realtime Metrics (Coming Soon)">
                     <span class="mode-tab-icon">⚡</span>
                     <span>Train</span>
                     <span class="mode-tab-badge">Soon</span>
                 </button>
-                <button class="mode-tab disabled" data-mode="code" onclick="switchMode('code')" title="Code Mode (coming soon)">
+                <button class="mode-tab disabled" data-mode="code" onclick="switchMode('code')" title="Code Editor & Custom Scripts (Coming Soon)">
                     <span class="mode-tab-icon">💻</span>
                     <span>Code</span>
                     <span class="mode-tab-badge">Soon</span>
                 </button>
             </div>
         </div>
-
         <div class="toolbar">
             <button class="btn btn-save" id="btnSaveModel" onclick="saveActiveModel()" title="Save Model (Ctrl+S)">💾 Save</button>
             <button class="btn" onclick="fitView()">Fit View</button>
@@ -85,6 +84,7 @@
 
     <!-- ── Workspace ──────────────────────────────────────────────── -->
     <div class="workspace" id="appWorkspace">
+
         <!-- Dynamic Sidebar Mount Slot (Managed by Custom Sidebar Loader) -->
         <div id="sidebarSlot" class="sidebar-slot"></div>
 

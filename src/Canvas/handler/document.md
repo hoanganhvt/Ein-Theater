@@ -1,6 +1,6 @@
-# Backend Handlers Documentation (`src/handler`)
+# Backend Handlers Documentation (`src/Canvas/handler`)
 
-This directory contains the Go backend HTTP handler functions, domain data structures, and thread-safe state management for **Ein Theater**.
+This directory contains the Go backend HTTP handler functions, domain data structures, and thread-safe state management for **Ein Theater** Canvas mode.
 
 ---
 
@@ -10,7 +10,7 @@ All handlers interact with an in-memory state protected by a package-level mutex
 - **Projects / Models**: Multi-project tabs containing graph nodes, orthogonal edges, and scoped ID counters.
 - **Graph Elements**: PyTorch neural network layer blocks (nodes) and directed orthogonal circuit connections (edges).
 - **Workspace & Filesystem**: Working directory selection, subfolder creation, directory browsing, verified model detection, and native Windows folder dialog integration via PowerShell.
-- **Python Code Generation Subprocess**: Seamless invocation of `src/utils/generate code/gen_code.py` via standard input/output pipes to compile canvas graphs into executable PyTorch `nn.Module` scripts and JSON specifications.
+- **Python Code Generation Subprocess**: Seamless invocation of `src/Canvas/utils/generate code/gen_code.py` via standard input/output pipes to compile canvas graphs into executable PyTorch `nn.Module` scripts and JSON specifications.
 
 ```
                   ┌──────────────────────────────────────────────┐
@@ -162,55 +162,24 @@ Provides filesystem access, directory navigation, folder creation, model seriali
 
 ---
 
-### 6. [`main.go`](../main.go) Server Entry Point & Routing
+### 6. [`routes.go`](./routes.go) Route Registration & Asset Resolvers
 
-The server entry point initializes route handlers and configures the listener:
+Provides shared route registration and dynamic path resolvers used by both `canvas.go` and `main.go`:
+- `FindStaticDir()`: Locates the `static` assets folder across candidate paths (`Canvas/static`, `static`, `src/Canvas/static`).
+- `FindTemplatePath(rel)`: Locates template HTML files across candidate paths (`Canvas/templates`, `templates`, `src/Canvas/templates`).
+- `RegisterRoutes(mux *http.ServeMux)`: Sets up all canvas API endpoints, workspace handlers, and static asset streaming on the target multiplexer.
 
-- **Configurable Port**: Reads `PORT` environment variable (`os.Getenv("PORT")`), falling back to `:8080`.
-- **Registered Route Table**:
-  ```go
-  // Static assets & index
-  http.HandleFunc("/", handler.IndexHandler)
-  http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
-  http.HandleFunc("/data", handler.DataHandler)
-  http.HandleFunc("/api/data", handler.DataHandler)
+---
 
-  // Project management
-  http.HandleFunc("/api/projects", handler.ListProjectsHandler)
-  http.HandleFunc("/api/projects/create", handler.CreateProjectHandler)
-  http.HandleFunc("/api/projects/switch", handler.SwitchProjectHandler)
-  http.HandleFunc("/api/projects/delete", handler.DeleteProjectHandler)
+### 7. Entry Points: [`canvas.go`](../canvas.go) & [`main.go`](../../main.go)
 
-  // Workspace & model save/load
-  http.HandleFunc("/api/workspace", handler.WorkspaceHandler)
-  http.HandleFunc("/api/workspace/set", handler.SetWorkspaceHandler)
-  http.HandleFunc("/api/workspace/browse", handler.BrowseWorkspaceHandler)
-  http.HandleFunc("/api/workspace/select-native", handler.SelectNativeFolderHandler)
-  http.HandleFunc("/api/workspace/create-folder", handler.CreateFolderHandler)
-  http.HandleFunc("/api/workspace/save-model", handler.SaveModelHandler)
-  http.HandleFunc("/api/saveModel", handler.SaveModelHandler)
-  http.HandleFunc("/api/workspace/load-model", handler.LoadModelHandler)
-  http.HandleFunc("/api/loadModel", handler.LoadModelHandler)
-
-  // Canvas operations
-  http.HandleFunc("/api/rename", handler.RenameModelHandler)
-  http.HandleFunc("/api/addNode", handler.AddNodeHandler)
-  http.HandleFunc("/api/updateNode", handler.UpdateNodeHandler)
-  http.HandleFunc("/api/deleteNode", handler.DeleteNodeHandler)
-  http.HandleFunc("/api/deleteNodes", handler.DeleteNodesHandler)
-  http.HandleFunc("/api/moveNode", handler.MoveNodeHandler)
-  http.HandleFunc("/api/addEdge", handler.AddEdgeHandler)
-  http.HandleFunc("/api/updateEdge", handler.UpdateEdgeHandler)
-  http.HandleFunc("/api/deleteEdge", handler.DeleteEdgeHandler)
-  http.HandleFunc("/api/paste", handler.PasteGraphHandler)
-  http.HandleFunc("/api/pasteGraph", handler.PasteGraphHandler)
-  http.HandleFunc("/api/clear", handler.ClearGraphHandler)
-  ```
+- **`src/Canvas/canvas.go`**: Standalone Canvas mode runner (`package main`). Directly starts the server for rapid mode-specific iteration.
+- **`src/main.go`**: Root studio orchestrator (`package main`). Mounts Canvas mode routes and coordinates future modes (`Data`, `Train`, `Code`).
 
 ---
 
 ## Related Documentation
 
-- [Root Documentation](../../document.md) — Comprehensive overview of Ein Theater.
+- [Root Documentation](../../../document.md) — Comprehensive overview of Ein Theater.
 - [Frontend JavaScript Documentation](../static/js/document.md) — Client-side ES6 architecture and Vis.js/Canvas rendering pipeline.
 - [PyTorch Code Generation Engine](../utils/generate%20code/document.md) — AST compiler, FX graph tracing, and connection classification reference.

@@ -41,6 +41,7 @@ import {
     openEditNodeFromContext
 } from './js/modals.js';
 import { renderPalette, setupPaletteDragAndDrop } from './js/palette.js';
+import { loadSidebar, switchMode, getActiveSidebarMode } from './js/sidebarLoader.js';
 import { setupBoxSelection } from './js/selection.js';
 import {
     setupContextMenu,
@@ -137,7 +138,12 @@ Object.assign(window, {
     saveActiveModel,
     promptCreateFolderModal,
     promptCreateFolderSidebar,
-    loadModelFromFolder
+    loadModelFromFolder,
+
+    // Custom Mode Sidebar Loader & Mode Switcher
+    loadSidebar,
+    switchMode,
+    getActiveSidebarMode
 });
 
 // ── Application Initialization ────────────────────────────────────
@@ -145,9 +151,18 @@ export async function initApp() {
     await initSchemas();
     populateCategoryDropdown();
     populateNodeTypeDropdown();
-    renderPalette();
-    await initWorkspace();
-    await loadProjects();
+
+    // Dynamically load mode-specific sidebar via Custom Sidebar Loader
+    const hasSidebar = !!document.querySelector('.sidebar');
+    if (!hasSidebar) {
+        await loadSidebar('canvas');
+    } else {
+        renderPalette();
+        await initWorkspace();
+        await loadProjects();
+        setupPaletteDragAndDrop();
+    }
+
     await loadGraph();
     setupCanvasClickAdd();
     setupBoxSelection();

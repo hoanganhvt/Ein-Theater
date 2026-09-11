@@ -18,8 +18,11 @@ def find_modules_json_path() -> Optional[str]:
     candidates = [
         os.path.join(curr, '..', '..', 'data', 'modules.json'),
         os.path.join(curr, '..', '..', 'static', 'data', 'modules.json'),
+        os.path.join(curr, '..', '..', '..', 'src', 'Canvas', 'data', 'modules.json'),
         os.path.join(curr, '..', '..', '..', 'src', 'data', 'modules.json'),
         os.path.join(curr, '..', '..', '..', 'src', 'static', 'data', 'modules.json'),
+        os.path.join(os.getcwd(), 'src', 'Canvas', 'data', 'modules.json'),
+        os.path.join(os.getcwd(), 'Canvas', 'data', 'modules.json'),
         os.path.join(os.getcwd(), 'src', 'data', 'modules.json'),
         os.path.join(os.getcwd(), 'src', 'static', 'data', 'modules.json'),
         os.path.join(os.getcwd(), 'data', 'modules.json'),
