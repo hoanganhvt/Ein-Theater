@@ -395,7 +395,7 @@ export function cancelWireCreation() {
     _previewBendMode = 'horizontal';
     const banner = document.getElementById('modeBanner');
     if (banner && state.currentMode === 'connect') {
-        banner.innerHTML = '<span>🔗 <strong>Add Edge Mode</strong> — Drag or click to draw wire path, click target block to connect. <strong>Esc</strong> to cancel.</span>';
+        banner.innerHTML = '<span>🔗 <strong>Add Edge</strong> — Drag or click to draw wire path, click target block to connect. <strong>Esc</strong> to cancel.</span>';
     }
     if (state.network) state.network.redraw();
 }

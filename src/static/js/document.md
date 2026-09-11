@@ -403,7 +403,7 @@ Manages workspace directory selection, file tree rendering, model detection, fol
 
 - `initWorkspace()`: Loads initial workspace info on startup and configures outside-click listener for header File menu.
 - `loadWorkspace()`: Queries backend for current active directory.
-- `updateWorkspaceUI(workingDir, name)`: Updates workspace indicators in header pill and sidebar.
+- `updateWorkspaceUI(workingDir, name)`: Updates workspace indicators in the File menu and sidebar.
 - `loadWorkspaceFiles(dirPath)`: Renders subfolders and files inside the sidebar workspace tree. Identifies verified model folders (`f.isModel`), tagging them with a `🧠` icon and `Model` badge (`.model-badge`). Clicking a model folder directly loads it onto the canvas via `loadModelFromFolder()`.
 - `toggleFileMenu(event)` / `closeFileMenu()`: Toggles and closes the header File dropdown.
 - `openSelectFolderModal(targetDir)` / `closeSelectFolderModal()`: Opens and closes the folder browser modal.

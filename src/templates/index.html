@@ -40,13 +40,6 @@
                 </div>
             </div>
 
-            <!-- Working Directory Pill -->
-            <div class="working-dir-pill" id="headerWorkingDirPill" onclick="openSelectFolderModal()" title="No working directory selected. Click to select a folder.">
-                <span class="working-dir-icon">📁</span>
-                <span class="working-dir-label">Dir:</span>
-                <span class="working-dir-name" id="headerWorkingDirName">None</span>
-            </div>
-
             <div class="header-divider"></div>
 
             <div class="model-title-wrap" onclick="startRename()" title="Click to rename model">
@@ -128,8 +121,8 @@
     <!-- ── Context Menu ────────────────────────────────────────────── -->
     <div id="contextMenu" class="context-menu">
         <div class="context-menu-item has-submenu" id="cmModeParent">
-            <span class="cm-icon">⚙️</span>
-            <span class="cm-text">Mode</span>
+            <span class="cm-icon">⚡</span>
+            <span class="cm-text">Actions</span>
             <span class="cm-arrow">▶</span>
             <div class="context-submenu" id="cmSubmenu">
                 <div class="context-menu-item" onclick="setMode('select'); hideContextMenu();">

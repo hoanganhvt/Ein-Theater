@@ -47,8 +47,6 @@ export async function loadWorkspace() {
 }
 
 export function updateWorkspaceUI(workingDir, name) {
-    const headerName = document.getElementById('headerWorkingDirName');
-    const headerPill = document.getElementById('headerWorkingDirPill');
     const menuDir = document.getElementById('menuWorkingDir');
     const sidebarName = document.getElementById('sidebarWorkingDirName');
     const sidebarPath = document.getElementById('sidebarWorkingDirPath');
@@ -56,8 +54,6 @@ export function updateWorkspaceUI(workingDir, name) {
     const isNone = !workingDir || workingDir === '' || name === 'None';
     const displayName = isNone ? 'None' : (name || workingDir.split(/[\\/]/).filter(Boolean).pop());
 
-    if (headerName) headerName.textContent = displayName;
-    if (headerPill) headerPill.title = isNone ? 'No working directory selected. Click to select a folder.' : `Current Working Directory: ${workingDir}`;
     if (menuDir) {
         menuDir.textContent = isNone ? 'None' : workingDir;
         menuDir.title = isNone ? '' : workingDir;

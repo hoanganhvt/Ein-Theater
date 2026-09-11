@@ -74,7 +74,7 @@ export function setMode(mode) {
             }
         });
         if (banner) {
-            banner.innerHTML = '<span>⬚ <strong>Select Mode</strong> — Drag on canvas to select multiple blocks. Select <strong>Move</strong> or press <strong>Esc</strong> to exit.</span>';
+            banner.innerHTML = '<span>⬚ <strong>Select</strong> — Drag on canvas to select multiple blocks. Click <strong>Move</strong> or press <strong>Esc</strong> to exit.</span>';
             banner.style.display = 'block';
         }
         if (container) container.style.cursor = 'crosshair';
@@ -98,7 +98,7 @@ export function setMode(mode) {
             }
         });
         if (banner) {
-            banner.innerHTML = '<span>🔗 <strong>Add Edge Mode</strong> — Click a block to start wire, click/drag on grid to add corners (<strong>Space</strong> to flip bend), click target block to connect. <strong>Esc</strong> to cancel.</span>';
+            banner.innerHTML = '<span>🔗 <strong>Add Edge</strong> — Click a block to start wire, click/drag on grid to add corners (<strong>Space</strong> to flip bend), click target block to connect. <strong>Esc</strong> to cancel.</span>';
             banner.style.display = 'block';
         }
         if (container) container.style.cursor = 'crosshair';
@@ -121,7 +121,7 @@ export function setMode(mode) {
             }
         });
         if (banner) {
-            banner.innerHTML = '<span>➕ <strong>Add Node Mode</strong> — Click anywhere on canvas to place a block. Select <strong>Move</strong> or press <strong>Esc</strong> to exit.</span>';
+            banner.innerHTML = '<span>➕ <strong>Add Node</strong> — Click anywhere on canvas to place a block. Click <strong>Move</strong> or press <strong>Esc</strong> to exit.</span>';
             banner.style.display = 'block';
         }
         if (container) container.style.cursor = 'copy';

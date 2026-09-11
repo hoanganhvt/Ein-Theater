@@ -821,42 +821,6 @@ div.vis-network div.vis-close {
     text-overflow: ellipsis;
     max-width: 200px;
 }
-
-/* Working Directory Pill in Header */
-.working-dir-pill {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    background-color: #f1f5f9;
-    border: 1px solid #cbd5e1;
-    border-radius: 16px;
-    font-size: 12px;
-    font-weight: 500;
-    color: #334155;
-    cursor: pointer;
-    transition: all 0.15s;
-    max-width: 200px;
-    white-space: nowrap;
-}
-.working-dir-pill:hover {
-    background-color: #e2e8f0;
-    border-color: #007acc;
-    color: #007acc;
-}
-.working-dir-icon {
-    font-size: 13px;
-}
-.working-dir-label {
-    color: #64748b;
-    font-weight: 600;
-}
-.working-dir-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
 /* Sidebar Working Directory Section */
 .workspace-section {
     border-bottom: 1px solid #e0e0e0;
