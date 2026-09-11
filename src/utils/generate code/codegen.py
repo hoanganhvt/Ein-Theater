@@ -166,6 +166,6 @@ def generate_code_from_json(json_data, model_name=None):
     init_code += "        self.to(self.device)\n"
 
     code = imports + header + init_code + "\n" + forward_code
-    if class_name != 'GeneratedModel':
-        code += f"\n\n# Alias for backwards compatibility\nGeneratedModel = {class_name}\n"
+    
+    code += f"\n\n# steve once here\n\n"
     return code
