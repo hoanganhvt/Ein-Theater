@@ -156,6 +156,8 @@ func loadDefaultSeedPalette() []string {
 	paths := []string{
 		filepath.Join("static", "data", "modules.json"),
 		filepath.Join("src", "static", "data", "modules.json"),
+		filepath.Join("data", "modules.json"),
+		filepath.Join("src", "data", "modules.json"),
 	}
 	for _, p := range paths {
 		data, err := os.ReadFile(p)

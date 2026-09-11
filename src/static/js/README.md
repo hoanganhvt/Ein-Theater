@@ -45,7 +45,7 @@ Nodes represent PyTorch neural network layer blocks (e.g., `nn.Linear`, `nn.Conv
 | `params` | `object` | Key-value dictionary containing the layer's hyperparameters defined by `modules.json` (or `{ customArgs: string }` for custom blocks). |
 
 #### Hyperparameter Sub-Schema (`params`) & `modules.json`
-Each `layerType` corresponds to a schema definition loaded dynamically from [`modules.json`](../data/modules.json):
+Each `layerType` corresponds to a schema definition loaded dynamically from [`modules.json`](../data/modules.json) (covering 152 PyTorch `nn.Module` classes):
 - **Typed Fields**:
   - `number`: Rendered as numeric inputs with optional `min`, `max`, and `step` constraints (e.g. `kernel_size`, `in_features`, `dropout`).
   - `boolean`: Rendered as styled checkbox toggles (e.g. `bias`, `inplace`, `batch_first`).
@@ -55,6 +55,8 @@ Each `layerType` corresponds to a schema definition loaded dynamically from [`mo
   - `{key}`: Variable substitution (e.g. `{in_features} → {out_features}`).
   - `{#key}...{/key}`: Conditional truthy block (e.g. `{#inplace}\n(inplace){/inplace}`).
   - `{^key}...{/key}`: Inverted / falsy conditional block.
+- **Code Template (`code`)**:
+  Python constructor invocation string (e.g. `nn.Conv2d(in_channels={in_channels}, out_channels={out_channels}, kernel_size={kernel_size}, stride={stride}, padding={padding}, bias={bias})`) used by the live preview card and Python code synthesis generator.
 
 #### Canvas Box Dimensions & Vis.js Configuration
 - **Visual Styling**: White background (`#ffffff`), dark slate border (`#4a5568`, width `1.5px`), soft drop shadow (`rgba(0,0,0,0.08)`), Inter font (`14px`, `#1a202c`), with inner padding `margin: 12`.
@@ -276,9 +278,12 @@ Initializes and coordinates the Vis.js network canvas.
 Handles UI dialog modals for creating new blocks and modifying existing layer hyperparameters.
 
 - **Add Node Modal:**
-  - `populateNodeTypeDropdown()`: Dynamically generates `<option>` elements for `<select id="nodeType">` from the loaded `MODULES_LIST`, appending the `Custom Layer...` option.
-  - `openAddNodeModal(nodeData, callback)`: Displays the add block dialog and refreshes the layer type dropdown.
-  - `toggleCustom()`: Toggles the custom layer name input when "Custom..." is selected in dropdown.
+  - `CATEGORY_DEFINITIONS`: Catalog of functional layer categories (Dense, Convolutional, Activation, Pooling, Normalization, Padding, Regularization, Recurrent, Transformer, Embedding, Vision, Loss, Distance, Utility, Custom) with distinctive icons.
+  - `populateCategoryDropdown()`: Populates the category filter `<select id="nodeCategory">` with real-time layer counts per category.
+  - `populateNodeTypeDropdown(category, searchQuery)`: Dynamically filters the block dropdown by selected category and live text search query across layer class names, badges, and categories. When "All Categories" is selected, organizes options into categorized `<optgroup>` sections.
+  - `updateNodePreview()`: Live preview card inside the modal showing the selected layer's category, badge, formatted canvas display label, and Python constructor code template.
+  - `openAddNodeModal(nodeData, callback)`: Displays the add block dialog, initializes category and search filters, and focuses the search field for quick keyboard navigation.
+  - `toggleCustom()`: Toggles the custom layer name input when "Custom Layer..." is selected.
   - `saveNode()`: Reads chosen layer type/name, calculates placement position, and triggers creation.
   - `cancelNode()`: Dismisses the modal and cancels Vis.js manipulation callback.
   - `closeModal()`: Closes add block modal and overlay.
@@ -296,14 +301,14 @@ Handles UI dialog modals for creating new blocks and modifying existing layer hy
 Controls interaction modes on the canvas toolbar.
 
 - `setMode(mode)`: Sets the current tool mode (`'move'`, `'select'`, `'connect'`, `'add'`). Updates toolbar button active classes, context menu checkmarks, floating mode banner instructions, and cursor styles. Ensures Vis.js native edges remain completely transparent across all modes (`opacity: 0`). When switching away from `'connect'`, automatically calls `cancelWireCreation()` to reset drawing state.
-- `setupCanvasClickAdd()`: Binds canvas click listener while in `'add'` mode, opening the block creation modal pre-populated with the click location.
+- `setupCanvasClickAdd()`: Binds canvas click listener while in `'add'` mode, opening the categorized block creation modal pre-populated with the click location.
 
 ---
 
 ### 7. `palette.js`
 Handles dynamic rendering and user interactions from the left sidebar layer palette.
 
-- `renderPalette()`: Dynamically generates `.palette-item` DOM elements inside `#paletteList` based on `MODULES_LIST` (from `modules.json`), applying category badges, custom styles, and appending the "+ Custom Layer..." block. Automatically calls `setupPaletteDragAndDrop()`.
+- `renderPalette()`: Dynamically renders the 10 most fundamental PyTorch layers inside `#paletteList` under the "Fundemental Blocks" section (`nn.Linear`, `nn.Conv2d`, `nn.ReLU`, `nn.MaxPool2d`, `nn.BatchNorm2d`, `nn.LayerNorm`, `nn.Dropout`, `nn.LSTM`, `nn.MultiheadAttention`, `nn.Embedding`), followed by a "+ More / Custom..." block that launches the full categorized 152-module selection modal. Automatically calls `setupPaletteDragAndDrop()`.
 - `setupPaletteDragAndDrop()`:
   - Binds HTML5 drag events (`dragstart`, `dragend`) on draggable layer palette items.
   - Listens for canvas `dragover`, `dragleave`, and `drop`, converting DOM client coordinates to Vis.js canvas coordinates to place dropped blocks.
@@ -383,3 +388,10 @@ Manages workspace directory selection and file listing.
 - `applyTypedPath()`: Navigates to custom path typed into modal path input.
 - `confirmSelectFolder()`: Sets selected folder as the active working directory.
 - `browseSystemFolder()`: Triggers the Windows native folder picker dialog via backend.
+
+---
+
+## Related Documentation
+
+- [Root Documentation](../../readme.md) — Main overview of Ein Theater.
+- [Backend Handler Documentation](../../handler/README.md) — Detailed Go backend architecture, concurrency model, and REST handlers.

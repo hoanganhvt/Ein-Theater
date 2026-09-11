@@ -99,11 +99,11 @@
 
             <div class="sidebar-section palette-section">
                 <div class="sidebar-header">
-                    <h3>Blocks</h3>
+                    <h3>Fundemental Blocks</h3>
                     <span class="palette-hint" title="Drag &amp; drop block onto canvas or click to add">Drag &amp; Drop</span>
                 </div>
                 <div class="palette-list" id="paletteList">
-                    <!-- Blocks dynamically populated from modules.json -->
+                    <!-- Fundamental blocks dynamically populated from modules.json -->
                 </div>
             </div>
         </div>
@@ -204,15 +204,45 @@
 
     <!-- ── Add Block Modal ─────────────────────────────────────────── -->
     <div id="nodeModal">
-        <h3>Add Neural Block</h3>
-        <label for="nodeType">Block Type</label>
-        <select id="nodeType" onchange="toggleCustom()">
-            <!-- Options dynamically populated from modules.json -->
-        </select>
+        <div class="modal-header">
+            <h3>Add Neural Block</h3>
+            <button class="modal-close-btn" onclick="cancelNode()" title="Close">✕</button>
+        </div>
+
+        <div class="node-modal-search-wrap">
+            <input type="text" id="nodeSearchInput" placeholder="🔍 Quick search 150+ layers (e.g. Conv2d, ReLU, LSTM)..." autocomplete="off" />
+        </div>
+
+        <div class="node-modal-row">
+            <div class="node-modal-col">
+                <label for="nodeCategory">1. Category</label>
+                <select id="nodeCategory">
+                    <!-- Populated dynamically with categories and counts -->
+                </select>
+            </div>
+            <div class="node-modal-col">
+                <label for="nodeType">2. Layer Block</label>
+                <select id="nodeType">
+                    <!-- Options dynamically populated by category & search -->
+                </select>
+            </div>
+        </div>
+
+        <!-- Layer Preview Card -->
+        <div id="nodePreviewCard" class="node-preview-card">
+            <div class="node-preview-header">
+                <span id="nodePreviewBadge" class="palette-badge badge-green">conv</span>
+                <span id="nodePreviewCategory" class="node-preview-category">Convolutional</span>
+            </div>
+            <div id="nodePreviewLabel" class="node-preview-label">nn.Conv2d</div>
+            <div id="nodePreviewCode" class="node-preview-code">nn.Conv2d(...)</div>
+        </div>
+
         <div id="customNodeDiv" style="display:none;">
             <label for="customNodeName">Custom Layer Name</label>
-            <input type="text" id="customNodeName" placeholder="e.g. MyAttentionLayer">
+            <input type="text" id="customNodeName" placeholder="e.g. MyCustomAttention">
         </div>
+
         <div class="modal-footer">
             <button class="btn" onclick="cancelNode()">Cancel</button>
             <button class="btn btn-primary" onclick="saveNode()">Add Block</button>

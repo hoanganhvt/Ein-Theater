@@ -27,6 +27,7 @@ import {
 } from './js/modes.js';
 import {
     openAddNodeModal,
+    populateCategoryDropdown,
     populateNodeTypeDropdown,
     toggleCustom,
     saveNode,
@@ -89,6 +90,8 @@ Object.assign(window, {
     // Modals & Block Manipulation
     openAddNodeModal,
     openAddNodeAtContext,
+    populateCategoryDropdown,
+    populateNodeTypeDropdown,
     toggleCustom,
     cancelNode,
     saveNode,
@@ -117,6 +120,7 @@ Object.assign(window, {
 // ── Application Initialization ────────────────────────────────────
 export async function initApp() {
     await initSchemas();
+    populateCategoryDropdown();
     populateNodeTypeDropdown();
     renderPalette();
     await initWorkspace();

@@ -1,33 +1,51 @@
 // ── Drag & Drop / Click from Sidebar Palette to Canvas ────────────
 import { state } from './state.js';
 import { createBlock } from './graph.js';
-import { MODULES_LIST } from './schemas.js';
+import { MODULES_LIST, LAYER_SCHEMAS } from './schemas.js';
 import { esc } from './utils.js';
+import { openAddNodeModal } from './modals.js';
 
 let canvasListenersInitialized = false;
 
+// The 10 most fundamental PyTorch building blocks
+export const FUNDAMENTAL_LAYERS = [
+    'nn.Linear',
+    'nn.Conv2d',
+    'nn.ReLU',
+    'nn.MaxPool2d',
+    'nn.BatchNorm2d',
+    'nn.LayerNorm',
+    'nn.Dropout',
+    'nn.LSTM',
+    'nn.MultiheadAttention',
+    'nn.Embedding'
+];
+
 /**
- * Dynamically renders the sidebar layer palette from MODULES_LIST
- * and binds drag-and-drop / click-to-add listeners.
+ * Dynamically renders the 10 fundamental PyTorch blocks in the sidebar palette.
  */
 export function renderPalette() {
     const paletteList = document.getElementById('paletteList');
     if (!paletteList) return;
 
     let html = '';
-    MODULES_LIST.forEach(mod => {
-        html += `
-            <div class="palette-item" draggable="true" data-type="${esc(mod.type)}" title="Drag &amp; drop onto canvas or click to add">
-                <span class="palette-badge ${esc(mod.badgeClass || 'badge-blue')}">${esc(mod.badge || 'layer')}</span>
-                <span class="palette-name">${esc(mod.name || mod.type)}</span>
-                <span class="drag-handle">⋮⋮</span>
-            </div>`;
+
+    FUNDAMENTAL_LAYERS.forEach(type => {
+        const mod = LAYER_SCHEMAS[type] || MODULES_LIST.find(m => m.type === type);
+        if (mod) {
+            html += `
+                <div class="palette-item" draggable="true" data-type="${esc(mod.type)}" title="Drag &amp; drop onto canvas or click to add">
+                    <span class="palette-badge ${esc(mod.badgeClass || 'badge-blue')}">${esc(mod.badge || 'layer')}</span>
+                    <span class="palette-name">${esc(mod.name || mod.type)}</span>
+                    <span class="drag-handle">⋮⋮</span>
+                </div>`;
+        }
     });
 
     html += `
-        <div class="palette-item custom-palette-item" onclick="openAddNodeModal()" title="Open modal to create custom block">
-            <span class="palette-badge badge-gray">custom</span>
-            <span class="palette-name">+ Custom Layer...</span>
+        <div class="palette-item custom-palette-item" onclick="openAddNodeModal()" title="Browse all 150+ PyTorch modules or create custom block">
+            <span class="palette-badge badge-gray">+</span>
+            <span class="palette-name">+ More / Custom...</span>
         </div>`;
 
     paletteList.innerHTML = html;

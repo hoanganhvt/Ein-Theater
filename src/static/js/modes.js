@@ -1,6 +1,7 @@
 // ── Canvas Interaction Modes (Move, Select, Add Node, Add Edge) ───
 import { state } from './state.js';
 import { cancelWireCreation } from './circuit.js';
+import { openAddNodeModal } from './modals.js';
 
 export function setMode(mode) {
     state.currentMode = mode;
@@ -136,7 +137,7 @@ export function setupCanvasClickAdd() {
         if (!state.network) return;
 
         // Ignore clicks on modals or context menu
-        if (e.target.closest('#contextMenu') || e.target.closest('#nodeModal') || e.target.closest('#modalOverlay') || e.target.closest('#editLayerModal')) return;
+        if (e.target.closest('#contextMenu') || e.target.closest('#nodeModal') || e.target.closest('#modalOverlay') || e.target.closest('#editLayerModal') || e.target.closest('#selectFolderModal')) return;
 
         const rect = container.getBoundingClientRect();
         const domX = e.clientX - rect.left;
@@ -147,22 +148,9 @@ export function setupCanvasClickAdd() {
         if (nodeAt) return;
 
         const canvasPos = state.network.DOMtoCanvas({ x: domX, y: domY });
-        state.tempNodeData = {
+        openAddNodeModal({
             x: Math.round(canvasPos.x),
             y: Math.round(canvasPos.y)
-        };
-        state.addNodeCallback = null;
-
-        const overlay = document.getElementById('modalOverlay');
-        const modal = document.getElementById('nodeModal');
-        const nodeType = document.getElementById('nodeType');
-        const customNodeName = document.getElementById('customNodeName');
-        const customDiv = document.getElementById('customNodeDiv');
-
-        if (overlay) overlay.style.display = 'block';
-        if (modal) modal.style.display = 'block';
-        if (nodeType) nodeType.value = 'nn.Linear';
-        if (customNodeName) customNodeName.value = '';
-        if (customDiv) customDiv.style.display = 'none';
+        });
     });
 }
