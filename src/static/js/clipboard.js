@@ -320,11 +320,6 @@ export function updateClipboardUI() {
             btnPaste.setAttribute('disabled', 'true');
         }
     }
-
-    const btnDelete = document.getElementById('btnDeleteSelection');
-    if (btnDelete) {
-        btnDelete.classList.toggle('disabled', !hasAnySelection);
-    }
 }
 
 /**

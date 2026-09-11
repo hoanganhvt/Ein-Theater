@@ -10,15 +10,6 @@ export function setMode(mode) {
         cancelWireCreation();
     }
 
-    // Update toolbar button states
-    const btnMove = document.getElementById('btnModeMove');
-    const btnSelect = document.getElementById('btnModeSelect');
-    const btnAdd = document.getElementById('btnModeAdd');
-    const btnConnect = document.getElementById('btnModeConnect');
-    if (btnMove) btnMove.classList.toggle('active', mode === 'move');
-    if (btnSelect) btnSelect.classList.toggle('active', mode === 'select');
-    if (btnAdd) btnAdd.classList.toggle('active', mode === 'add');
-    if (btnConnect) btnConnect.classList.toggle('active', mode === 'connect');
 
     // Update checkmarks in context menu
     const checkMove = document.getElementById('cmCheckMove');

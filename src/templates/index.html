@@ -50,15 +50,8 @@
             </div>
         </div>
         <div class="toolbar">
-            <div class="mode-group">
-                <button class="btn mode-btn active" id="btnModeMove" onclick="setMode('move')" title="Move: Drag canvas to navigate and move blocks freely">🖐 Move</button>
-                <button class="btn mode-btn" id="btnModeSelect" onclick="setMode('select')" title="Select: Drag on canvas to select multiple nodes">⬚ Select</button>
-                <button class="btn mode-btn" id="btnModeAdd" onclick="setMode('add')" title="Add Node: Click anywhere on canvas to place a block">➕ Add Node</button>
-                <button class="btn mode-btn" id="btnModeConnect" onclick="setMode('connect')" title="Add Edge: Click &amp; drag between blocks to connect them">🔗 Add Edge</button>
-            </div>
             <button class="btn btn-save" id="btnSaveModel" onclick="saveActiveModel()" title="Save Model (Ctrl+S)">💾 Save</button>
             <button class="btn" onclick="fitView()">Fit View</button>
-            <button class="btn" id="btnDeleteSelection" onclick="deleteSelectionFromContextMenu()" title="Delete selected block or wire (Del / Backspace)">🗑️ Delete</button>
             <button class="btn btn-clear" onclick="clearGraph()">Clear Canvas</button>
         </div>
     </div>
