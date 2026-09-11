@@ -1,4 +1,4 @@
-# Frontend JavaScript Modules Documentation (`src/static/js`)
+# Frontend JavaScript Modules Documentation (`src/Canvas/static/js`)
 
 This directory contains the client-side ES6 JavaScript modules that power the interactive neural network diagram editor, project tabs, canvas interactions, and workspace file browser.
 
@@ -47,7 +47,7 @@ Nodes represent PyTorch neural network layer blocks (e.g., `nn.Linear`, `nn.Conv
 | `params` | `object` | Key-value dictionary containing the layer's hyperparameters defined by `modules.json` (or `{ customArgs: string }` for custom blocks). |
 
 #### Hyperparameter Sub-Schema (`params`) & `modules.json`
-Each `layerType` corresponds to a schema definition loaded dynamically from [`modules.json`](../data/modules.json) (covering 152 PyTorch `nn.Module` classes):
+Each `layerType` corresponds to a schema definition loaded dynamically from [`modules.json`](../data/modules.json) (located in `src/Canvas/static/data/modules.json` and `src/Canvas/data/modules.json`, covering 152 PyTorch `nn.Module` classes):
 - **Typed Fields**:
   - `number`: Rendered as numeric inputs with optional `min`, `max`, and `step` constraints (e.g. `kernel_size`, `in_features`, `dropout`).
   - `boolean`: Rendered as styled checkbox toggles (e.g. `bias`, `inplace`, `batch_first`).
@@ -209,14 +209,17 @@ Exports the `api` object containing asynchronous methods for HTTP requests to th
   - `loadModel(path)`: `POST /api/workspace/load-model` — Reads model folder, validates naming, and restores model graph onto active canvas.
 - **Graph Endpoints:**
   - `fetchGraphData()`: `GET /api/data` — Loads all nodes and edges for active project.
-  - `addNode(label, layerType, x, y)`: `POST /api/addNode` — Adds node at given coordinates with 0-indexed ID (`<prefix>_<index>`).
+  - `addNode(label, layerType, x, y, params = null)`: `POST /api/addNode` — Adds node at given coordinates with 0-indexed ID (`<prefix>_<index>`).
   - `updateNode(nodeData)`: `POST /api/updateNode` — Updates node label, type, and parameters.
   - `deleteNode(id)`: `POST /api/deleteNode` — Deletes single node by ID.
   - `deleteNodes(ids)`: `POST /api/deleteNodes` — Batch deletes array of node IDs.
-  - `moveNode(id, x, y)`: `POST /api/moveNode` — Updates node position.
+  - `moveNode(id, x, y, updateEdges = true)`: `POST /api/moveNode` — Updates node position.
+  - `moveNodes(items)`: `POST /api/moveNodes` — Batch updates positions for an array of nodes.
   - `addEdge(from, to, lines = null)`: `POST /api/addEdge` — Connects two nodes with a directed edge (accepts optional custom `lines` array for waypoints).
-  - `updateEdge(id, lines)`: `POST /api/updateEdge` — Updates custom straight line segments and fold waypoints for an edge.
+  - `updateEdge(id, lines, edgeType = null)`: `POST /api/updateEdge` — Updates custom straight line segments and fold waypoints for an edge.
+  - `updateEdges(items)`: `POST /api/updateEdges` — Batch updates line segments and waypoints for multiple edges.
   - `deleteEdge(id)`: `POST /api/deleteEdge` — Deletes edge by ID.
+  - `pasteGraph(nodes, edges, dx = 50, dy = 50)`: `POST /api/paste` — Duplicates copied nodes and internal wires with coordinate and waypoint offsets.
   - `clearGraph()`: `POST /api/clear` — Clears all nodes/edges in current project and resets ID counters to 0.
 
 ---
@@ -430,6 +433,7 @@ Manages workspace directory selection, file tree rendering, model detection, fol
 
 ## Related Documentation
 
+- [Canvas Subsystem Documentation](../../document.md) — Comprehensive overview of the Canvas mode architecture.
 - [Root Documentation](../../../document.md) — Main overview of Ein Theater.
 - [Backend Handler Documentation](../../handler/document.md) — Detailed Go backend architecture, concurrency model, and REST handlers.
 - [PyTorch Code Generation Engine](../../utils/generate%20code/document.md) — AST compiler, FX graph tracing, and connection classification reference.

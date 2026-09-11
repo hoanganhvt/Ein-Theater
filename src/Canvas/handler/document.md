@@ -72,11 +72,15 @@ Handles CRUD operations for neural network nodes and directed circuit edges with
 ---
 
 ### 2. [`index_handler.go`](./index_handler.go)
-Serves the HTML single-page application entry point.
+Serves HTML application entry points, dynamic mode sidebar fragments, and template file discovery.
 
 | Function | HTTP Method & Route | Description |
 | :--- | :--- | :--- |
-| `IndexHandler(w, r)` | `GET /` | Serves the main application template (`templates/index.html`). Rejects unmatched non-root routes with HTTP 404 Not Found. |
+| `IndexHandler(w, r)` | `GET /` | Serves the main studio application template (`templates/index.html`), falling back gracefully to `canvas.html`. Rejects unmatched non-root routes with HTTP 404 Not Found. |
+| `CanvasHandler(w, r)` | `GET /canvas` | Serves the standalone Canvas mode HTML template (`templates/canvas.html`). |
+| `SidebarHandler(w, r)` | `GET /api/sidebar`<br>`GET /api/sidebar/` | Serves mode-specific sidebar HTML fragments (e.g. `templates/sidebar.html` for `mode=canvas`) for dynamic client-side injection into `#sidebarSlot`. If fragment is missing, extracts `<div class="sidebar">` directly from `canvas.html` via `extractSidebarFromHTML`. |
+| `FindTemplatePath(rel)` | *(Helper)* | Dynamically probes candidate directories (`templates/`, `src/templates/`, `Canvas/templates/`, `src/Canvas/templates/`, etc.) to resolve HTML template paths across varying working directories. |
+| `extractSidebarFromHTML(path)` | *(Helper)* | Fallback parser that reads an HTML template and extracts the sidebar container div block. |
 
 ---
 
@@ -151,13 +155,13 @@ Provides filesystem access, directory navigation, folder creation, model seriali
 | Function | HTTP Method & Route | Description |
 | :--- | :--- | :--- |
 | `getSystemDrives()` | *(Helper)* | Probes drive letters A through Z on Windows using `os.Stat` and returns accessible root drives (e.g. `["C:\\", "D:\\"]`). |
-| `findGenCodePyPath()` | *(Helper)* | Resolves the location of `src/utils/generate code/gen_code.py` by probing candidate paths (`utils/generate code/gen_code.py`, `src/utils/generate code/gen_code.py`, etc.). |
+| `findGenCodePyPath()` | *(Helper)* | Resolves the location of `src/Canvas/utils/generate code/gen_code.py` by probing candidate paths (`Canvas/utils/generate code/gen_code.py`, `src/Canvas/utils/generate code/gen_code.py`, etc.). |
 | `WorkspaceHandler(w, r)` | `GET /api/workspace` | Returns the current working directory path and base folder name (`WorkspaceResponse`). |
 | `SetWorkspaceHandler(w, r)` | `POST /api/workspace/set` | Validates that a path exists and is a directory (via `path` query param or JSON body), then updates `workingDir`. |
 | `BrowseWorkspaceHandler(w, r)` | `GET /api/workspace/browse` | Reads subfolders and non-hidden files in the directory specified by `dir` query param (falls back to `workingDir`, user home directory, or root drive). Checks whether each subfolder contains both `<name>.json` and `<name>.py` and satisfies `IsValidModelFolderName`, setting `IsModel: true` and `ModelName: name`. |
 | `SelectNativeFolderHandler(w, r)` | `POST /api/workspace/select-native` | Launches a Windows native folder browser modal via PowerShell (`System.Windows.Forms.FolderBrowserDialog`). If confirmed, updates `workingDir` and returns the path. |
 | `CreateFolderHandler(w, r)` | `POST /api/workspace/create-folder` | Creates a new subdirectory inside the target directory specified by `dir` and `name`. |
-| `SaveModelHandler(w, r)` | `POST /api/workspace/save-model`<br>`POST /api/saveModel` | Serializes the active project canvas, invokes `python "src/utils/generate code/gen_code.py" --save-canvas - --out-dir <targetDir>` via standard input pipe, and generates `<model_name>/<model_name>.json` and `<model_name>/<model_name>.py`. Returns save status JSON. |
+| `SaveModelHandler(w, r)` | `POST /api/workspace/save-model`<br>`POST /api/saveModel` | Serializes the active project canvas, invokes `python "src/Canvas/utils/generate code/gen_code.py" --save-canvas - --out-dir <targetDir>` via standard input pipe, and generates `<model_name>/<model_name>.json` and `<model_name>/<model_name>.py`. Returns save status JSON. |
 | `LoadModelHandler(w, r)` | `POST /api/workspace/load-model`<br>`POST /api/loadModel` | Reads `<model_name>/<model_name>.json`, validates naming rules, loads all nodes with clean labels, restores orthogonal connections, updates project tabs, and makes the model active. |
 
 ---
@@ -165,21 +169,22 @@ Provides filesystem access, directory navigation, folder creation, model seriali
 ### 6. [`routes.go`](./routes.go) Route Registration & Asset Resolvers
 
 Provides shared route registration and dynamic path resolvers used by both `canvas.go` and `main.go`:
-- `FindStaticDir()`: Locates the `static` assets folder across candidate paths (`Canvas/static`, `static`, `src/Canvas/static`).
-- `FindTemplatePath(rel)`: Locates template HTML files across candidate paths (`Canvas/templates`, `templates`, `src/Canvas/templates`).
-- `RegisterRoutes(mux *http.ServeMux)`: Sets up all canvas API endpoints, workspace handlers, and static asset streaming on the target multiplexer.
+- `resolveStaticFS()`: Discovers both global static assets (`src/static/style.css`) and mode-specific static assets (`src/Canvas/static/canvas.css`), combining them into an HTTP filesystem (`multiDirFS`) so that `/static/*` requests seamlessly serve files from either location.
+- `RegisterRoutes(mux *http.ServeMux)`: Sets up all Canvas API endpoints, static asset streaming (with `Cache-Control: no-cache` headers), and binds `IndexHandler` at root (`/`).
+- `RegisterRoutesWithRoot(mux *http.ServeMux, rootHandler http.HandlerFunc)`: Sets up all Canvas handlers with a custom root handler (e.g. `CanvasHandler` for standalone mode).
 
 ---
 
 ### 7. Entry Points: [`canvas.go`](../canvas.go) & [`main.go`](../../main.go)
 
-- **`src/Canvas/canvas.go`**: Standalone Canvas mode runner (`package main`). Directly starts the server for rapid mode-specific iteration.
-- **`src/main.go`**: Root studio orchestrator (`package main`). Mounts Canvas mode routes and coordinates future modes (`Data`, `Train`, `Code`).
+- **`src/Canvas/canvas.go`**: Standalone Canvas mode runner (`package main`). Directly starts the server for rapid mode-specific iteration, calling `handler.RegisterRoutesWithRoot(mux, handler.CanvasHandler)`.
+- **`src/main.go`**: Root studio orchestrator (`package main`). Mounts Canvas mode routes via `handler.RegisterRoutes(mux)` and coordinates future modes (`Data`, `Train`, `Code`).
 
 ---
 
 ## Related Documentation
 
+- [Canvas Subsystem Documentation](../document.md) — Comprehensive overview of the Canvas mode architecture.
 - [Root Documentation](../../../document.md) — Comprehensive overview of Ein Theater.
 - [Frontend JavaScript Documentation](../static/js/document.md) — Client-side ES6 architecture and Vis.js/Canvas rendering pipeline.
 - [PyTorch Code Generation Engine](../utils/generate%20code/document.md) — AST compiler, FX graph tracing, and connection classification reference.

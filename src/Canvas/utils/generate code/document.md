@@ -1,4 +1,4 @@
-# PyTorch Code Generation Engine (`src/utils/generate code`)
+# PyTorch Code Generation Engine (`src/Canvas/utils/generate code`)
 
 This directory contains the core symbolic graph tracing, connection classification, and PyTorch AST code generation engine for **Ein Theater**.
 
@@ -16,7 +16,7 @@ Visual Canvas Graph (JSON)  ──►  Stdin / File
                         │   gen_code.py Compiler    │
                         ├───────────────────────────┤
                         │ 1. Schema Validation      │
-                        │    (src/data/modules.json)│
+                        │    (Canvas/data/modules.json)
                         │ 2. Topological Sort       │
                         │ 3. Connection Semantics   │
                         │ 4. AST Python Code Synth  │
@@ -52,15 +52,15 @@ To ensure high maintainability, clean separation of concerns, and readability, t
 ### Syntax
 
 ```bash
-python "src/utils/generate code/gen_code.py" [OPTIONS]
+python "src/Canvas/utils/generate code/gen_code.py" [OPTIONS]
 ```
 
 ### Options
 
 | Flag | Argument | Description |
 | :--- | :--- | :--- |
-| `--save-canvas` | `<file_path>` or `-` | Reads canvas JSON from `<file_path>` or standard input (`-`), generates the PyTorch model script and JSON specification, and writes them to `<out-dir>/<model_name>/`. |
-| `--canvas-json` | `<file_path>` | Compiles the specified canvas JSON and outputs the generated Python code directly to stdout. |
+| `--save-canvas` | `<file_path>` or `-` | Reads canvas JSON from `<file_path>` or standard input (`-`), compiles the PyTorch model script and JSON specification, and saves them to `<out-dir>/<model_name>/`. Outputs JSON status to stdout. |
+| `--canvas-json` | `<json_string>` | Parses raw canvas JSON string directly from the CLI argument, compiles and saves the model package to `<out-dir>/<model_name>/`. Outputs JSON status to stdout. |
 | `--out-dir` | `<directory>` | Target output directory where `<model_name>/` subfolder will be created (default: `./outputs`). |
 | `--help`, `-h` | None | Displays help message with command options. |
 
@@ -69,7 +69,7 @@ python "src/utils/generate code/gen_code.py" [OPTIONS]
 
 1. **Compile canvas JSON file to target directory**:
    ```bash
-   python "src/utils/generate code/gen_code.py" --save-canvas my_canvas.json --out-dir C:/my_models
+   python "src/Canvas/utils/generate code/gen_code.py" --save-canvas my_canvas.json --out-dir C:/my_models
    ```
    *Generates:*
    - `C:/my_models/<model_name>/<model_name>.json`
@@ -77,12 +77,12 @@ python "src/utils/generate code/gen_code.py" [OPTIONS]
 
 2. **Compile via standard input pipe (as done by Go backend)**:
    ```bash
-   cat my_canvas.json | python "src/utils/generate code/gen_code.py" --save-canvas - --out-dir ./workspace
+   cat my_canvas.json | python "src/Canvas/utils/generate code/gen_code.py" --save-canvas - --out-dir ./workspace
    ```
 
-3. **Preview generated Python code without saving**:
+3. **Compile from inline JSON string**:
    ```bash
-   python "src/utils/generate code/gen_code.py" --canvas-json my_canvas.json
+   python "src/Canvas/utils/generate code/gen_code.py" --canvas-json "{\"name\": \"my_model\", \"nodes\": [], \"edges\": []}" --out-dir ./workspace
    ```
 
 ---
@@ -93,7 +93,7 @@ python "src/utils/generate code/gen_code.py" [OPTIONS]
 When a user triggers **Save Model** (`Ctrl+S` or workspace button) in the Ein Theater UI:
 
 1. The frontend sends `POST /api/workspace/save-model` with the current workspace directory and project ID.
-2. The Go backend (`src/handler/workspace_handlers.go`: `SaveModelHandler`) locates `gen_code.py` using `findGenCodePyPath()`.
+2. The Go backend (`src/Canvas/handler/workspace_handlers.go`: `SaveModelHandler`) locates `gen_code.py` using `findGenCodePyPath()`.
 3. It spawns the compiler subprocess:
    ```go
    cmd := exec.Command("python", genCodePyPath, "--save-canvas", "-", "--out-dir", cleanTarget)
@@ -104,9 +104,10 @@ When a user triggers **Save Model** (`Ctrl+S` or workspace button) in the Ein Th
    {
      "status": "ok",
      "folder": "C:/path/to/workspace/my_model",
-     "json": "C:/path/to/workspace/my_model/my_model.json",
-     "py": "C:/path/to/workspace/my_model/my_model.py",
-     "model_name": "my_model"
+     "folderName": "my_model",
+     "jsonFile": "C:/path/to/workspace/my_model/my_model.json",
+     "pyFile": "C:/path/to/workspace/my_model/my_model.py",
+     "modelName": "my_model"
    }
    ```
 5. The Go handler responds to the frontend, which displays a notification toast confirming the save.
@@ -137,12 +138,13 @@ print(code)
 
 ## Module Definitions Resolution
 
-`gen_code.py` resolves layer definitions from `src/data/modules.json` by inspecting candidate relative paths dynamically, allowing it to be executed from any current working directory (repository root, `src/`, or external test runners).
+`gen_code.py` resolves layer definitions from `modules.json` by inspecting candidate relative paths dynamically (`src/Canvas/data/modules.json`, `src/Canvas/static/data/modules.json`, etc.), allowing it to be executed from any current working directory (repository root, `src/`, or external test runners).
 
 ---
 
 ## Related Documentation
 
-- [Root Documentation](../../../../document.md) — Comprehensive overview of Ein Theater.
+- [Canvas Subsystem Documentation](../../document.md) — Comprehensive overview of the Canvas mode architecture.
+- [Root Documentation](../../../../document.md) — Main overview of Ein Theater.
 - [Backend Handler Documentation](../../handler/document.md) — Detailed Go backend architecture, concurrency model, and REST handlers.
 - [Frontend JavaScript Documentation](../../static/js/document.md) — Client-side ES6 architecture and Vis.js/Canvas rendering pipeline.

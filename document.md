@@ -18,7 +18,7 @@
   - [Running Model Tracing & Code Generation Tests](#running-model-tracing--code-generation-tests)
 - [Canvas & Workflow Guide](#canvas--workflow-guide)
   - [Interactive Modes](#interactive-modes)
-  - [Fundemental Blocks Sidebar](#fundemental-blocks-sidebar)
+  - [Fundamental Blocks Sidebar](#fundamental-blocks-sidebar)
   - [Categorized 152-Module Catalog & Search](#categorized-152-module-catalog--search)
   - [Orthogonal Wire Routing & Fold Waypoints](#orthogonal-wire-routing--fold-waypoints)
   - [Scoped 0-Indexed Block Naming System](#scoped-0-indexed-block-naming-system)
@@ -40,7 +40,7 @@
   - Orthogonal 90° right-angle wiring with custom diamond fold waypoints that can be interactively dragged or flipped (Horizontal ⇄ Vertical).
   - Rubber-band marquee box selection (`Select` mode), rigid multi-block dragging with 100% wire shape and fold preservation, and batch deletion.
   - **Full Clipboard System (Copy, Cut, Paste)**: Copy and paste single blocks or multi-block collections (`Ctrl+C` / `Ctrl+V` or right-click context menu) with full preservation of internal circuit wiring, exact layer hyperparameters, staggered or cursor-targeted grid placement, and cross-model session persistence. Automatically switches to Move mode with elements selected for immediate dragging.
-- **Fundemental Blocks Palette**:
+- **Fundamental Blocks Palette**:
   - The left sidebar displays strictly the **10 most fundamental PyTorch layers** for fast access:
     1. `nn.Linear`
     2. `nn.Conv2d`
@@ -81,7 +81,7 @@
 - **Multi-Model Project Management**:
   - Sidebar project tabs supporting concurrent model architectures within a single session.
   - Fast model creation, deletion, and inline model title renaming.
-- **Python FX Graph Tracing & Code Synthesis (`src/utils/generate code/`)**:
+- **Python FX Graph Tracing & Code Synthesis (`src/Canvas/utils/generate code/`)**:
   - Symbolic execution via `torch.fx.symbolic_trace`.
   - Automatic classification of edge semantics: normal sequential flows, residual connections, U-Net / DenseNet skip concatenations, gated multiplicative modulations, and multi-input / multi-output branching.
   - Graph JSON serialization and automated compilation into clean, executable PyTorch `nn.Module` Python source code.
@@ -137,6 +137,7 @@ Ein Theater/
     │   └── style.css           # Unified global stylesheet & shared design system
     └── Canvas/                 # [Mode: Canvas] Neural Architecture Design Studio
         ├── canvas.go           # Standalone Canvas mode runner & server entry point
+        ├── document.md         # Canvas subsystem master documentation
         ├── data/
         │   └── modules.json    # PyTorch 152-module schema definitions, templates & parameter bounds
         ├── handler/            # Canvas Go backend HTTP handlers
@@ -228,11 +229,8 @@ Automated test suites and CLI compilers verify symbolic graph extraction and bid
 # Run model synthesis validation suite (UNet, CNN, Linear, ViT, Transformer)
 python idea/test_models.py
 
-# Run symbolic connection classification and built-in model verification
-python "src/utils/generate code/gen_code.py"
-
-# Test CLI canvas compilation directly
-python "src/utils/generate code/gen_code.py" --save-canvas idea/outputs/cnn.json --out-dir idea/outputs
+# Run CLI canvas compilation directly
+python "src/Canvas/utils/generate code/gen_code.py" --save-canvas idea/outputs/cnn.json --out-dir idea/outputs
 ```
 
 ---
@@ -250,9 +248,9 @@ The toolbar allows switching between 4 specialized modes:
 | **Add Node** | `A` | ➕ | Click anywhere on the canvas grid to open the categorized layer creation modal at that exact coordinate. |
 | **Add Edge** | `C` | 🔗 | Click a source block and drag to a target block to establish a directed circuit connection. |
 
-### Fundemental Blocks Sidebar
+### Fundamental Blocks Sidebar
 
-The left sidebar section titled **Fundemental Blocks** provides instant access to the core building blocks of deep learning:
+The left sidebar section titled **Fundamental Blocks** provides instant access to the core building blocks of deep learning:
 
 - **10 Core Layers**:
   - `nn.Linear` (Dense / Fully Connected)
@@ -382,7 +380,7 @@ Organize multi-model projects directly within the interface:
 
 ## PyTorch FX Symbolic Tracing & Code Generation CLI
 
-Located in [`src/utils/generate code/gen_code.py`](./src/utils/generate%20code/gen_code.py), the Python engine provides bidirectional translation between PyTorch computational graphs and Ein Theater JSON schematics:
+Located in [`src/Canvas/utils/generate code/gen_code.py`](./src/Canvas/utils/generate%20code/gen_code.py), the Python engine provides bidirectional translation between PyTorch computational graphs and Ein Theater JSON schematics:
 
 1. **Symbolic Tracing**: Uses PyTorch FX (`torch.fx.symbolic_trace`) to capture high-level execution graphs without executing tensor math.
 2. **Semantics Classification**: Inspects intermediate graph nodes and automatically tags connection types:
@@ -393,13 +391,16 @@ Located in [`src/utils/generate code/gen_code.py`](./src/utils/generate%20code/g
 3. **Command Line Interface (CLI)**:
    ```bash
    # Save and compile canvas JSON into <out-dir>/<model_name>/ (<model_name>.json + .py)
-   python "src/utils/generate code/gen_code.py" --save-canvas path/to/canvas.json --out-dir path/to/output
+   python "src/Canvas/utils/generate code/gen_code.py" --save-canvas path/to/canvas.json --out-dir path/to/output
 
    # Compile directly from stdin pipe
-   cat canvas.json | python "src/utils/generate code/gen_code.py" --save-canvas - --out-dir path/to/output
+   cat canvas.json | python "src/Canvas/utils/generate code/gen_code.py" --save-canvas - --out-dir path/to/output
 
-   # Run test suite on complex / weird model architectures
-   python "src/utils/generate code/gen_code.py" --test
+   # Compile from inline JSON string
+   python "src/Canvas/utils/generate code/gen_code.py" --canvas-json "{\"name\": \"my_model\", \"nodes\": [], \"edges\": []}" --out-dir path/to/output
+
+   # Run validation test suite on complex model architectures
+   python idea/test_models.py
    ```
 4. **Automated Code Synthesis (`generate_code_from_json`)**: Compiles graph JSON back into standalone, formatted PyTorch `nn.Module` classes:
    ```python
@@ -439,15 +440,22 @@ The Go HTTP backend exposes RESTful endpoints for graph state, project managemen
 
 | Endpoint | Method | Request Payload | Description |
 | :--- | :---: | :--- | :--- |
+| `/` | `GET` | None | Serves `index.html` (Studio Mode) or `canvas.html` (Standalone Mode). |
+| `/canvas` | `GET` | None | Serves standalone Canvas mode HTML template (`canvas.html`). |
+| `/index` | `GET` | None | Serves global studio shell template (`index.html`). |
+| `/api/sidebar`<br>`/api/sidebar/` | `GET` | Query: `mode` (e.g. `canvas`) | Returns mode-specific sidebar HTML fragment for dynamic client injection. |
 | `/api/data` | `GET` | None | Returns all nodes and edges for the currently active project canvas (`GraphData`). |
-| `/api/addNode` | `POST` | Query: `label`, `layerType`, `x`, `y` | Creates a new block with 0-indexed ID (`<prefix>_<index>`) and snaps coordinates. |
+| `/api/addNode` | `POST` | Query: `label`, `layerType`, `x`, `y`<br>Optional JSON: `{ params }` | Creates a new block with 0-indexed ID (`<prefix>_<index>`) and snaps coordinates. |
 | `/api/updateNode` | `POST` | JSON: `{ id, label, layerType, params }` | Updates block hyperparameters (`params`), label, or layer type. |
 | `/api/deleteNode` | `POST` | Query: `id` | Deletes a single node by ID and removes attached edges. |
 | `/api/deleteNodes` | `POST` | JSON: `["id1", "id2"]` or Query: `ids` | Batch deletes multiple nodes and connected edges. |
-| `/api/moveNode` | `POST` | Query: `id`, `x`, `y` | Updates block canvas coordinates and adjusts edge endpoints while preserving custom waypoints. |
+| `/api/moveNode` | `POST` | Query: `id`, `x`, `y`, `update_edges`? | Updates block canvas coordinates and adjusts edge endpoints while preserving custom waypoints. |
+| `/api/moveNodes` | `POST` | JSON: `[{"id", "x", "y"}]` | Batch updates coordinates for multiple nodes in a single lock. |
 | `/api/addEdge` | `POST` | JSON: `{ from, to, lines? }` or Query | Creates or updates a directed connection with orthogonal straight line segments. |
-| `/api/updateEdge` | `POST` | JSON: `{ id, lines }` | Updates edge line segments and custom fold waypoint coordinates. |
+| `/api/updateEdge` | `POST` | JSON: `{ id, lines, edgeType? }` | Updates edge line segments and custom fold waypoint coordinates. |
+| `/api/updateEdges` | `POST` | JSON: `[{"id", "lines"}]` | Batch updates line segments and fold waypoints for multiple edges. |
 | `/api/deleteEdge` | `POST` | Query: `id` | Deletes a wire connection by ID. |
+| `/api/paste`<br>`/api/pasteGraph` | `POST` | JSON: `{ nodes, edges, dx, dy }` | Duplicates elements into active project with new 0-indexed IDs and offset waypoints. |
 | `/api/clear` | `POST` | None | Clears all nodes and edges from the active canvas and resets ID counters to 0. |
 | `/api/projects` | `GET` | None | Lists all model projects and the active project ID. |
 | `/api/projects/create` | `POST` | Query: `name` | Creates a new model tab initialized with an empty canvas. |
@@ -468,6 +476,7 @@ The Go HTTP backend exposes RESTful endpoints for graph state, project managemen
 
 For in-depth developer documentation of internal subsystems, refer to:
 
+- [`src/Canvas/document.md`](./src/Canvas/document.md) — Comprehensive overview of the Canvas mode subsystem (architecture, execution modes, and component integration).
 - [`src/Canvas/handler/document.md`](./src/Canvas/handler/document.md) — Detailed Go backend architecture, concurrency model, data structs, and handler implementations.
 - [`src/Canvas/static/js/document.md`](./src/Canvas/static/js/document.md) — Comprehensive frontend client architecture, Vis.js custom rendering pipeline, PCB circuit line algorithms, and reactive state management.
 - [`src/Canvas/utils/generate code/document.md`](./src/Canvas/utils/generate%20code/document.md) — PyTorch FX symbolic tracing, connection classification, AST code generation engine, and CLI compiler reference.
