@@ -140,3 +140,11 @@ print(code)
 ## Module Definitions Resolution
 
 `gen_code.py` resolves layer definitions from `src/data/modules.json` by inspecting candidate relative paths dynamically, allowing it to be executed from any current working directory (repository root, `src/`, or external test runners).
+
+---
+
+## Related Documentation
+
+- [Root Documentation](../../../document.md) — Comprehensive overview of Ein Theater.
+- [Backend Handler Documentation](../../handler/document.md) — Detailed Go backend architecture, concurrency model, and REST handlers.
+- [Frontend JavaScript Documentation](../../static/js/document.md) — Client-side ES6 architecture and Vis.js/Canvas rendering pipeline.

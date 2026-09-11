@@ -204,5 +204,6 @@ The server entry point initializes route handlers and configures the listener:
 
 ## Related Documentation
 
-- [Root Documentation](../../readme.md) — Comprehensive overview of Ein Theater.
-- [Frontend JavaScript Documentation](../static/js/README.md) — Client-side ES6 architecture and Vis.js/Canvas rendering pipeline.
+- [Root Documentation](../../document.md) — Comprehensive overview of Ein Theater.
+- [Frontend JavaScript Documentation](../static/js/document.md) — Client-side ES6 architecture and Vis.js/Canvas rendering pipeline.
+- [PyTorch Code Generation Engine](../utils/generate%20code/document.md) — AST compiler, FX graph tracing, and connection classification reference.

@@ -123,7 +123,7 @@
 
 ```
 Ein Theater/
-├── readme.md                   # Root documentation (this file)
+├── document.md                 # Root documentation (this file)
 ├── idea/                       # Prototyping directory: experimental model ideas & test suite
 │   ├── test_models.py          # Validation test suite (UNet, CNN, Linear, ViT, Transformer, etc.)
 │   └── outputs/                # Generated model code artifacts & test outputs
@@ -133,7 +133,7 @@ Ein Theater/
     ├── data/
     │   └── modules.json        # PyTorch 152-module schema definitions, templates & parameter bounds
     ├── handler/                # Go backend HTTP handlers
-    │   ├── README.md           # Detailed Go handler architecture & REST reference
+    │   ├── document.md         # Detailed Go handler architecture & REST reference
     │   ├── graph_handlers.go   # CRUD for nodes, edges, batch deletion & canvas clear
     │   ├── index_handler.go    # Root template rendering
     │   ├── models.go           # Core structs (Node, Edge, Line, Project), mutex, 0-indexed ID generator
@@ -141,7 +141,7 @@ Ein Theater/
     │   └── workspace_handlers.go # Filesystem browsing, folder creation, model save/load pipeline
     ├── utils/                  # Utility services & compilers
     │   └── generate code/      # Template-driven PyTorch code synthesis engine
-    │       ├── README.md       # Code generator engine architecture & CLI documentation
+    │       ├── document.md     # Code generator engine architecture & CLI documentation
     │       └── gen_code.py     # Core FX tracer, connection classifier, AST code generator & CLI compiler
     ├── static/                 # Frontend client assets
     │   ├── data/
@@ -149,7 +149,7 @@ Ein Theater/
     │   ├── style.css           # Modern dark/light circuit schematic theme, model badges & toast styling
     │   ├── app.js              # Application entry point, global keybindings (Ctrl+S) & orchestration
     │   └── js/                 # ES6 modular client architecture
-    │       ├── README.md       # Detailed frontend architecture & module reference
+    │       ├── document.md     # Detailed frontend architecture & module reference
     │       ├── api.js          # REST API client wrapper (graph, workspace, model save/load, folders)
     │       ├── circuit.js      # PCB dot-grid renderer & orthogonal edge drawing
     │       ├── contextMenu.js  # Right-click context menu & shortcuts
@@ -453,6 +453,6 @@ The Go HTTP backend exposes RESTful endpoints for graph state, project managemen
 
 For in-depth developer documentation of internal subsystems, refer to:
 
-- [`src/handler/README.md`](./src/handler/README.md) — Detailed Go backend architecture, concurrency model, data structs, and handler implementations.
-- [`src/static/js/README.md`](./src/static/js/README.md) — Comprehensive frontend client architecture, Vis.js custom rendering pipeline, PCB circuit line algorithms, and reactive state management.
-- [`src/utils/generate code/README.md`](./src/utils/generate%20code/README.md) — PyTorch FX symbolic tracing, connection classification, AST code generation engine, and CLI compiler reference.
+- [`src/handler/document.md`](./src/handler/document.md) — Detailed Go backend architecture, concurrency model, data structs, and handler implementations.
+- [`src/static/js/document.md`](./src/static/js/document.md) — Comprehensive frontend client architecture, Vis.js custom rendering pipeline, PCB circuit line algorithms, and reactive state management.
+- [`src/utils/generate code/document.md`](./src/utils/generate%20code/document.md) — PyTorch FX symbolic tracing, connection classification, AST code generation engine, and CLI compiler reference.

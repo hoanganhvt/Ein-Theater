@@ -408,5 +408,6 @@ Manages workspace directory selection, file tree rendering, model detection, fol
 
 ## Related Documentation
 
-- [Root Documentation](../../readme.md) — Main overview of Ein Theater.
-- [Backend Handler Documentation](../../handler/README.md) — Detailed Go backend architecture, concurrency model, and REST handlers.
+- [Root Documentation](../../document.md) — Main overview of Ein Theater.
+- [Backend Handler Documentation](../../handler/document.md) — Detailed Go backend architecture, concurrency model, and REST handlers.
+- [PyTorch Code Generation Engine](../../utils/generate%20code/document.md) — AST compiler, FX graph tracing, and connection classification reference.
