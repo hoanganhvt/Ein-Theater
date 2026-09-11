@@ -65,9 +65,28 @@ export const api = {
         return await res.json();
     },
 
-    async addNode(label, layerType, x, y) {
-        const res = await fetch(`/api/addNode?label=${encodeURIComponent(label)}&layerType=${encodeURIComponent(layerType)}&x=${x}&y=${y}`, { method: 'POST' });
+    async addNode(label, layerType, x, y, params = null) {
+        let res;
+        if (params) {
+            res = await fetch('/api/addNode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ label, layerType, x, y, params })
+            });
+        } else {
+            res = await fetch(`/api/addNode?label=${encodeURIComponent(label)}&layerType=${encodeURIComponent(layerType)}&x=${x}&y=${y}`, { method: 'POST' });
+        }
         if (!res.ok) throw new Error(await res.text() || 'Failed to add node');
+        return await res.json();
+    },
+
+    async pasteGraph(nodes, edges, dx = 50, dy = 50) {
+        const res = await fetch('/api/paste', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nodes, edges, dx, dy })
+        });
+        if (!res.ok) throw new Error(await res.text() || 'Failed to paste elements');
         return await res.json();
     },
 
@@ -97,9 +116,20 @@ export const api = {
         return res;
     },
 
-    async moveNode(id, x, y) {
-        const res = await fetch(`/api/moveNode?id=${encodeURIComponent(id)}&x=${x}&y=${y}`, { method: 'POST' });
+    async moveNode(id, x, y, updateEdges = true) {
+        const updateParam = updateEdges ? '' : '&update_edges=false';
+        const res = await fetch(`/api/moveNode?id=${encodeURIComponent(id)}&x=${x}&y=${y}${updateParam}`, { method: 'POST' });
         if (!res.ok) throw new Error(await res.text() || 'Failed to move node');
+        return res;
+    },
+
+    async moveNodes(items) {
+        const res = await fetch('/api/moveNodes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(items)
+        });
+        if (!res.ok) throw new Error(await res.text() || 'Failed to move nodes');
         return res;
     },
 
@@ -126,6 +156,16 @@ export const api = {
         });
         if (!res.ok) throw new Error(await res.text() || 'Failed to update edge');
         return await res.json();
+    },
+
+    async updateEdges(items) {
+        const res = await fetch('/api/updateEdges', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(items)
+        });
+        if (!res.ok) throw new Error(await res.text() || 'Failed to update edges');
+        return res;
     },
 
     async deleteEdge(id) {

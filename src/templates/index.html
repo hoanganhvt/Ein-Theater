@@ -164,6 +164,16 @@
             <span class="cm-icon">✏️</span>
             <span class="cm-text">Edit</span>
         </div>
+        <div class="context-menu-item" id="cmCopy" onclick="copySelection(); hideContextMenu();">
+            <span class="cm-icon">📋</span>
+            <span class="cm-text" id="cmCopyText">Copy</span>
+            <span class="cm-shortcut">Ctrl+C</span>
+        </div>
+        <div class="context-menu-item" id="cmPaste" onclick="pasteClipboardAtContext(); hideContextMenu();">
+            <span class="cm-icon">📥</span>
+            <span class="cm-text" id="cmPasteText">Paste</span>
+            <span class="cm-shortcut">Ctrl+V</span>
+        </div>
         <div class="context-menu-item danger" id="cmDelete" onclick="deleteSelectionFromContextMenu()">
             <span class="cm-icon">🗑️</span>
             <span class="cm-text" id="cmDeleteText">Delete</span>

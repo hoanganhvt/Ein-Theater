@@ -38,7 +38,8 @@
   - Infinite 50px dot-grid PCB background.
   - Snap-to-grid coordinate alignment for neat architectural layouts.
   - Orthogonal 90° right-angle wiring with custom diamond fold waypoints that can be interactively dragged or flipped (Horizontal ⇄ Vertical).
-  - Rubber-band marquee box selection (`Select` mode), multi-node dragging, and batch deletion.
+  - Rubber-band marquee box selection (`Select` mode), rigid multi-block dragging with 100% wire shape and fold preservation, and batch deletion.
+  - **Full Clipboard System (Copy, Cut, Paste)**: Copy and paste single blocks or multi-block collections (`Ctrl+C` / `Ctrl+V` or right-click context menu) with full preservation of internal circuit wiring, exact layer hyperparameters, staggered or cursor-targeted grid placement, and cross-model session persistence. Automatically switches to Move mode with elements selected for immediate dragging.
 - **Fundemental Blocks Palette**:
   - The left sidebar displays strictly the **10 most fundamental PyTorch layers** for fast access:
     1. `nn.Linear`
@@ -354,11 +355,14 @@ Organize multi-model projects directly within the interface:
 | Shortcut / Gesture | Action |
 | :--- | :--- |
 | `Ctrl + S` / `Cmd + S` | **Save Model**: Serializes canvas and generates PyTorch `.json` & `.py` files. |
+| `Ctrl + C` / `Cmd + C` | **Copy**: Copies selected block(s) and internal connecting wires. |
+| `Ctrl + V` / `Cmd + V` | **Paste**: Pastes copied block(s) and wires with 50px staggered offset. |
+| `Ctrl + X` / `Cmd + X` | **Cut**: Copies selected block(s) and removes them from canvas. |
+| `Ctrl + A` | **Select All**: Selects all blocks in the active model. |
 | `Del` / `Backspace` | Delete currently selected block(s) or wire. |
-| `Ctrl + A` | Select all blocks in the active model. |
 | `Escape` | Close active modals, dismiss context menu, or cancel wire creation. |
-| `Right Click` (on block / wire) | Open contextual action menu (Edit, Delete, Invert Fold). |
-| `Right Click` (on empty canvas) | Switch modes, Add Node Here, or Fit View. |
+| `Right Click` (on block / wire) | Open contextual action menu (Edit, Copy, Paste, Delete, Invert Fold). |
+| `Right Click` (on empty canvas) | Open context menu: Paste Here, Add Node Here, Switch Modes, or Fit View. |
 | `Double Click` (on block) | Open layer hyperparameter configuration dialog. |
 | `Double Click` (on wire) | Toggle wire fold orientation (Horizontal ⇄ Vertical). |
 | `Space` (during wire draw) | Flip current orthogonal bend orientation (H-first ⇄ V-first). |

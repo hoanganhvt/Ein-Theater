@@ -56,12 +56,17 @@ Handles CRUD operations for neural network nodes and directed circuit edges with
 | `UpdateNodeHandler(w, r)` | `POST /api/updateNode` | JSON: `UpdateNodeReq` | Parses JSON body and updates a node's label, layer type, and hyperparameter configuration map (`params`) in the active project. |
 | `DeleteNodeHandler(w, r)` | `POST /api/deleteNode` | Query: `id` | Deletes a single node by ID and automatically removes all connected edges. |
 | `DeleteNodesHandler(w, r)` | `POST /api/deleteNodes` | JSON array `["linear_0", "conv_0"]` or Query: `ids=linear_0,conv_0` | Batch deletes multiple nodes and all attached edges in a single atomic transaction. |
-| `MoveNodeHandler(w, r)` | `POST /api/moveNode` | Query: `id`, `x`, `y` | Updates a node's canvas coordinates after dragging, and automatically adjusts the endpoints of all connected edges while preserving existing intermediate fold waypoints. |
+| `MoveNodeHandler(w, r)` | `POST /api/moveNode` | Query: `id`, `x`, `y`, `update_edges`? | Updates a node's canvas coordinates. When `update_edges=false`, updates coordinates without mutating edge lines, preventing race conditions with client-managed wire geometry. |
+| `MoveNodeItem` | *(Struct)* | JSON: `{ "id", "x", "y" }` | Defines coordinates for an individual node in a batch move. |
+| `MoveNodesHandler(w, r)` | `POST /api/moveNodes` | JSON: `[]MoveNodeItem` | Batch updates coordinates for multiple nodes in a single lock without mutating edge lines. |
 | `AddEdgeReq` | *(Struct)* | JSON: `{ "from", "to", "lines"? }` | Request payload struct for adding an edge, supporting custom straight line segments. |
 | `AddEdgeHandler(w, r)` | `POST /api/addEdge` | JSON `AddEdgeReq` or Query: `from`, `to` | Creates or updates a directed connection between two nodes. If custom `lines` are provided (from client-side waypoint routing), saves them directly; otherwise computes orthogonal segments via `ComputeEdgeLines`. Rejects self-loops (`from == to`) and missing node references. If an edge already exists between `from` and `to`, updates its path gracefully. Returns created or updated `Edge` JSON. |
 | `UpdateEdgeReq` | *(Struct)* | JSON: `{ "id", "lines" }` | Request payload struct for updating edge lines and waypoint coordinates. |
 | `UpdateEdgeHandler(w, r)` | `POST /api/updateEdge` | JSON: `UpdateEdgeReq` | Updates an edge's custom straight line segments when the user drags a diamond fold handle or inverts fold orientation. |
+| `UpdateEdgesHandler(w, r)` | `POST /api/updateEdges` | JSON: `[]UpdateEdgeReq` | Batch updates line segments and fold waypoints for multiple edges in a single atomic transaction. |
 | `DeleteEdgeHandler(w, r)` | `POST /api/deleteEdge` | Query: `id` | Deletes a directed edge identified by query parameter `id`. |
+| `PasteGraphReq` / `PasteGraphResp` | *(Struct)* | JSON: `{ "nodes", "edges", "dx", "dy" }` | Request/response payload structs for copying and pasting nodes and edges. |
+| `PasteGraphHandler(w, r)` | `POST /api/paste`<br>`POST /api/pasteGraph` | JSON: `PasteGraphReq` | Duplicates a collection of nodes and their internal connecting edges into the active project. Allocates clean, unique 0-indexed scoped IDs (`<prefix>_<index>`), replicates exact hyperparameters, offsets positions by `(dx, dy)`, offsets wire waypoints, and returns the created elements. |
 | `ClearGraphHandler(w, r)` | `POST /api/clear` | None | Wipes all nodes and edges from the currently active project canvas and resets `nextNodeID = 0` and `nextEdgeID = 0`. |
 
 ---
@@ -197,6 +202,8 @@ The server entry point initializes route handlers and configures the listener:
   http.HandleFunc("/api/addEdge", handler.AddEdgeHandler)
   http.HandleFunc("/api/updateEdge", handler.UpdateEdgeHandler)
   http.HandleFunc("/api/deleteEdge", handler.DeleteEdgeHandler)
+  http.HandleFunc("/api/paste", handler.PasteGraphHandler)
+  http.HandleFunc("/api/pasteGraph", handler.PasteGraphHandler)
   http.HandleFunc("/api/clear", handler.ClearGraphHandler)
   ```
 

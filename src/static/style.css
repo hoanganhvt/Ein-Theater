@@ -79,6 +79,15 @@ body {
 .btn-clear { background-color: #e03131; border-color: #c92a2a; color: #fff; }
 .btn-clear:hover { background-color: #c92a2a; border-color: #b02525; }
 .btn.active { background-color: #e8f4fc; border-color: #007acc; color: #007acc; font-weight: 700; }
+.btn:disabled, .btn.disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+.btn:disabled:hover, .btn.disabled:hover {
+    background-color: #ffffff;
+    border-color: #ced4da;
+}
 
 /* ── Mode Segmented Control ──────────────────────────────── */
 .mode-group {

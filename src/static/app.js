@@ -64,6 +64,15 @@ import {
     loadModelFromFolder
 } from './js/workspace.js';
 import { invertEdgeFold, getEdgeAtCanvasPos } from './js/circuit.js';
+import {
+    copySelection,
+    cutSelection,
+    pasteClipboard,
+    pasteClipboardAtContext,
+    selectAllNodes,
+    setupClipboardShortcuts,
+    updateClipboardUI
+} from './js/clipboard.js';
 
 export function invertSelectedEdgeFold() {
     const selEdgeIds = state.network ? state.network.getSelectedEdges() : [];
@@ -105,9 +114,15 @@ Object.assign(window, {
     closeAllModals,
     saveEditNode,
 
-    // Context Menu
+    // Context Menu & Clipboard Actions
     hideContextMenu,
     deleteSelectionFromContextMenu,
+    copySelection,
+    cutSelection,
+    pasteClipboard,
+    pasteClipboardAtContext,
+    selectAllNodes,
+    updateClipboardUI,
 
     // Workspace & File Menu
     openSelectFolderModal,
@@ -137,6 +152,7 @@ export async function initApp() {
     setupCanvasClickAdd();
     setupBoxSelection();
     setupContextMenu();
+    setupClipboardShortcuts();
 
     // Global shortcut: Ctrl+S or Cmd+S to save model
     window.addEventListener('keydown', (e) => {

@@ -4,6 +4,7 @@ import { createBlock } from './graph.js';
 import { MODULES_LIST, LAYER_SCHEMAS } from './schemas.js';
 import { esc } from './utils.js';
 import { openAddNodeModal } from './modals.js';
+import { setMode } from './modes.js';
 
 let canvasListenersInitialized = false;
 
@@ -70,13 +71,18 @@ export function setupPaletteDragAndDrop() {
         });
 
         // Click to add at center as a quick alternative to drag & drop
-        item.addEventListener('click', () => {
+        item.addEventListener('click', async () => {
             const blockType = item.getAttribute('data-type');
             if (state.network) {
                 const v = state.network.getViewPosition();
                 const posX = Math.round(v.x + (Math.random() * 80 - 40));
                 const posY = Math.round(v.y + (Math.random() * 80 - 40));
-                createBlock(blockType, posX, posY);
+                const nodeObj = await createBlock(blockType, posX, posY);
+                if (nodeObj && nodeObj.id) {
+                    setMode('move');
+                    state.network.selectNodes([String(nodeObj.id)]);
+                    state.network.redraw();
+                }
             }
         });
     });
@@ -114,6 +120,11 @@ export function setupPaletteDragAndDrop() {
         const posX = Math.round(canvasPos.x);
         const posY = Math.round(canvasPos.y);
 
-        await createBlock(blockType, posX, posY);
+        const nodeObj = await createBlock(blockType, posX, posY);
+        if (nodeObj && nodeObj.id) {
+            setMode('move');
+            state.network.selectNodes([String(nodeObj.id)]);
+            state.network.redraw();
+        }
     });
 }

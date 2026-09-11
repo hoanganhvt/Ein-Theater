@@ -52,9 +52,13 @@ func main() {
 	http.HandleFunc("/api/deleteNode", handler.DeleteNodeHandler)
 	http.HandleFunc("/api/deleteNodes", handler.DeleteNodesHandler)
 	http.HandleFunc("/api/moveNode", handler.MoveNodeHandler)
+	http.HandleFunc("/api/moveNodes", handler.MoveNodesHandler)
 	http.HandleFunc("/api/addEdge", handler.AddEdgeHandler)
 	http.HandleFunc("/api/updateEdge", handler.UpdateEdgeHandler)
+	http.HandleFunc("/api/updateEdges", handler.UpdateEdgesHandler)
 	http.HandleFunc("/api/deleteEdge", handler.DeleteEdgeHandler)
+	http.HandleFunc("/api/paste", handler.PasteGraphHandler)
+	http.HandleFunc("/api/pasteGraph", handler.PasteGraphHandler)
 	http.HandleFunc("/api/clear", handler.ClearGraphHandler)
 
 	port := os.Getenv("PORT")

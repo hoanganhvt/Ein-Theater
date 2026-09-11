@@ -4,6 +4,7 @@ import { api } from './api.js';
 import { setMode } from './modes.js';
 import { closeAllModals } from './modals.js';
 import { getEdgeAtCanvasPos } from './circuit.js';
+import { hasClipboardData, getClipboardNodeCount, updateClipboardUI } from './clipboard.js';
 
 export function setupContextMenu() {
     const container = document.getElementById('mynetwork');
@@ -47,6 +48,10 @@ export function setupContextMenu() {
         const count = currentSelected.length;
         const edgeCount = currentSelectedEdges.length;
         const cmEdit = document.getElementById('cmEdit');
+        const cmCopy = document.getElementById('cmCopy');
+        const cmCopyText = document.getElementById('cmCopyText');
+        const cmPaste = document.getElementById('cmPaste');
+        const cmPasteText = document.getElementById('cmPasteText');
         const cmDelete = document.getElementById('cmDelete');
         const cmDeleteText = document.getElementById('cmDeleteText');
         const cmInvertFold = document.getElementById('cmInvertFold');
@@ -65,6 +70,34 @@ export function setupContextMenu() {
                 cmEdit.classList.remove('disabled');
             } else {
                 cmEdit.classList.add('disabled');
+            }
+        }
+
+        if (cmCopy) {
+            cmCopy.style.display = 'flex';
+            if (count > 0) {
+                cmCopy.classList.remove('disabled');
+                cmCopyText.textContent = count > 1 ? `Copy (${count} blocks)` : 'Copy';
+            } else {
+                cmCopy.classList.add('disabled');
+                cmCopyText.textContent = 'Copy';
+            }
+        }
+
+        if (cmPaste) {
+            cmPaste.style.display = 'flex';
+            if (hasClipboardData()) {
+                cmPaste.classList.remove('disabled');
+                const clipCount = getClipboardNodeCount();
+                const isBlank = (!clickedNode && !clickedEdge);
+                if (isBlank) {
+                    cmPasteText.textContent = clipCount > 1 ? `Paste Here (${clipCount} blocks)` : 'Paste Here';
+                } else {
+                    cmPasteText.textContent = clipCount > 1 ? `Paste (${clipCount} blocks)` : 'Paste';
+                }
+            } else {
+                cmPaste.classList.add('disabled');
+                cmPasteText.textContent = 'Paste';
             }
         }
 
@@ -204,4 +237,5 @@ export async function deleteSelectionFromContextMenu() {
         state.network.unselectAll();
         state.network.redraw();
     }
+    updateClipboardUI();
 }

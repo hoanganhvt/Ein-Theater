@@ -10,6 +10,7 @@ This directory contains the client-side ES6 JavaScript modules that power the in
 | :--- | :--- |
 | [`api.js`](./api.js) | Backend REST API communication wrapper (graph, projects, workspace, model save/load, folder creation) |
 | [`circuit.js`](./circuit.js) | PCB-style dot-grid background and orthogonal right-angle edge trace rendering |
+| [`clipboard.js`](./clipboard.js) | Clipboard operations (copy, cut, paste, select all) supporting single blocks and multi-block collections with internal wiring |
 | [`contextMenu.js`](./contextMenu.js) | Right-click context menu and global canvas shortcuts |
 | [`graph.js`](./graph.js) | Vis.js network initialization, node/edge sync, clean label rendering, grid snapping, and view management |
 | [`modals.js`](./modals.js) | Modal dialogs for adding blocks and editing layer hyperparameters with clean name badges |
@@ -136,10 +137,10 @@ Vis.js cannot render multi-segment right-angle orthogonal traces. To solve this:
   - **Diamond Fold Handles**: On selected edges, a draggable diamond handle (amber `#f59e0b` when dragging, sky blue `#38bdf8` when idle) is drawn at the midpoint of the bend.
   - **Live Connect Preview**: In `connect` mode, renders dashed bright-green traces (`rgba(0, 224, 122, 0.90)`), waypoints, and a glowing highlight around hovered target blocks.
 
-#### Waypoint & Endpoint Preservation (`updateEdgeEndpoints`)
-When a node is dragged across the canvas:
-- User-drawn line geometries (1-line collinear paths, 2-line L-bends) and intermediate corner waypoints are preserved without converting them into 3-segment Z-bends.
-- If an edge has intermediate corner waypoints, they remain fixed at their grid coordinates; only the first segment (connected to `fromNode`) and last segment (connected to `toNode`) are re-routed to the new block coordinates.
+#### Waypoint & Endpoint Preservation (`updateEdgeEndpoints` & Rigid Drag)
+When blocks are dragged across the canvas:
+- **Internal Edges (Multi-Block Selection)**: When a collection of blocks and their connecting edges are selected and dragged together, all internal wires connecting the dragged blocks remain 100% rigid. Every line segment, 90° bend, intermediate user waypoint, and custom fold offset translates together by the exact group displacement `(dx, dy)` and snaps to the grid `(snappedDx, snappedDy)`. The relative shape of the wire never deforms, re-routes, or collapses.
+- **External Edges (Single Node or Boundary Connections)**: If only one endpoint of a wire is dragged while the other endpoint remains stationary on another block, `updateEdgeEndpoints` adapts the moving end while preserving all intermediate waypoints and the stationary endpoint.
 - User-created custom bends, fold modes, and waypoint positions are never discarded or reset during block repositioning.
 
 #### Edge Fold Controls
@@ -264,10 +265,31 @@ Renders the electrical schematic / circuit-simulator visual layer on the Vis.js 
 
 ---
 
+### 3. `clipboard.js`
+Handles clipboard operations for copying, cutting, pasting, and selecting all canvas blocks:
+- `copySelection()`: Deep copies all currently selected nodes (including `layerType`, `label`, `params`, `shape`, and relative coordinates) as well as internal circuit wire connections (with exact `lines`, `foldMode`, and `customFold` waypoints) between the selected nodes. Saves data in memory and `sessionStorage` for persistence across project tabs and page reloads.
+- `cutSelection()`: Copies the selected nodes and internal wires to the clipboard and deletes them from the active canvas.
+- `pasteClipboard(targetPos)`: Duplicates clipboard nodes and internal edges into the active model via `POST /api/paste`. Dynamically allocates new, unique, 0-indexed scoped IDs (e.g. `linear_1`, `conv_1`) in the current project, replicates hyperparameters, offsets positions (staggered by 50px increments or centered at `targetPos`), and restores wire geometry with matching waypoint offsets. Verifies that elements were successfully added to the canvas dataset, automatically switches the editor to `'move'` mode, and keeps all newly pasted blocks and connecting wires selected so the user can immediately drag them together.
+- `pasteClipboardAtContext()`: Pastes clipboard elements centered at the right-click context menu location (`state.contextClickPos`).
+- `selectAllNodes()`: Selects all nodes on the active canvas.
+- `hasClipboardData()` / `getClipboardNodeCount()`: Checks if valid copied elements are present in clipboard and returns the count of blocks.
+- `updateClipboardUI()`: Dynamically updates enabled/disabled states for context menu items and selection controls.
+- `setupClipboardShortcuts()`: Registers global keyboard shortcuts:
+  - **`Ctrl + C`** / **`Cmd + C`**: Copy selected block(s) and internal wires.
+  - **`Ctrl + V`** / **`Cmd + V`**: Paste copied block(s).
+  - **`Ctrl + X`** / **`Cmd + X`**: Cut selected block(s).
+  - **`Ctrl + A`** / **`Cmd + A`**: Select all blocks.
+  - Safely ignores events when focused inside form inputs (`<input>`, `<textarea>`, `<select>`) or active modals.
+
+---
+
 ### 4. `graph.js`
 Initializes and coordinates the Vis.js network canvas.
 
-- `loadGraph()`: Loads the active project's graph from `/api/data`, instantiates `vis.DataSet` for nodes and edges (ensuring each edge contains the `lines` attribute, transparent Vis.js native edge styling, and fold state), maps clean display names via `getNodeDisplayName(node)` to both `label` and `title` (hover tooltip), disables built-in Vis.js manipulation, enables grid snapping, binds `'click'` listener to accurately select orthogonal wire segments, and binds event listeners for live edge line recomputation during node dragging via `updateEdgeEndpoints(edge, fn, tn)`.
+- `loadGraph()`: Loads the active project's graph from `/api/data`, instantiates `vis.DataSet` for nodes and edges (ensuring each edge contains the `lines` attribute, transparent Vis.js native edge styling, and fold state), maps clean display names via `getNodeDisplayName(node)` to both `label` and `title` (hover tooltip), disables built-in Vis.js manipulation, enables grid snapping, binds `'click'` listener to accurately select orthogonal wire segments, and coordinates drag event handlers:
+  - **`dragStart`**: Captures baseline coordinates for all selected/dragged nodes, snapshots initial geometries of internal edges (`lines`, `foldMode`, `customFold`), and identifies external boundary edges.
+  - **`dragging`**: Translates internal connecting edges rigidly in real time with the dragged nodes (`+dx, +dy`), ensuring bends, corners, and waypoints remain identical relative to the blocks. Adapts external edges using `updateEdgeEndpoints`.
+  - **`dragEnd`**: Snaps all dragged nodes to the 50px grid maintaining relative group spacing, applies the snapped delta to all internal edge geometries, persists nodes via `api.moveNodes` and edge lines via `api.updateEdges`, and restores the selection of all dragged blocks and wires so they remain active.
 - `createBlock(label, posX, posY)`: Instantiates a new layer node with default parameters, snaps placement coordinates to the nearest grid point, sets `label` and `title` to the clean identifier via `getNodeDisplayName()`, updates the Vis.js DataSet, and calls `/api/addNode`.
 - Double-clicking an edge toggles its fold orientation between Horizontal-first and Vertical-first.
 - `fitView()`: Centers and scales the canvas camera to fit all nodes smoothly.
@@ -350,7 +372,7 @@ Manages PyTorch neural network layer schemas, defaults, clean human-readable nam
 ### 10. `selection.js`
 Implements marquee / rubber-band box multi-selection.
 
-- `setupBoxSelection()`: Enables dragging a rectangle over the canvas (either when in `'select'` mode or by holding `Shift` in `'move'` mode). Computes intersection against all node bounding boxes and updates Vis.js selected nodes in real time.
+- `setupBoxSelection()`: Enables dragging a rectangle over the canvas (either when in `'select'` mode or by holding `Shift` in `'move'` mode). Computes intersection against all node bounding boxes in real time. Upon releasing the mouse (drag-and-drop completion), verifies what elements are truly selected, automatically switches the editor to `'move'` mode, and keeps all selected blocks and wires highlighted so the user can immediately drag and reposition them.
 
 ---
 
