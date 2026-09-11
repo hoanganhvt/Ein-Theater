@@ -1,7 +1,7 @@
 // ── Vis.js Canvas & Network Graph Core ────────────────────────────
 import { state } from './state.js';
 import { api } from './api.js';
-import { LAYER_SCHEMAS, getDefaultParams, formatNodeLabel } from './schemas.js';
+import { LAYER_SCHEMAS, getDefaultParams, formatNodeLabel, getNodeDisplayName } from './schemas.js';
 import { setMode } from './modes.js';
 import { openAddNodeModal, openEditNodeModal } from './modals.js';
 import { setupCircuitCanvas, snapToGrid, computeOrthogonalLines, computeEdgeLines, invertEdgeFold, updateEdgeEndpoints, getEdgeAtCanvasPos, cancelWireCreation } from './circuit.js';
@@ -15,11 +15,12 @@ export async function loadGraph() {
         const processedNodes = (data.nodes || []).map(n => {
             const baseType = n.layerType || (n.label || '').split('\n')[0].trim();
             const params = n.params || (LAYER_SCHEMAS[baseType] ? getDefaultParams(baseType) : {});
-            const label = formatNodeLabel(baseType, params);
+            const displayName = getNodeDisplayName(n);
             return {
                 ...n,
                 id: String(n.id),
-                label: label,
+                label: displayName,
+                title: displayName,
                 layerType: baseType,
                 params: params,
                 shape: n.shape || 'box'
@@ -205,16 +206,17 @@ export async function createBlock(label, posX, posY) {
     try {
         const baseType = label;
         const defaultParams = LAYER_SCHEMAS[baseType] ? getDefaultParams(baseType) : {};
-        const formattedLabel = formatNodeLabel(baseType, defaultParams);
 
         // Snap placement position to nearest grid point
         const { x: snappedX, y: snappedY } = snapToGrid(posX, posY);
 
-        const newNode = await api.addNode(formattedLabel, baseType, snappedX, snappedY);
+        const newNode = await api.addNode(baseType, baseType, snappedX, snappedY);
+        const displayName = getNodeDisplayName(newNode);
 
         const nodeObj = {
             id:        String(newNode.id),
-            label:     formattedLabel,
+            label:     displayName,
+            title:     displayName,
             layerType: baseType,
             params:    defaultParams,
             shape:     'box',

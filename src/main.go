@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
+	"os"
 
 	"web-app/handler"
 )
@@ -38,6 +39,11 @@ func main() {
 	http.HandleFunc("/api/workspace/set", handler.SetWorkspaceHandler)
 	http.HandleFunc("/api/workspace/browse", handler.BrowseWorkspaceHandler)
 	http.HandleFunc("/api/workspace/select-native", handler.SelectNativeFolderHandler)
+	http.HandleFunc("/api/workspace/create-folder", handler.CreateFolderHandler)
+	http.HandleFunc("/api/workspace/save-model", handler.SaveModelHandler)
+	http.HandleFunc("/api/saveModel", handler.SaveModelHandler)
+	http.HandleFunc("/api/workspace/load-model", handler.LoadModelHandler)
+	http.HandleFunc("/api/loadModel", handler.LoadModelHandler)
 
 	// Node / edge operations (all apply to the active project)
 	http.HandleFunc("/api/rename", handler.RenameModelHandler)
@@ -51,11 +57,15 @@ func main() {
 	http.HandleFunc("/api/deleteEdge", handler.DeleteEdgeHandler)
 	http.HandleFunc("/api/clear", handler.ClearGraphHandler)
 
-	fmt.Println("Server is running at http://localhost:8080")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	fmt.Printf("Server is running at http://localhost:%s\n", port)
 	fmt.Println("Open your browser to interact with the graph!")
 	fmt.Println("Press Ctrl+C to stop.")
 
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		fmt.Println("Error starting server:", err)
 	}
 }

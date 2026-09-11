@@ -230,24 +230,45 @@ export function renderLabelTemplate(template, data) {
 }
 
 /**
- * Computes the multi-line node label string shown on canvas for a layer type and parameter set.
+ * Resolves the clean human-readable name of a node (e.g. "linear 0", "conv 0", "relu 0").
+ * Guarantees that the name is displayed, never raw IDs or parameter numbers.
  */
-export function formatNodeLabel(layerType, params) {
-    if (!params || Object.keys(params).length === 0) {
-        return layerType;
+export function getNodeDisplayName(nodeOrType, id = null) {
+    let baseType = '';
+    let idStr = '';
+    
+    if (typeof nodeOrType === 'object' && nodeOrType !== null) {
+        idStr = String(nodeOrType.id || '').trim();
+        baseType = nodeOrType.layerType || (nodeOrType.label || '').split('\n')[0].trim() || 'Block';
+    } else {
+        baseType = String(nodeOrType || 'Block');
+        idStr = id !== null ? String(id).trim() : '';
     }
-    const schema = LAYER_SCHEMAS[layerType];
-    if (schema) {
-        if (typeof schema.formatLabel === 'function') {
-            return schema.formatLabel(params);
-        }
-        if (schema.labelTemplate) {
-            const context = Object.assign({ type: layerType }, getDefaultParams(layerType), params);
-            return renderLabelTemplate(schema.labelTemplate, context);
-        }
+    
+    let cleanType = baseType.replace(/^nn\./, '').replace(/^torch\./, '').toLowerCase();
+    if (cleanType === 'conv2d') cleanType = 'conv';
+    else if (cleanType === 'batchnorm2d') cleanType = 'batchnorm';
+    else if (cleanType === 'maxpool2d') cleanType = 'maxpool';
+
+    if (idStr.includes('_')) {
+        return idStr.replace(/_/g, ' ');
     }
-    if (params.customArgs) {
-        return `${layerType}\n(${params.customArgs})`;
+    if (/^\d+$/.test(idStr)) {
+        return `${cleanType} ${idStr}`;
     }
-    return layerType;
+    if (idStr && idStr !== 'undefined' && idStr !== 'null') {
+        return idStr.replace(/_/g, ' ');
+    }
+    return cleanType;
+}
+
+/**
+ * Computes the node label shown on canvas for a layer type.
+ * Always displays the clean module name (e.g. 'linear 0', 'conv 0'), not parameter numbers.
+ */
+export function formatNodeLabel(layerType, params = null, displayName = null) {
+    if (displayName) {
+        return displayName;
+    }
+    return getNodeDisplayName(layerType);
 }

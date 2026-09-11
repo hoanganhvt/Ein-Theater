@@ -1,6 +1,6 @@
 // ── Modals: Add Block & Edit Layer Parameters ─────────────────────
 import { state } from './state.js';
-import { MODULES_LIST, LAYER_SCHEMAS, getDefaultParams, getLayerBaseType, formatNodeLabel } from './schemas.js';
+import { MODULES_LIST, LAYER_SCHEMAS, getDefaultParams, getLayerBaseType, formatNodeLabel, getNodeDisplayName } from './schemas.js';
 import { esc } from './utils.js';
 import { api } from './api.js';
 import { createBlock } from './graph.js';
@@ -293,10 +293,12 @@ export async function saveNode() {
 
     if (cb) {
         try {
-            const newNode = await api.addNode(formattedLabel, baseType, posX, posY);
+            const newNode = await api.addNode(baseType, baseType, posX, posY);
+            const displayName = getNodeDisplayName(newNode);
             const nodeObj = {
                 id:        String(newNode.id),
-                label:     formattedLabel,
+                label:     displayName,
+                title:     displayName,
                 layerType: baseType,
                 params:    defaultParams,
                 shape:     'box',
@@ -353,7 +355,10 @@ export function openEditNodeModal(nodeId) {
     state.editingLayerType = getLayerBaseType(node);
 
     const badge = document.getElementById('editLayerTypeBadge');
-    if (badge) badge.textContent = state.editingLayerType;
+    if (badge) {
+        const displayName = String(nodeId).replace('_', ' ');
+        badge.textContent = `${state.editingLayerType} (${displayName})`;
+    }
 
     const schema = LAYER_SCHEMAS[state.editingLayerType];
     const params = Object.assign({}, schema ? getDefaultParams(state.editingLayerType) : {}, node.params || {});
@@ -470,13 +475,14 @@ export async function saveEditNode() {
         }
     }
 
-    const newLabel = formatNodeLabel(layerType, updatedParams);
     const targetNodeId = state.editingNodeId;
+    const displayName = getNodeDisplayName({ id: targetNodeId, layerType: layerType });
 
     // Update in-memory Vis DataSet
     state.nodesDataSet.update({
         id: targetNodeId,
-        label: newLabel,
+        label: displayName,
+        title: displayName,
         layerType: layerType,
         params: updatedParams
     });
@@ -487,7 +493,7 @@ export async function saveEditNode() {
     try {
         await api.updateNode({
             id: targetNodeId,
-            label: newLabel,
+            label: displayName,
             layerType: layerType,
             params: updatedParams
         });

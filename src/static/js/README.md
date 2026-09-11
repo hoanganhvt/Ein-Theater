@@ -8,19 +8,19 @@ This directory contains the client-side ES6 JavaScript modules that power the in
 
 | File | Primary Responsibility |
 | :--- | :--- |
-| [`api.js`](./api.js) | Backend REST API communication wrapper |
+| [`api.js`](./api.js) | Backend REST API communication wrapper (graph, projects, workspace, model save/load, folder creation) |
 | [`circuit.js`](./circuit.js) | PCB-style dot-grid background and orthogonal right-angle edge trace rendering |
 | [`contextMenu.js`](./contextMenu.js) | Right-click context menu and global canvas shortcuts |
-| [`graph.js`](./graph.js) | Vis.js network initialization, node/edge sync, grid snapping, and view management |
-| [`modals.js`](./modals.js) | Modal dialogs for adding blocks and editing layer hyperparameters |
+| [`graph.js`](./graph.js) | Vis.js network initialization, node/edge sync, clean label rendering, grid snapping, and view management |
+| [`modals.js`](./modals.js) | Modal dialogs for adding blocks and editing layer hyperparameters with clean name badges |
 | [`modes.js`](./modes.js) | Toolbar mode switching (`move`, `select`, `add`, `connect`) |
 | [`palette.js`](./palette.js) | Dynamic rendering, drag-and-drop, and click-to-add from sidebar layer palette |
 | [`projects.js`](./projects.js) | Multi-model management, project switching, and inline renaming |
-| [`schemas.js`](./schemas.js) | Dynamic JSON schema loading (`modules.json`), parameter defaults, and template label formatting |
+| [`schemas.js`](./schemas.js) | Dynamic JSON schema loading (`modules.json`), parameter defaults, clean human-readable naming, and label templating |
 | [`selection.js`](./selection.js) | Rubber-band marquee box selection on canvas |
 | [`state.js`](./state.js) | Central reactive state container across modules |
 | [`utils.js`](./utils.js) | String and HTML escaping utility |
-| [`workspace.js`](./workspace.js) | Working directory explorer, file modal browser, and native picker |
+| [`workspace.js`](./workspace.js) | Working directory explorer, file modal browser, model package detection, folder creation, and toast notifications |
 
 ---
 
@@ -36,8 +36,9 @@ Nodes represent PyTorch neural network layer blocks (e.g., `nn.Linear`, `nn.Conv
 
 | Field | Type | Description |
 | :--- | :--- | :--- |
-| `id` | `string` | Unique identifier (e.g. `"1"`, `"2"`). Maintained as a string for consistent Vis.js `DataSet` lookups. |
-| `label` | `string` | Multi-line text rendered inside the block on the canvas (e.g. `nn.Linear\n(128 → 64)`). Dynamically computed by `formatNodeLabel(baseType, params)`. |
+| `id` | `string` | Unique identifier scoped per-layer-type and per-workspace starting at 0 (e.g. `"linear_0"`, `"linear_1"`, `"conv_0"`, `"conv_1"`). |
+| `title` | `string` | Hover tooltip and human-readable identifier (e.g. `"linear 0"`, `"conv 0"`). |
+| `label` | `string` | Multi-line text rendered inside the block on the canvas displaying the clean module name (e.g. `"linear 0"`). Dynamically computed by `formatNodeLabel()` and `getNodeDisplayName()`. |
 | `layerType` | `string` | The base PyTorch layer class name (e.g., `"nn.Linear"`, `"nn.Conv2d"`, `"nn.ReLU"`) or a custom layer name. Maps to `LAYER_SCHEMAS`. |
 | `shape` | `string` | Vis.js node shape. Always `'box'`. |
 | `x` | `number` | Horizontal canvas coordinate in network units. Snapped to the 50px grid (`GRID_SIZE = 50`). |
@@ -50,11 +51,8 @@ Each `layerType` corresponds to a schema definition loaded dynamically from [`mo
   - `number`: Rendered as numeric inputs with optional `min`, `max`, and `step` constraints (e.g. `kernel_size`, `in_features`, `dropout`).
   - `boolean`: Rendered as styled checkbox toggles (e.g. `bias`, `inplace`, `batch_first`).
   - Custom / unlisted layers: Rendered with a text input for freeform parameter strings (`customArgs`).
-- **Label Formatting & Mustache Templating**:
-  The displayed block label is generated dynamically via `formatNodeLabel()` and `renderLabelTemplate()` using mustache-style templates defined per layer:
-  - `{key}`: Variable substitution (e.g. `{in_features} → {out_features}`).
-  - `{#key}...{/key}`: Conditional truthy block (e.g. `{#inplace}\n(inplace){/inplace}`).
-  - `{^key}...{/key}`: Inverted / falsy conditional block.
+- **Clean Naming & Label Formatting**:
+  Blocks display clean identifiers (e.g. `linear 0`, `conv 0`) rendered via `getNodeDisplayName()`. Full parameter details are viewed and edited inside the parameter modal without cluttering the circuit canvas.
 - **Code Template (`code`)**:
   Python constructor invocation string (e.g. `nn.Conv2d(in_channels={in_channels}, out_channels={out_channels}, kernel_size={kernel_size}, stride={stride}, padding={padding}, bias={bias})`) used by the live preview card and Python code synthesis generator.
 
@@ -65,8 +63,9 @@ Each `layerType` corresponds to a schema definition loaded dynamically from [`mo
 #### Node JSON Example
 ```json
 {
-  "id": "1",
-  "label": "nn.Linear\n(128 → 64)",
+  "id": "linear_0",
+  "label": "linear 0",
+  "title": "linear 0",
   "layerType": "nn.Linear",
   "shape": "box",
   "x": 200,
@@ -193,21 +192,23 @@ When a node is dragged across the canvas:
 ### 1. `api.js`
 Exports the `api` object containing asynchronous methods for HTTP requests to the Go backend.
 
-
 - **Project Endpoints:**
   - `fetchProjects()`: `GET /api/projects` — Fetches list of models and active project ID.
-  - `createProject(name)`: `POST /api/projects/create` — Creates a new project model.
+  - `createProject(name)`: `POST /api/projects/create` — Creates a new project model initialized with an empty canvas.
   - `switchProject(id)`: `POST /api/projects/switch` — Switches active project by ID.
   - `deleteProject(id)`: `POST /api/projects/delete` — Deletes specified project.
   - `renameModel(name)`: `POST /api/rename` — Renames current project.
 - **Workspace Endpoints:**
   - `fetchWorkspace()`: `GET /api/workspace` — Retrieves active working directory info.
   - `setWorkspace(path)`: `POST /api/workspace/set` — Sets new working directory.
-  - `browseDirectory(dir)`: `GET /api/workspace/browse` — Lists files/folders in target path.
-  - `selectNativeFolder()`: `POST /api/workspace/select-native` — Opens native Windows folder picker.
+  - `browseDirectory(dir)`: `GET /api/workspace/browse` — Lists files/folders in target path, detecting verified model packages (`isModel: true`).
+  - `selectNativeFolder()`: `POST /api/workspace/select-native` — Opens native Windows folder picker dialog via PowerShell.
+  - `createFolder(dir, name)`: `POST /api/workspace/create-folder` — Creates a new subdirectory in the target directory.
+  - `saveModel(projectId = '', dir = '')`: `POST /api/workspace/save-model` — Serializes active canvas, invokes Python code generator, and writes `<model_name>/<model_name>.json` and `<model_name>.py`.
+  - `loadModel(path)`: `POST /api/workspace/load-model` — Reads model folder, validates naming, and restores model graph onto active canvas.
 - **Graph Endpoints:**
   - `fetchGraphData()`: `GET /api/data` — Loads all nodes and edges for active project.
-  - `addNode(label, layerType, x, y)`: `POST /api/addNode` — Adds node at given coordinates.
+  - `addNode(label, layerType, x, y)`: `POST /api/addNode` — Adds node at given coordinates with 0-indexed ID (`<prefix>_<index>`).
   - `updateNode(nodeData)`: `POST /api/updateNode` — Updates node label, type, and parameters.
   - `deleteNode(id)`: `POST /api/deleteNode` — Deletes single node by ID.
   - `deleteNodes(ids)`: `POST /api/deleteNodes` — Batch deletes array of node IDs.
@@ -215,7 +216,7 @@ Exports the `api` object containing asynchronous methods for HTTP requests to th
   - `addEdge(from, to, lines = null)`: `POST /api/addEdge` — Connects two nodes with a directed edge (accepts optional custom `lines` array for waypoints).
   - `updateEdge(id, lines)`: `POST /api/updateEdge` — Updates custom straight line segments and fold waypoints for an edge.
   - `deleteEdge(id)`: `POST /api/deleteEdge` — Deletes edge by ID.
-  - `clearGraph()`: `POST /api/clear` — Clears all nodes/edges in current project.
+  - `clearGraph()`: `POST /api/clear` — Clears all nodes/edges in current project and resets ID counters to 0.
 
 ---
 
@@ -266,8 +267,8 @@ Renders the electrical schematic / circuit-simulator visual layer on the Vis.js 
 ### 4. `graph.js`
 Initializes and coordinates the Vis.js network canvas.
 
-- `loadGraph()`: Loads the active project's graph from `/api/data`, instantiates `vis.DataSet` for nodes and edges (ensuring each edge contains the `lines` attribute, transparent Vis.js native edge styling, and fold state), disables built-in Vis.js manipulation, enables grid snapping, binds `'click'` listener to accurately select orthogonal wire segments, and binds event listeners for live edge line recomputation during node dragging via `updateEdgeEndpoints(edge, fn, tn)`.
-- `createBlock(label, posX, posY)`: Instantiates a new layer node with default parameters, snaps placement coordinates to the nearest grid point, updates the Vis.js DataSet, and calls `/api/addNode`.
+- `loadGraph()`: Loads the active project's graph from `/api/data`, instantiates `vis.DataSet` for nodes and edges (ensuring each edge contains the `lines` attribute, transparent Vis.js native edge styling, and fold state), maps clean display names via `getNodeDisplayName(node)` to both `label` and `title` (hover tooltip), disables built-in Vis.js manipulation, enables grid snapping, binds `'click'` listener to accurately select orthogonal wire segments, and binds event listeners for live edge line recomputation during node dragging via `updateEdgeEndpoints(edge, fn, tn)`.
+- `createBlock(label, posX, posY)`: Instantiates a new layer node with default parameters, snaps placement coordinates to the nearest grid point, sets `label` and `title` to the clean identifier via `getNodeDisplayName()`, updates the Vis.js DataSet, and calls `/api/addNode`.
 - Double-clicking an edge toggles its fold orientation between Horizontal-first and Vertical-first.
 - `fitView()`: Centers and scales the canvas camera to fit all nodes smoothly.
 - `clearGraph()`: Cancels active wire drawing (`cancelWireCreation()`), asks for user confirmation, clears backend via `/api/clear`, wipes `nodesDataSet` and `edgesDataSet`, unselects all items, and triggers an immediate redraw.
@@ -284,14 +285,14 @@ Handles UI dialog modals for creating new blocks and modifying existing layer hy
   - `updateNodePreview()`: Live preview card inside the modal showing the selected layer's category, badge, formatted canvas display label, and Python constructor code template.
   - `openAddNodeModal(nodeData, callback)`: Displays the add block dialog, initializes category and search filters, and focuses the search field for quick keyboard navigation.
   - `toggleCustom()`: Toggles the custom layer name input when "Custom Layer..." is selected.
-  - `saveNode()`: Reads chosen layer type/name, calculates placement position, and triggers creation.
+  - `saveNode()`: Reads chosen layer type/name, calculates placement position, computes clean display label (`getNodeDisplayName`), and triggers creation.
   - `cancelNode()`: Dismisses the modal and cancels Vis.js manipulation callback.
   - `closeModal()`: Closes add block modal and overlay.
   - `openAddNodeAtContext()`: Opens add node modal using the right-click context menu coordinates.
 - **Edit Node Parameters Modal:**
-  - `openEditNodeModal(nodeId)`: Opens the parameter editor dynamically populated based on the layer's schema fields (numeric inputs, min/max hints, checkboxes for booleans).
+  - `openEditNodeModal(nodeId)`: Opens the parameter editor dynamically populated based on the layer's schema fields (numeric inputs, min/max hints, checkboxes for booleans). The header badge clearly displays the layer type and display name (e.g. `nn.Linear (linear 0)`).
   - `closeEditModal()`: Dismisses the parameter editor modal.
-  - `saveEditNode()`: Reads updated parameter form inputs, formats the display label, updates the local Vis.js DataSet, and calls `api.updateNode`.
+  - `saveEditNode()`: Reads updated parameter form inputs, computes clean display label (`getNodeDisplayName`), updates the local Vis.js DataSet (`label` and `title`), and calls `api.updateNode`.
   - `openEditNodeFromContext()`: Context menu action to open edit modal for the currently selected node.
   - `closeAllModals()`: Closes all modals and resets transient states.
 
@@ -331,17 +332,18 @@ Manages model tabs in the sidebar and header model renaming.
 ---
 
 ### 9. `schemas.js`
-Manages PyTorch neural network layer schemas, defaults, and label generators loaded dynamically from `/static/data/modules.json`.
+Manages PyTorch neural network layer schemas, defaults, clean human-readable naming, and label generators loaded dynamically from `/static/data/modules.json`.
 
 - `initSchemas()`: Asynchronous initializer that fetches `/static/data/modules.json`, populates `MODULES_LIST`, and builds the `LAYER_SCHEMAS` map (falls back gracefully to embedded layer definitions if the network request fails).
 - `MODULES_LIST`: Array of all available layer module definitions in order (used by palette and dropdowns).
 - `LAYER_SCHEMAS`: Configuration object keyed by layer type (`nn.Linear`, `nn.Conv2d`, `nn.ReLU`, etc.) containing:
   - `fields`: Array of parameter definitions (`key`, `label`, `type`, `default`, `min`, `max`, `step`).
   - `labelTemplate`: String template for rendering canvas labels with variable substitution (`{type}`, `{in_features}`) and conditional blocks (`{#inplace}...{/inplace}`, `{^inplace}...{/inplace}`).
+- `getNodeDisplayName(nodeOrType, id = null)`: Resolves clean, readable names (e.g. `linear 0`, `conv 0`, `relu 0`). Strips `nn.`/`torch.`, normalizes types (`conv2d` → `conv`, `batchnorm2d` → `batchnorm`, `maxpool2d` → `maxpool`), and replaces underscores with spaces.
+- `formatNodeLabel(layerType, params = null, displayName = null)`: Computes the node label shown on canvas for a layer type. Guarantees that only the clean module name is displayed, preventing parameter numbers from cluttering blocks.
 - `renderLabelTemplate(template, data)`: Evaluates mustache-style templating and conditionals for dynamic block text.
 - `getDefaultParams(layerType)`: Returns key-value object of default values for the specified layer schema.
 - `getLayerBaseType(node)`: Extracts base layer name string from a node.
-- `formatNodeLabel(layerType, params)`: Computes the multi-line node label string shown inside the canvas block (e.g. `nn.Linear\n(128 → 64)`).
 
 ---
 
@@ -375,19 +377,32 @@ General utility functions.
 ---
 
 ### 13. `workspace.js`
-Manages workspace directory selection and file listing.
+Manages workspace directory selection, file tree rendering, model detection, folder creation, model save/load, and toast alerts.
 
 - `initWorkspace()`: Loads initial workspace info on startup and configures outside-click listener for header File menu.
 - `loadWorkspace()`: Queries backend for current active directory.
 - `updateWorkspaceUI(workingDir, name)`: Updates workspace indicators in header pill and sidebar.
-- `loadWorkspaceFiles(dirPath)`: Renders subfolders and files inside the sidebar workspace tree view with custom icons.
+- `loadWorkspaceFiles(dirPath)`: Renders subfolders and files inside the sidebar workspace tree. Identifies verified model folders (`f.isModel`), tagging them with a `🧠` icon and `Model` badge (`.model-badge`). Clicking a model folder directly loads it onto the canvas via `loadModelFromFolder()`.
 - `toggleFileMenu(event)` / `closeFileMenu()`: Toggles and closes the header File dropdown.
 - `openSelectFolderModal(targetDir)` / `closeSelectFolderModal()`: Opens and closes the folder browser modal.
-- `browseTo(dirPath)`: Navigates inside the modal file browser, rendering drive shortcuts, parent folder navigation, and folder selection buttons.
+- `browseTo(dirPath)`: Navigates inside the modal file browser, rendering drive shortcuts, parent folder navigation, and folder selection buttons. For model folders, renders a `Model` tag and a **⚡ Load Model** button (`.fb-load-btn`) that loads the model directly on click.
 - `browseParentFolder()`: Navigates to parent directory.
 - `applyTypedPath()`: Navigates to custom path typed into modal path input.
-- `confirmSelectFolder()`: Sets selected folder as the active working directory.
 - `browseSystemFolder()`: Triggers the Windows native folder picker dialog via backend.
+- `promptCreateFolderModal()`: Prompts for a folder name and creates a new subdirectory in the currently browsed directory.
+- `promptCreateFolderSidebar()`: Prompts for a folder name and creates a new subdirectory inside the active working directory.
+- `saveActiveModel()`: Saves the currently active neural network model into `<workingDir>/<model_name>/` containing `<model_name>.json` and `<model_name>.py` via Python code generation, sets button to `💾 Saving...`, refreshes the workspace file tree, and displays a success toast.
+- `loadModelFromFolder(folderPath)`: Directly loads a model folder onto the active canvas, updates project tabs, centers the view (`fitView()`), closes modal, and displays a confirmation toast.
+- `showToast(message, duration)`: Displays transient unobtrusive floating toast alerts (`.app-toast`) for save confirmations and system status.
+
+---
+
+### 14. Application Lifecycle & Keybindings (`app.js`)
+
+`app.js` serves as the top-level client orchestration module:
+- Initializes schemas (`initSchemas()`), projects (`loadProjects()`), workspace state (`initWorkspace()`), and the circuit canvas (`setupCircuitCanvas()`).
+- Binds global keyboard shortcut: **`Ctrl + S`** / **`Cmd + S`** to invoke `saveActiveModel()`.
+- Exposes critical functions on `window` for inline HTML event handlers (e.g. `setMode`, `saveActiveModel`, `openSelectFolderModal`, `fitView`, `clearGraph`, `promptCreateFolderSidebar`, `promptCreateFolderModal`, `loadModelFromFolder`).
 
 ---
 

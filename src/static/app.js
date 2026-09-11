@@ -57,7 +57,11 @@ import {
     confirmSelectFolder,
     browseSystemFolder,
     toggleFileMenu,
-    closeFileMenu
+    closeFileMenu,
+    saveActiveModel,
+    promptCreateFolderModal,
+    promptCreateFolderSidebar,
+    loadModelFromFolder
 } from './js/workspace.js';
 import { invertEdgeFold, getEdgeAtCanvasPos } from './js/circuit.js';
 
@@ -114,7 +118,11 @@ Object.assign(window, {
     confirmSelectFolder,
     browseSystemFolder,
     toggleFileMenu,
-    closeFileMenu
+    closeFileMenu,
+    saveActiveModel,
+    promptCreateFolderModal,
+    promptCreateFolderSidebar,
+    loadModelFromFolder
 });
 
 // ── Application Initialization ────────────────────────────────────
@@ -129,6 +137,14 @@ export async function initApp() {
     setupCanvasClickAdd();
     setupBoxSelection();
     setupContextMenu();
+
+    // Global shortcut: Ctrl+S or Cmd+S to save model
+    window.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+            e.preventDefault();
+            saveActiveModel();
+        }
+    });
 }
 
 if (document.readyState === 'loading') {

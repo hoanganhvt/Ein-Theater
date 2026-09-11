@@ -18,6 +18,11 @@
             <div class="menu-dropdown">
                 <button class="btn menu-btn" id="fileMenuBtn" onclick="toggleFileMenu(event)" title="File options">File ▾</button>
                 <div class="menu-dropdown-content" id="fileMenuDropdown">
+                    <div class="menu-item" onclick="saveActiveModel(); closeFileMenu();">
+                        <span class="menu-icon">💾</span>
+                        <span class="menu-text">Save Model</span>
+                        <span class="menu-badge">Ctrl+S</span>
+                    </div>
                     <div class="menu-item" onclick="openSelectFolderModal(); closeFileMenu();">
                         <span class="menu-icon">📂</span>
                         <span class="menu-text">Select Folder...</span>
@@ -58,6 +63,7 @@
                 <button class="btn mode-btn" id="btnModeAdd" onclick="setMode('add')" title="Add Node: Click anywhere on canvas to place a block">➕ Add Node</button>
                 <button class="btn mode-btn" id="btnModeConnect" onclick="setMode('connect')" title="Add Edge: Click &amp; drag between blocks to connect them">🔗 Add Edge</button>
             </div>
+            <button class="btn btn-save" id="btnSaveModel" onclick="saveActiveModel()" title="Save Model (Ctrl+S)">💾 Save</button>
             <button class="btn" onclick="fitView()">Fit View</button>
             <button class="btn" id="btnDeleteSelection" onclick="deleteSelectionFromContextMenu()" title="Delete selected block or wire (Del / Backspace)">🗑️ Delete</button>
             <button class="btn btn-clear" onclick="clearGraph()">Clear Canvas</button>
@@ -73,7 +79,10 @@
             <div class="sidebar-section workspace-section">
                 <div class="sidebar-header">
                     <h3>Working Directory</h3>
-                    <button class="btn-change-folder" onclick="openSelectFolderModal()" title="Select folder">📂</button>
+                    <div style="display: flex; gap: 4px;">
+                        <button class="btn-change-folder" onclick="promptCreateFolderSidebar()" title="Create new folder in working directory">➕</button>
+                        <button class="btn-change-folder" onclick="openSelectFolderModal()" title="Select folder">📂</button>
+                    </div>
                 </div>
                 <div class="workspace-card" onclick="openSelectFolderModal()" title="Click to change working directory">
                     <div class="workspace-card-icon">📁</div>
@@ -183,6 +192,7 @@
                 <input type="text" id="folderPathInput" placeholder="Enter folder path and press Enter..."
                        onkeydown="if(event.key==='Enter')applyTypedPath();" />
                 <button class="btn" onclick="applyTypedPath()">Go</button>
+                <button class="btn btn-icon" onclick="promptCreateFolderModal()" title="Create a new folder in this directory">➕ New Folder</button>
             </div>
             <div class="folder-drives-bar" id="folderDrivesBar">
                 <!-- Drive chips rendered by JS -->

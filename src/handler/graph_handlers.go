@@ -53,9 +53,9 @@ func AddNodeHandler(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
 	defer mu.Unlock()
 	p := cur()
-	id := fmt.Sprintf("%d", p.nextNodeID)
-	p.nextNodeID++
-	n := Node{ID: id, Label: label, LayerType: layerType, Shape: "box", X: x, Y: y}
+	id := p.getNextNodeID(layerType)
+	displayName := strings.ReplaceAll(id, "_", " ")
+	n := Node{ID: id, Label: displayName, LayerType: layerType, Shape: "box", X: x, Y: y}
 	p.nodes[id] = n
 
 	w.Header().Set("Content-Type", "application/json")
@@ -352,7 +352,7 @@ func UpdateEdgeHandler(w http.ResponseWriter, r *http.Request) {
 
 // DeleteEdgeHandler deletes an edge.
 func DeleteEdgeHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("edge deletedddd\n\n")
+	fmt.Println("edge deletedddd")
 	id := r.URL.Query().Get("id")
 	mu.Lock()
 	defer mu.Unlock()
@@ -367,5 +367,7 @@ func ClearGraphHandler(w http.ResponseWriter, r *http.Request) {
 	p := cur()
 	p.nodes = make(map[string]Node)
 	p.edges = make(map[string]Edge)
+	p.nextNodeID = 0
+	p.nextEdgeID = 0
 	w.WriteHeader(http.StatusOK)
 }

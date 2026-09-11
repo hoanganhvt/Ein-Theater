@@ -1,6 +1,6 @@
 // ── Project Management & Model Title ──────────────────────────────
 import { api } from './api.js';
-import { esc } from './utils.js';
+import { esc, fixModelName } from './utils.js';
 import { loadGraph } from './graph.js';
 
 export async function loadProjects() {
@@ -84,7 +84,8 @@ export async function commitRename() {
     const title = document.getElementById('modelTitle');
     const input = document.getElementById('modelTitleInput');
     if (!title || !input) return;
-    const newName = input.value.trim() || title.textContent.trim() || 'Untitled Model';
+    const rawName = input.value.trim() || title.textContent.trim() || 'Untitled_Model';
+    const newName = fixModelName(rawName);
     input.style.display = 'none';
     title.style.display = '';
     title.textContent = newName;

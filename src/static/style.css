@@ -932,6 +932,27 @@ div.vis-network div.vis-close {
 .workspace-file-item.is-folder {
     font-weight: 500;
 }
+.workspace-file-item.is-model-folder {
+    font-weight: 600;
+    color: #0369a1;
+    background-color: #f0f9ff;
+    border-radius: 4px;
+}
+.workspace-file-item.is-model-folder:hover {
+    background-color: #e0f2fe;
+    color: #0284c7;
+}
+.model-badge {
+    margin-left: auto;
+    background-color: #0284c7;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
 .workspace-empty-hint {
     font-size: 11px;
     color: #94a3b8;
@@ -1126,6 +1147,46 @@ div.vis-network div.vis-close {
     color: #007acc;
     border-color: #007acc;
 }
+.folder-browser-row.is-model-folder {
+    background-color: #f0f9ff;
+    border-left: 3px solid #0284c7;
+}
+.folder-browser-row.is-model-folder:hover {
+    background-color: #e0f2fe;
+}
+.model-tag {
+    display: inline-block;
+    background-color: #e0f2fe;
+    color: #0284c7;
+    border: 1px solid #bae6fd;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+.fb-load-btn {
+    background-color: #059669;
+    color: #ffffff;
+    border: 1px solid #059669;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: all 0.12s;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+.fb-load-btn:hover {
+    background-color: #047857;
+    border-color: #047857;
+    box-shadow: 0 2px 4px rgba(5, 150, 105, 0.25);
+}
 .folder-browser-files-header {
     padding: 6px 14px;
     font-size: 11px;
@@ -1156,4 +1217,47 @@ div.vis-network div.vis-close {
 .btn-system-browse:hover {
     background-color: #f1f5f9;
     border-color: #94a3b8;
+}
+
+/* Save Button */
+.btn-save {
+    background-color: #059669;
+    color: #ffffff;
+    border: 1px solid #047857;
+    font-weight: 600;
+}
+.btn-save:hover {
+    background-color: #047857;
+    color: #ffffff;
+    border-color: #065f46;
+}
+.btn-save:disabled {
+    background-color: #94a3b8;
+    border-color: #94a3b8;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* App Toast Notification */
+.app-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #0f172a;
+    color: #f8fafc;
+    border: 1px solid #334155;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+    z-index: 99999;
+    opacity: 0;
+    transform: translateY(12px);
+    transition: all 0.2s ease-out;
+    pointer-events: none;
+}
+.app-toast.show {
+    opacity: 1;
+    transform: translateY(0);
 }

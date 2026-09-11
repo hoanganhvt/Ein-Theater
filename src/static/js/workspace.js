@@ -2,6 +2,8 @@
 import { state } from './state.js';
 import { api } from './api.js';
 import { esc } from './utils.js';
+import { loadGraph, fitView } from './graph.js';
+import { loadProjects } from './projects.js';
 
 let parentBrowsingDir = '';
 let selectedFolderRowPath = null;
@@ -91,14 +93,25 @@ export async function loadWorkspaceFiles(dirPath) {
         // Render subfolders
         folders.forEach(f => {
             const item = document.createElement('div');
-            item.className = 'workspace-file-item is-folder';
-            item.title = f.path;
+            item.className = 'workspace-file-item is-folder' + (f.isModel ? ' is-model-folder' : '');
+            item.title = f.isModel 
+                ? `Model: "${f.name}" – Click to load onto canvas` 
+                : f.path;
+            
+            const icon = f.isModel ? '🧠' : '📁';
+            const badgeHtml = f.isModel ? `<span class="model-badge" title="Verified PyTorch Model Folder">Model</span>` : '';
+            
             item.innerHTML = `
-                <span class="file-icon">📁</span>
+                <span class="file-icon">${icon}</span>
                 <span class="file-name">${esc(f.name)}</span>
+                ${badgeHtml}
             `;
-            item.addEventListener('click', () => {
-                openSelectFolderModal(f.path);
+            item.addEventListener('click', async () => {
+                if (f.isModel) {
+                    await loadModelFromFolder(f.path);
+                } else {
+                    openSelectFolderModal(f.path);
+                }
             });
             container.appendChild(item);
         });
@@ -252,19 +265,33 @@ export async function browseTo(dirPath) {
             } else {
                 folders.forEach(f => {
                     const row = document.createElement('div');
-                    row.className = 'folder-browser-row is-folder';
-                    row.title = `Click to select "${f.name}", or double-click to open`;
+                    row.className = 'folder-browser-row is-folder' + (f.isModel ? ' is-model-folder' : '');
+                    row.title = f.isModel 
+                        ? `Model "${f.name}": Click to load onto canvas` 
+                        : `Click to select "${f.name}", or double-click to open`;
+
+                    const icon = f.isModel ? '🧠' : '📁';
+                    const tagHtml = f.isModel ? `<span class="model-tag">Model</span>` : '';
+                    const loadBtnHtml = f.isModel 
+                        ? `<button class="fb-load-btn" title="Load this model directly onto canvas">⚡ Load Model</button>` 
+                        : '';
+
                     row.innerHTML = `
-                        <span class="fb-icon">📁</span>
-                        <span class="fb-name">${esc(f.name)}</span>
+                        <span class="fb-icon">${icon}</span>
+                        <span class="fb-name">${esc(f.name)} ${tagHtml}</span>
                         <div class="fb-actions">
+                            ${loadBtnHtml}
                             <button class="fb-select-btn" title="Set this folder as working directory">✓ Select</button>
                             <button class="fb-open-btn" title="Browse into this folder">Open →</button>
                         </div>
                     `;
 
-                    // Single-click selects and highlights this folder
-                    row.onclick = () => {
+                    // Single-click: if model, directly load onto canvas! Otherwise select row
+                    row.onclick = async () => {
+                        if (f.isModel) {
+                            await loadModelFromFolder(f.path);
+                            return;
+                        }
                         listContainer.querySelectorAll('.folder-browser-row').forEach(r => r.classList.remove('selected'));
                         row.classList.add('selected');
                         selectedFolderRowPath = f.path;
@@ -280,6 +307,15 @@ export async function browseTo(dirPath) {
                         selectedFolderRowPath = null;
                         browseTo(f.path);
                     };
+
+                    // "⚡ Load Model" button: loads model directly
+                    const loadBtn = row.querySelector('.fb-load-btn');
+                    if (loadBtn) {
+                        loadBtn.onclick = async (e) => {
+                            e.stopPropagation();
+                            await loadModelFromFolder(f.path);
+                        };
+                    }
 
                     // "✓ Select" button confirms immediately
                     const selectBtn = row.querySelector('.fb-select-btn');
@@ -381,3 +417,110 @@ export async function browseSystemFolder() {
         alert('Could not open system dialog: ' + e.message);
     }
 }
+
+export async function promptCreateFolderModal() {
+    const parentDir = state.browsingDir || state.workingDir;
+    if (!parentDir) {
+        alert('Please browse to or select a directory first.');
+        return;
+    }
+    const folderName = prompt('Enter new folder name:');
+    if (!folderName || !folderName.trim()) return;
+
+    try {
+        await api.createFolder(parentDir, folderName.trim());
+        await browseTo(parentDir);
+        if (state.workingDir && parentDir.startsWith(state.workingDir)) {
+            await loadWorkspaceFiles(state.workingDir);
+        }
+    } catch (err) {
+        alert('Failed to create folder: ' + err.message);
+    }
+}
+
+export async function promptCreateFolderSidebar() {
+    if (!state.workingDir) {
+        alert('Please select a working directory first.');
+        openSelectFolderModal();
+        return;
+    }
+    const folderName = prompt(`Create new folder inside "${state.workingDirName}":`);
+    if (!folderName || !folderName.trim()) return;
+
+    try {
+        await api.createFolder(state.workingDir, folderName.trim());
+        await loadWorkspaceFiles(state.workingDir);
+    } catch (err) {
+        alert('Failed to create folder: ' + err.message);
+    }
+}
+
+export async function saveActiveModel() {
+    if (!state.workingDir) {
+        alert('Please select a working directory first to save your model.');
+        openSelectFolderModal();
+        return;
+    }
+
+    const btn = document.getElementById('btnSaveModel');
+    const origText = btn ? btn.textContent : '💾 Save';
+    if (btn) {
+        btn.textContent = '💾 Saving...';
+        btn.disabled = true;
+    }
+
+    try {
+        const res = await api.saveModel(state.currentProjectId || '', state.workingDir);
+        await loadWorkspaceFiles(state.workingDir);
+
+        const modelName = res.modelName || 'Model';
+        const folderName = res.folderName || modelName;
+        await loadProjects();
+        const title = document.getElementById('modelTitle');
+        if (title && modelName) {
+            title.textContent = modelName;
+            document.title = modelName + ' – Neural Network Builder';
+        }
+        showToast(`✅ Saved '${modelName}' into '${folderName}/' (${folderName}.json, ${folderName}.py)`);
+    } catch (err) {
+        console.error('Save model error:', err);
+        alert('Failed to save model: ' + err.message);
+    } finally {
+        if (btn) {
+            btn.textContent = origText;
+            btn.disabled = false;
+        }
+    }
+}
+
+export function showToast(message, duration = 4000) {
+    let toast = document.getElementById('appToast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'appToast';
+        toast.className = 'app-toast';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add('show');
+    clearTimeout(toast._timeout);
+    toast._timeout = setTimeout(() => {
+        toast.classList.remove('show');
+    }, duration);
+}
+
+export async function loadModelFromFolder(folderPath) {
+    try {
+        const res = await api.loadModel(folderPath);
+        await loadProjects();
+        await loadGraph();
+        fitView();
+        closeSelectFolderModal();
+        showToast(`⚡ Model "${res.modelName || 'Model'}" loaded onto canvas (${res.nodeCount || 0} blocks)`);
+    } catch (err) {
+        console.error('Failed to load model from folder:', err);
+        showToast('Failed to load model: ' + err.message);
+        alert('Failed to load model: ' + err.message);
+    }
+}
+

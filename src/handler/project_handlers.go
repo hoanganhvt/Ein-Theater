@@ -27,7 +27,9 @@ func ListProjectsHandler(w http.ResponseWriter, r *http.Request) {
 func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")
 	if name == "" {
-		name = "Untitled Model"
+		name = "Untitled_Model"
+	} else if !IsValidModelFolderName(name) {
+		name = FixModelName(name)
 	}
 	mu.Lock()
 	defer mu.Unlock()
@@ -85,8 +87,12 @@ func RenameModelHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "name is required", http.StatusBadRequest)
 		return
 	}
+	if !IsValidModelFolderName(name) {
+		name = FixModelName(name)
+	}
 	mu.Lock()
 	cur().Name = name
 	mu.Unlock()
-	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "name": name})
 }

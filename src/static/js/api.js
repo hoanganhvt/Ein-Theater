@@ -138,5 +138,46 @@ export const api = {
         const res = await fetch('/api/clear', { method: 'POST' });
         if (!res.ok) throw new Error(await res.text() || 'Failed to clear graph');
         return res;
+    },
+
+    async createFolder(dir, name) {
+        const res = await fetch('/api/workspace/create-folder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dir, name })
+        });
+        if (!res.ok) throw new Error(await res.text() || 'Failed to create folder');
+        return await res.json();
+    },
+
+    async saveModel(projectId = '', dir = '') {
+        const res = await fetch('/api/workspace/save-model', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projectId, dir })
+        });
+        if (!res.ok) {
+            const errText = await res.text();
+            try {
+                const parsed = JSON.parse(errText);
+                throw new Error(parsed.error || errText);
+            } catch (e) {
+                throw new Error(errText || 'Failed to save model');
+            }
+        }
+        return await res.json();
+    },
+
+    async loadModel(path) {
+        const res = await fetch('/api/workspace/load-model', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path })
+        });
+        if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(errText || 'Failed to load model from folder');
+        }
+        return await res.json();
     }
 };
