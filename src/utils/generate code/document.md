@@ -28,20 +28,22 @@ Visual Canvas Graph (JSON)  ──►  Stdin / File
  (Graph schematic & metadata)                    (Executable PyTorch nn.Module)
 ```
 
-### Core Responsibilities
+### Modular Architecture
 
-1. **Symbolic Tracing**: Uses PyTorch FX (`torch.fx.symbolic_trace`) to extract computational graphs from PyTorch models without executing concrete tensor computations.
-2. **Connection Semantics Classification**: Identifies graph structural patterns:
-   - **Normal Connections**: Direct layer-to-layer data pass.
-   - **Residual Connections**: Additive pathways (`+`, `torch.add`) with dimension matching.
-   - **Skip Connections**: Concatenative skip pathways (`torch.cat`, `torch.stack`) across channel dimensions (e.g. U-Net, DenseNet).
-   - **Gated Skips**: Multiplicative feature gating and attention modulation (`*`, `torch.mul`).
-   - **Multi-Input / Multi-Output**: Models accepting tuples or dictionaries of input tensors and returning multiple output branches.
-3. **AST Code Synthesis**: Assembles executable, PEP8-formatted Python code defining an `nn.Module` class named after the model (`class <model_name>(nn.Module):`) with properly initialized layers (`__init__`), accurate forward execution passes (`forward`), device assignment (`device='cpu'`), and a standalone runnable `__main__` execution block.
-4. **Bidirectional Serialization**: Translates PyTorch models into Ein Theater canvas JSON schematics and vice-versa.
-5. **Model Name Sanitization (`fix_model_name`)**: Automatically cleans invalid model names by replacing spaces with `_`, and prepending `model_` if a number precedes the text (starts with a digit), guaranteeing a valid Python identifier and directory name.
+To ensure high maintainability, clean separation of concerns, and readability, the engine is partitioned into dedicated single-responsibility submodules orchestrated through `gen_code.py`:
+
+| Module | Primary Responsibility |
+| :--- | :--- |
+| [`common.py`](./common.py) | Model identifier sanitization (`fix_model_name`) and dynamic `modules.json` schema location/loading (`load_modules_map`). |
+| [`classifier.py`](./classifier.py) | Symbolic FX node inspection (`is_addition_node`, `is_concat_node`, etc.), connection classification (`classify_connection`), and graph summary table printer (`inspect_model_graph`). |
+| [`tracer.py`](./tracer.py) | PyTorch `nn.Module` layer parameter extraction (`get_module_params`), argument serialization (`arg_to_str`), and FX model tracing to JSON graph (`model_to_json_graph`). |
+| [`canvas.py`](./canvas.py) | Compiles visual schematic canvas JSON into FX computational graph JSON (`canvas_to_json_graph`), topological Kahn's sorting with spatial ordering, and connection flow synthesis. |
+| [`codegen.py`](./codegen.py) | AST Python source code synthesis (`generate_code_from_json`, `generate_code_from_canvas`) and model directory packaging (`save_model_to_folder`). |
+| [`__init__.py`](./__init__.py) | Package initialization exposing the public API. |
+| [`gen_code.py`](./gen_code.py) | Unified façade and CLI compiler preserving 100% backward compatibility for the Go backend and external CLI invocations. |
 
 ---
+
 
 ## Command-Line Interface (CLI)
 
@@ -60,8 +62,8 @@ python "src/utils/generate code/gen_code.py" [OPTIONS]
 | `--save-canvas` | `<file_path>` or `-` | Reads canvas JSON from `<file_path>` or standard input (`-`), generates the PyTorch model script and JSON specification, and writes them to `<out-dir>/<model_name>/`. |
 | `--canvas-json` | `<file_path>` | Compiles the specified canvas JSON and outputs the generated Python code directly to stdout. |
 | `--out-dir` | `<directory>` | Target output directory where `<model_name>/` subfolder will be created (default: `./outputs`). |
-| `--test` | None | Runs the built-in test suite tracing and synthesizing experimental neural network architectures (UNet, ResNet, ViT, Gated CNN). |
 | `--help`, `-h` | None | Displays help message with command options. |
+
 
 ### CLI Examples
 
@@ -83,12 +85,8 @@ python "src/utils/generate code/gen_code.py" [OPTIONS]
    python "src/utils/generate code/gen_code.py" --canvas-json my_canvas.json
    ```
 
-4. **Run internal architecture tests**:
-   ```bash
-   python "src/utils/generate code/gen_code.py" --test
-   ```
-
 ---
+
 
 ## Integration with the Go Backend
 
