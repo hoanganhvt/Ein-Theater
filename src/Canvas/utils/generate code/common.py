@@ -86,3 +86,64 @@ def fix_model_name(name: str) -> str:
         if name == "model_":
             name = "model"
     return name
+
+
+def fix_input_name(name: str, fallback_idx: int = 0) -> str:
+    """
+    Validates and fixes an input variable name into a valid Python identifier:
+    - If the user didn't do anything (empty or default like 'input', 'input 0', 'input_0'),
+      it defaults to 'x{fallback_idx}' (e.g. x0, x1, x2...).
+    - If the input name has space or hyphen, replaces with _
+    - If the input name starts with a number, prepends x_ (just like fix_model_name)
+    - Strips invalid characters (replaces with _)
+    - Ensures valid identifier starting with a letter
+    - Protects against Python reserved keywords (e.g. def, class, for)
+    """
+    default_name = f"x{fallback_idx}"
+    if not name or not str(name).strip():
+        return default_name
+
+    raw = str(name).strip()
+
+    # Check if user left default block naming like "input", "input 0", "input_0", "input 1"
+    raw_lower = raw.lower()
+    if raw_lower in ('input', 'input_block') or re.match(r'^input[\s_]*\d*$', raw_lower):
+        return default_name
+
+    # If the input name has spaces or hyphens, replace with _
+    clean = raw.replace(' ', '_').replace('-', '_')
+
+    # If the input name has number before the text (starts with a digit), prepend x_
+    has_num_before = False
+    for ch in clean:
+        if ch.isdigit():
+            has_num_before = True
+            break
+        if ch.isalpha():
+            break
+
+    if has_num_before:
+        clean = f"x_{clean}"
+
+    # Ensure valid characters for Python identifier
+    clean = re.sub(r'[^a-zA-Z0-9_]', '_', clean)
+    clean = re.sub(r'_+', '_', clean)
+
+    if not clean:
+        return default_name
+
+    if not clean[0].isalpha():
+        clean = f"x_{clean.lstrip('_')}"
+        if clean in ("x_", "x"):
+            return default_name
+
+    clean = clean.strip('_')
+    if not clean:
+        return default_name
+
+    import keyword
+    if keyword.iskeyword(clean):
+        clean = f"{clean}_input"
+
+    return clean
+

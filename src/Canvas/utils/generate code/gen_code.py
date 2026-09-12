@@ -26,6 +26,7 @@ from common import (
     find_modules_json_path,
     load_modules_map,
     fix_model_name,
+    fix_input_name,
 )
 
 from classifier import (
@@ -60,6 +61,7 @@ __all__ = [
     'find_modules_json_path',
     'load_modules_map',
     'fix_model_name',
+    'fix_input_name',
     # Classifier
     'is_addition_node',
     'is_sub_node',

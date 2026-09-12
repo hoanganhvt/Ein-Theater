@@ -1,5 +1,77 @@
 [
   {
+    "type": "Input",
+    "name": "Input",
+    "category": "utility",
+    "badge": "input",
+    "badgeClass": "badge-blue",
+    "defaultInSeed": true,
+    "labelTemplate": "Input\n({input_type})",
+    "fields": [
+      {
+        "key": "input_name",
+        "label": "Variable Name (default: x0, x1...)",
+        "type": "text",
+        "default": ""
+      },
+      {
+        "key": "input_type",
+        "label": "Input Modality",
+        "type": "select",
+        "default": "image",
+        "options": [
+          { "value": "image", "label": "Image (B, C, H, W)" },
+          { "value": "text", "label": "Text (B, T)" },
+          { "value": "audio", "label": "Audio (B, C, L)" },
+          { "value": "raw data", "label": "Raw Data (B, D)" }
+        ]
+      },
+      {
+        "key": "shape_preset",
+        "label": "Input Shape Preset",
+        "type": "select",
+        "default": "3, 224, 224",
+        "options": [
+          { "value": "3, 224, 224", "label": "3 × 224 × 224 (Standard ImageNet / ViT)" },
+          { "value": "3, 256, 256", "label": "3 × 256 × 256 (High-Res Vision)" },
+          { "value": "3, 32, 32", "label": "3 × 32 × 32 (CIFAR-10 / CIFAR-100)" },
+          { "value": "1, 28, 28", "label": "1 × 28 × 28 (MNIST Grayscale)" },
+          { "value": "128", "label": "128 (Text: Short Sequence)" },
+          { "value": "512", "label": "512 (Text: Standard BERT / NLP)" },
+          { "value": "1, 16000", "label": "1 × 16,000 (Audio: 1 sec @ 16 kHz)" },
+          { "value": "64", "label": "64 (Raw: 64 Tabular Features)" },
+          { "value": "custom", "label": "Custom Shape..." }
+        ]
+      },
+      {
+        "key": "custom_shape",
+        "label": "Custom Dimensions (if Custom selected)",
+        "type": "text",
+        "default": "3, 224, 224"
+      },
+      {
+        "key": "batch_size",
+        "label": "Batch Size",
+        "type": "number",
+        "default": 1,
+        "min": 1
+      },
+      {
+        "key": "dtype",
+        "label": "Data Type",
+        "type": "select",
+        "default": "float32",
+        "options": [
+          { "value": "float32", "label": "float32" },
+          { "value": "int64", "label": "int64 (Long)" },
+          { "value": "float16", "label": "float16 (Half)" },
+          { "value": "uint8", "label": "uint8 (Byte)" }
+        ]
+      }
+    ],
+    "code": "# Input: {input_type}"
+  },
+  {
     "type": "nn.Conv1d",
     "name": "nn.Conv1d",
     "category": "conv",

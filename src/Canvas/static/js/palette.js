@@ -8,8 +8,9 @@ import { setMode } from './modes.js';
 
 let canvasListenersInitialized = false;
 
-// The 10 most fundamental PyTorch building blocks
+// The fundamental PyTorch building blocks + Input source block
 export const FUNDAMENTAL_LAYERS = [
+    'Input',
     'nn.Linear',
     'nn.Conv2d',
     'nn.ReLU',

@@ -40,12 +40,69 @@ def save_model_to_folder(canvas_data, output_dir=None):
     json_graph_str = canvas_to_json_graph(data)
     py_code = generate_code_from_json(json_graph_str, model_name=safe_name)
 
+    parsed_graph = json.loads(json_graph_str) if isinstance(json_graph_str, str) else json_graph_str
+    placeholders = [n for n in parsed_graph.get('nodes', []) if n.get('op') == 'placeholder']
+
+    dummy_lines = []
+    call_args = []
+
+    if placeholders:
+        for p in placeholders:
+            p_id = p['id']
+            itype = (p.get('input_type') or p.get('params', {}).get('input_type') or 'raw data').lower().strip()
+            shape = p.get('params', {}).get('shape')
+            bs = p.get('params', {}).get('batch_size', 1)
+            try:
+                bs = int(bs)
+            except (ValueError, TypeError):
+                bs = 1
+
+            if itype in ('image', 'img'):
+                dims = shape if shape else [3, 224, 224]
+                dim_str = ", ".join(str(d) for d in dims)
+                dummy_lines.append(f"    # Sample dummy image input (shape: [{bs}, {dim_str}])")
+                dummy_lines.append(f"    dummy_{p_id} = torch.randn({bs}, {dim_str}, device=device)")
+            elif itype in ('text', 'txt'):
+                dims = shape if shape else [128]
+                dim_str = ", ".join(str(d) for d in dims)
+                dummy_lines.append(f"    # Sample dummy text token IDs (shape: [{bs}, {dim_str}])")
+                dummy_lines.append(f"    dummy_{p_id} = torch.randint(0, 1000, ({bs}, {dim_str}), dtype=torch.long, device=device)")
+            elif itype in ('audio', 'sound'):
+                dims = shape if shape else [1, 16000]
+                dim_str = ", ".join(str(d) for d in dims)
+                dummy_lines.append(f"    # Sample dummy audio waveform (shape: [{bs}, {dim_str}])")
+                dummy_lines.append(f"    dummy_{p_id} = torch.randn({bs}, {dim_str}, device=device)")
+            else:
+                dims = shape if shape else [64]
+                dim_str = ", ".join(str(d) for d in dims)
+                dummy_lines.append(f"    # Sample dummy tensor (shape: [{bs}, {dim_str}])")
+                dummy_lines.append(f"    dummy_{p_id} = torch.randn({bs}, {dim_str}, device=device)")
+
+            call_args.append(f"dummy_{p_id}")
+    else:
+        dummy_lines.append("    dummy_x = torch.randn(1, 64, device=device)")
+        call_args.append("dummy_x")
+
+    dummy_code = "\n".join(dummy_lines)
+    call_args_str = ", ".join(call_args)
+
     runner_code = f"""
 if __name__ == '__main__':
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model = {safe_name}(device=device)
     print(f"Model '{safe_name}' initialized successfully on {{device}}:")
     print(model)
+
+{dummy_code}
+    try:
+        output = model({call_args_str})
+        print("\\n[✓] Forward pass test successful!")
+        if isinstance(output, torch.Tensor):
+            print(f"Output tensor shape: {{tuple(output.shape)}}")
+        elif isinstance(output, (list, tuple)):
+            print(f"Output shapes: {{[tuple(o.shape) if hasattr(o, 'shape') else type(o) for o in output]}}")
+    except Exception as e:
+        print(f"\\n[!] Note: Forward pass test with dummy inputs encountered: {{e}}")
 """
     if "__main__" not in py_code:
         py_code = py_code + "\n" + runner_code
@@ -106,12 +163,27 @@ def generate_code_from_json(json_data, model_name=None):
     forward_code = "    def forward(self, "
 
     inputs = []
+    input_comments = []
 
     for node in nodes:
         if node['op'] == 'placeholder':
-            inputs.append(node['id'])
+            in_id = node['id']
+            inputs.append(in_id)
+            itype = node.get('input_type') or node.get('params', {}).get('input_type', '')
+            shape = node.get('params', {}).get('shape', '')
+            bs = node.get('params', {}).get('batch_size', 1)
+            dtype = node.get('params', {}).get('dtype', '')
+            if itype:
+                shape_desc = f", shape: [{bs}, {', '.join(str(s) for s in shape)}]" if shape else ""
+                dtype_desc = f", dtype: torch.{dtype}" if dtype else ""
+                input_comments.append(f"        # {in_id}: {itype.capitalize()}{shape_desc}{dtype_desc}")
+
+    if not inputs:
+        inputs = ['x']
 
     forward_code += ", ".join(inputs) + "):\n"
+    if input_comments:
+        forward_code += "\n".join(input_comments) + "\n"
 
     for node in nodes:
         if node['op'] == 'placeholder':

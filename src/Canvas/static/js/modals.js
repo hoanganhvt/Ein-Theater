@@ -378,6 +378,25 @@ export function openEditNodeModal(nodeId) {
                         <label for="edit_param_${f.key}">${esc(f.label)}</label>
                     `;
                     container.appendChild(group);
+                } else if (f.type === 'select') {
+                    const group = document.createElement('div');
+                    group.className = 'param-group';
+                    let optionsHtml = '';
+                    (f.options || []).forEach(opt => {
+                        const optVal = typeof opt === 'object' ? opt.value : opt;
+                        const optLabel = typeof opt === 'object' ? opt.label : opt;
+                        const isSel = String(optVal) === String(val) ? 'selected' : '';
+                        optionsHtml += `<option value="${esc(optVal)}" ${isSel}>${esc(optLabel)}</option>`;
+                    });
+                    group.innerHTML = `
+                        <label for="edit_param_${f.key}">
+                            <span>${esc(f.label)}</span>
+                        </label>
+                        <select id="edit_param_${f.key}" class="form-control" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid #cbd5e1; background:#ffffff; color:#1e293b; font-size:14px;">
+                            ${optionsHtml}
+                        </select>
+                    `;
+                    container.appendChild(group);
                 } else {
                     const group = document.createElement('div');
                     group.className = 'param-group';
@@ -387,7 +406,7 @@ export function openEditNodeModal(nodeId) {
                             <span>${esc(f.label)}</span>
                             ${hint ? `<span class="param-hint">${hint}</span>` : ''}
                         </label>
-                        <input type="${f.type || 'number'}" id="edit_param_${f.key}" value="${val}"
+                        <input type="${f.type || 'number'}" id="edit_param_${f.key}" value="${val !== undefined ? esc(String(val)) : ''}"
                                ${f.step !== undefined ? `step="${f.step}"` : ''}
                                ${f.min !== undefined ? `min="${f.min}"` : ''}
                                ${f.max !== undefined ? `max="${f.max}"` : ''}>
@@ -395,6 +414,77 @@ export function openEditNodeModal(nodeId) {
                     container.appendChild(group);
                 }
             });
+
+            // Special dynamic listener for Input block: auto-adjust presets and custom shape
+            const itypeSelect = document.getElementById('edit_param_input_type');
+            const presetSelect = document.getElementById('edit_param_shape_preset');
+            const customShapeInput = document.getElementById('edit_param_custom_shape');
+            const dtypeSelect = document.getElementById('edit_param_dtype');
+
+            const MODALITY_PRESETS = {
+                'image': [
+                    { value: '3, 224, 224', label: '3 × 224 × 224 (Standard ImageNet / ViT)' },
+                    { value: '3, 256, 256', label: '3 × 256 × 256 (High-Res Vision)' },
+                    { value: '3, 32, 32', label: '3 × 32 × 32 (CIFAR-10 / CIFAR-100)' },
+                    { value: '1, 28, 28', label: '1 × 28 × 28 (MNIST Grayscale)' },
+                    { value: 'custom', label: 'Custom Shape...' }
+                ],
+                'text': [
+                    { value: '128', label: '128 (Short Sequence)' },
+                    { value: '256', label: '256 (Medium Sequence)' },
+                    { value: '512', label: '512 (Standard BERT)' },
+                    { value: '1024', label: '1024 (Long Context)' },
+                    { value: 'custom', label: 'Custom Shape...' }
+                ],
+                'audio': [
+                    { value: '1, 16000', label: '1 × 16,000 (1 sec @ 16 kHz Mono)' },
+                    { value: '1, 44100', label: '1 × 44,100 (1 sec @ 44.1 kHz CD Quality)' },
+                    { value: '2, 44100', label: '2 × 44,100 (1 sec Stereo)' },
+                    { value: 'custom', label: 'Custom Shape...' }
+                ],
+                'raw data': [
+                    { value: '64', label: '64 (Tabular Features)' },
+                    { value: '128', label: '128 Features' },
+                    { value: '32', label: '32 Features' },
+                    { value: '10', label: '10 Features' },
+                    { value: 'custom', label: 'Custom Shape...' }
+                ]
+            };
+
+            const updatePresetOptions = (modality, currentVal) => {
+                if (!presetSelect) return;
+                const presets = MODALITY_PRESETS[modality] || MODALITY_PRESETS['raw data'];
+                presetSelect.innerHTML = presets.map(p =>
+                    `<option value="${esc(p.value)}" ${p.value === currentVal ? 'selected' : ''}>${esc(p.label)}</option>`
+                ).join('');
+            };
+
+            if (itypeSelect && presetSelect && customShapeInput) {
+                // Initialize presets on modal open
+                updatePresetOptions(itypeSelect.value, presetSelect.value);
+
+                itypeSelect.addEventListener('change', (e) => {
+                    const chosen = e.target.value;
+                    const presets = MODALITY_PRESETS[chosen] || MODALITY_PRESETS['raw data'];
+                    const defaultVal = presets[0].value;
+                    updatePresetOptions(chosen, defaultVal);
+                    presetSelect.value = defaultVal;
+                    customShapeInput.value = defaultVal;
+
+                    if (dtypeSelect) {
+                        dtypeSelect.value = (chosen === 'text') ? 'int64' : 'float32';
+                    }
+                });
+
+                presetSelect.addEventListener('change', (e) => {
+                    const sel = e.target.value;
+                    if (sel !== 'custom') {
+                        customShapeInput.value = sel;
+                    } else {
+                        customShapeInput.focus();
+                    }
+                });
+            }
         } else {
             // Custom or unlisted layer
             const nameGroup = document.createElement('div');

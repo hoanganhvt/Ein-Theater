@@ -142,6 +142,28 @@ print(code)
 
 ---
 
+## Input Block & Modality Shape Configuration
+
+Ein Theater supports an explicit **`Input`** source block on the canvas with customizable modalities and shapes:
+
+### Supported Modalities & Presets
+
+| Modality | Default Preset | Common Presets | Tensor Dtype | Sample Dummy Tensor |
+| :--- | :--- | :--- | :--- | :--- |
+| **`image`** | `3, 224, 224` | `3, 224, 224` (ImageNet / ViT)<br>`3, 256, 256` (High-Res Vision)<br>`3, 32, 32` (CIFAR)<br>`1, 28, 28` (MNIST Grayscale) | `torch.float32` | `torch.randn(B, C, H, W)` |
+| **`text`** | `128` | `128` (Short Sequence)<br>`256` (Medium Sequence)<br>`512` (Standard BERT / NLP)<br>`1024` (Long Context) | `torch.int64` | `torch.randint(0, 1000, (B, T))` |
+| **`audio`** | `1, 16000` | `1, 16000` (1 sec @ 16 kHz Mono)<br>`1, 44100` (1 sec @ 44.1 kHz CD Quality)<br>`2, 44100` (1 sec Stereo) | `torch.float32` | `torch.randn(B, C, L)` |
+| **`raw data`** | `64` | `64` (Tabular / 64 Features)<br>`128` (128 Features)<br>`32` (32 Features)<br>`10` (10 Features) | `torch.float32` | `torch.randn(B, D)` |
+| **`custom`** | Custom | User-defined comma-separated shape (e.g. `1, 28, 28` or `3, 64, 64`) | Configurable | Dimension-matching tensor |
+
+### Code Generation Pipeline Behavior
+
+1. **Placeholder Representation**: When an `Input` block is present in the visual graph, `canvas_to_json_graph` generates an FX `placeholder` node rather than a `call_module` block (ensuring it is not mistakenly instantiated as a submodule in `__init__`).
+2. **Forward Parameter Signatures**: Assigns clean parameter names in `def forward(self, ...)` (e.g., `image`, `text`, `audio`, or `x`), with descriptive shape comments.
+3. **Automated Forward Testing**: When `<model_name>.py` is saved via `save_model_to_folder`, the `if __name__ == '__main__':` block automatically generates synthetic sample tensors matching the chosen modality, dimensions, and data type, executing a test forward pass and printing output tensor shapes.
+
+---
+
 ## Related Documentation
 
 - [Canvas Subsystem Documentation](../../document.md) — Comprehensive overview of the Canvas mode architecture.
