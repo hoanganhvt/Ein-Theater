@@ -36,6 +36,9 @@ func IndexHandler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 	tpl := FindTemplatePath("index.html")
 	if _, err := os.Stat(tpl); err != nil {
 		tpl = FindTemplatePath("canvas.html")
@@ -45,6 +48,9 @@ func IndexHandler(w http.ResponseWriter, r *http.Request) {
 
 // CanvasHandler serves the Canvas mode HTML template (canvas.html).
 func CanvasHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 	http.ServeFile(w, r, FindTemplatePath("canvas.html"))
 }
 

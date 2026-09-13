@@ -164,6 +164,53 @@ Ein Theater supports an explicit **`Input`** source block on the canvas with cus
 
 ---
 
+## Connection Types, Special Edge Ordering & Selective Indexing
+
+1. **Connection Types**: Connections between layers are classified into:
+   - **`normal`** (default): Standard feedforward dataflow between layers. Rendered with clean green electrical traces without index badges.
+   - **`residual`**: Additive shortcut connection (e.g. ResNet residual connection). Rendered in vibrant purple (`#a855f7`) with a `RES <index>` badge.
+   - **`skip`**: Concatenation bypass connection (e.g. U-Net skip connection). Rendered in cyan (`#06b6d4`) with a `SKIP <index>` badge.
+2. **Selective Indexing (Special Edges Only)**:
+   - Normal feedforward connections are unindexed (`index: null`) to prevent schematic clutter.
+   - Only special connections (`residual`, `skip`) receive contiguous 0-based indices (`0, 1, 2...`).
+3. **Special Edges Placed Behind All Normal Edges**:
+   - In graph representation, canvas data, and forward execution order, **all special edges are placed behind all normal edges**.
+   - This ensures the feedforward backbone executes first, after which residual and skip bypass branches converge into the downstream target layers.
+4. **Interactive Controls**:
+   - Right-click an edge to open the Context Menu -> **Connection Type ▶** (`Normal Flow`, `Residual Connection`, `Skip Connection`).
+   - Press **`T`** or **`t`** with an edge selected to cycle connection types (`normal` -> `residual` -> `skip` -> `normal`).
+5. **Code Annotations in Generated Code**:
+   - Normal feedforward calls remain clean without distracting comments.
+   - Special connections are explicitly annotated with their type and index:
+   ```python
+   # Residual Edge #0: conv 0 -> residual add
+   add_0 = add_0 + conv_c0
+   ```
+
+---
+
+## Save Pipeline & Auto Shape Size Fit Integration
+
+When saving a canvas model (via the UI **Save** button / `Ctrl+S` or CLI `--save-canvas`), the system executes a deterministic 5-step lifecycle:
+
+```mermaid
+flowchart TD
+    A["User hits Save / CLI --save-canvas"] --> B["1. Generate raw graph from Canvas"]
+    B --> C["2. Write <target_folder>/temp.json"]
+    C --> D["3. auto_shape_size_fit(temp.json)<br/>- Topological sort (Kahn's)<br/>- Dynamic shape propagation<br/>- In/out feature & channel fitting<br/>- Residual padding resolution"]
+    D --> E["4. Synthesize final artifacts:<br/>- <model_name>.py (executable nn.Module)<br/>- <model_name>.json (fitted graph spec)"]
+    E --> F["5. Remove temp.json from disk"]
+    F --> G["Sync fitted parameters into Go memory & UI Canvas"]
+```
+
+1. **Step 1 (`temp.json` Creation)**: The raw computational graph from the active canvas is serialized and written to `<target_folder>/temp.json`.
+2. **Step 2 (Auto Shape Size Fit Execution)**: `auto_shape_size_fit` is invoked directly on `temp.json`. It topologically sorts graph nodes, propagates tensor dimensions from input placeholders, auto-fits layer parameters (`in_features`, `in_channels`, `embed_dim`), auto-resolves spatial padding on skip/residual connections via the mathematical padding solver, and synchronizes canvas node metadata.
+3. **Step 3 (Final Code & JSON Generation)**: Only after all shapes and paddings are completely fitted, the final AST Python code (`<model_name>.py`) and final model specification (`<model_name>.json`) are generated and written to disk.
+4. **Step 4 (`temp.json` Cleanup)**: `temp.json` is deleted from disk.
+5. **Step 5 (In-Memory & UI Synchronization)**: The Go backend (`SaveModelHandler`) synchronizes the auto-fitted node parameters back into the active project in memory, and the client frontend reloads the graph, displaying updated dimensions in the node cards and an informative toast notification.
+
+---
+
 ## Related Documentation
 
 - [Canvas Subsystem Documentation](../../document.md) — Comprehensive overview of the Canvas mode architecture.

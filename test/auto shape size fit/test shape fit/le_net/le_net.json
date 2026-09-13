@@ -1,0 +1,261 @@
+{
+  "metadata": {
+    "device": "cpu",
+    "name": "le_net",
+    "projectId": "proj_2"
+  },
+  "nodes": [
+    {
+      "id": "x",
+      "op": "placeholder",
+      "inputs": [],
+      "args_str": "",
+      "params": {},
+      "type": "input"
+    },
+    {
+      "id": "conv_0",
+      "op": "call_module",
+      "target": "conv_0",
+      "type": "nn.Conv2d",
+      "inputs": [
+        "x"
+      ],
+      "args_str": "x",
+      "params": {
+        "in_channels": 3,
+        "out_channels": 64,
+        "kernel_size": 3,
+        "stride": 1,
+        "padding": 1,
+        "bias": true
+      },
+      "codeTemplate": "nn.Conv2d(in_channels={in_channels}, out_channels={out_channels}, kernel_size={kernel_size}, stride={stride}, padding={padding}, bias={bias})"
+    },
+    {
+      "id": "linear_0",
+      "op": "call_module",
+      "target": "linear_0",
+      "type": "nn.Linear",
+      "inputs": [
+        "conv_0"
+      ],
+      "args_str": "conv_0",
+      "params": {
+        "in_features": 128,
+        "out_features": 64,
+        "bias": true
+      },
+      "codeTemplate": "nn.Linear(in_features={in_features}, out_features={out_features}, bias={bias})"
+    },
+    {
+      "id": "maxpool1d_0",
+      "op": "call_module",
+      "target": "maxpool1d_0",
+      "type": "nn.MaxPool1d",
+      "inputs": [
+        "linear_0"
+      ],
+      "args_str": "linear_0",
+      "params": {
+        "kernel_size": 2,
+        "stride": 2,
+        "padding": 0
+      },
+      "codeTemplate": "nn.MaxPool1d(kernel_size={kernel_size}, stride={stride}, padding={padding})"
+    },
+    {
+      "id": "linear_1",
+      "op": "call_module",
+      "target": "linear_1",
+      "type": "nn.Linear",
+      "inputs": [
+        "maxpool1d_0"
+      ],
+      "args_str": "maxpool1d_0",
+      "params": {
+        "in_features": 128,
+        "out_features": 64,
+        "bias": true
+      },
+      "codeTemplate": "nn.Linear(in_features={in_features}, out_features={out_features}, bias={bias})"
+    },
+    {
+      "id": "conv_1",
+      "op": "call_module",
+      "target": "conv_1",
+      "type": "nn.Conv2d",
+      "inputs": [
+        "linear_1"
+      ],
+      "args_str": "linear_1",
+      "params": {
+        "in_channels": 3,
+        "out_channels": 64,
+        "kernel_size": 3,
+        "stride": 1,
+        "padding": 1,
+        "bias": true
+      },
+      "codeTemplate": "nn.Conv2d(in_channels={in_channels}, out_channels={out_channels}, kernel_size={kernel_size}, stride={stride}, padding={padding}, bias={bias})"
+    },
+    {
+      "id": "output",
+      "op": "output",
+      "inputs": [
+        "conv_1"
+      ],
+      "args_str": "conv_1",
+      "params": {},
+      "type": "output"
+    }
+  ],
+  "canvas": {
+    "projectId": "proj_2",
+    "name": "le_net",
+    "nodes": [
+      {
+        "id": "linear_1",
+        "label": "linear 1",
+        "shape": "box",
+        "layerType": "nn.Linear",
+        "x": -350,
+        "y": 50
+      },
+      {
+        "id": "conv_1",
+        "label": "conv 1",
+        "shape": "box",
+        "layerType": "nn.Conv2d",
+        "x": -350,
+        "y": 150
+      },
+      {
+        "id": "linear_0",
+        "label": "linear 0",
+        "shape": "box",
+        "layerType": "nn.Linear",
+        "x": -350,
+        "y": -150
+      },
+      {
+        "id": "conv_0",
+        "label": "conv 0",
+        "shape": "box",
+        "layerType": "nn.Conv2d",
+        "x": -350,
+        "y": -250
+      },
+      {
+        "id": "maxpool1d_0",
+        "label": "maxpool1d 0",
+        "shape": "box",
+        "layerType": "nn.MaxPool1d",
+        "x": -350,
+        "y": -50
+      }
+    ],
+    "edges": [
+      {
+        "id": "e3",
+        "from": "linear_1",
+        "to": "conv_1",
+        "lines": [
+          {
+            "first": {
+              "x": -350,
+              "y": 50
+            },
+            "last": {
+              "x": -350,
+              "y": 150
+            },
+            "from": {
+              "x": -350,
+              "y": 50
+            },
+            "to": {
+              "x": -350,
+              "y": 150
+            }
+          }
+        ]
+      },
+      {
+        "id": "e0",
+        "from": "conv_0",
+        "to": "linear_0",
+        "lines": [
+          {
+            "first": {
+              "x": -350,
+              "y": -250
+            },
+            "last": {
+              "x": -350,
+              "y": -150
+            },
+            "from": {
+              "x": -350,
+              "y": -250
+            },
+            "to": {
+              "x": -350,
+              "y": -150
+            }
+          }
+        ]
+      },
+      {
+        "id": "e1",
+        "from": "linear_0",
+        "to": "maxpool1d_0",
+        "lines": [
+          {
+            "first": {
+              "x": -350,
+              "y": -150
+            },
+            "last": {
+              "x": -350,
+              "y": -50
+            },
+            "from": {
+              "x": -350,
+              "y": -150
+            },
+            "to": {
+              "x": -350,
+              "y": -50
+            }
+          }
+        ]
+      },
+      {
+        "id": "e2",
+        "from": "maxpool1d_0",
+        "to": "linear_1",
+        "lines": [
+          {
+            "first": {
+              "x": -350,
+              "y": -50
+            },
+            "last": {
+              "x": -350,
+              "y": 50
+            },
+            "from": {
+              "x": -350,
+              "y": -50
+            },
+            "to": {
+              "x": -350,
+              "y": 50
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

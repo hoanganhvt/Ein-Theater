@@ -124,6 +124,7 @@ func RegisterRoutesWithRoot(mux *http.ServeMux, rootHandler http.HandlerFunc) {
 	mux.HandleFunc("/api/addEdge", AddEdgeHandler)
 	mux.HandleFunc("/api/updateEdge", UpdateEdgeHandler)
 	mux.HandleFunc("/api/updateEdges", UpdateEdgesHandler)
+	mux.HandleFunc("/api/setEdgeType", SetEdgeTypeHandler)
 	mux.HandleFunc("/api/deleteEdge", DeleteEdgeHandler)
 	mux.HandleFunc("/api/paste", PasteGraphHandler)
 	mux.HandleFunc("/api/pasteGraph", PasteGraphHandler)

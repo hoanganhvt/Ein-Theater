@@ -6,6 +6,7 @@ import { api } from './api.js';
 import { createBlock } from './graph.js';
 import { hideContextMenu } from './contextMenu.js';
 import { closeSelectFolderModal } from './workspace.js';
+import { closeEditEdgeModal, openEditEdgeModal } from './circuit.js';
 
 // ── Add Block Modal ───────────────────────────────────────────────
 
@@ -293,7 +294,7 @@ export async function saveNode() {
 
     if (cb) {
         try {
-            const newNode = await api.addNode(baseType, baseType, posX, posY);
+            const newNode = await api.addNode(baseType, baseType, posX, posY, defaultParams);
             const displayName = getNodeDisplayName(newNode);
             const nodeObj = {
                 id:        String(newNode.id),
@@ -531,61 +532,66 @@ export function closeAllModals() {
     cancelNode();
     closeEditModal();
     closeSelectFolderModal();
+    closeEditEdgeModal();
 }
 
 export async function saveEditNode() {
     if (!state.editingNodeId || !state.nodesDataSet) return;
 
-    let layerType = state.editingLayerType;
-    const schema = LAYER_SCHEMAS[layerType];
+    const node = state.nodesDataSet.get(state.editingNodeId);
+    if (!node) return;
+
+    const schema = LAYER_SCHEMAS[state.editingLayerType];
     const updatedParams = {};
 
     if (schema) {
         schema.fields.forEach(f => {
-            const input = document.getElementById(`edit_param_${f.key}`);
-            if (input) {
-                if (f.type === 'boolean') {
-                    updatedParams[f.key] = input.checked;
-                } else if (f.type === 'number') {
-                    const parsed = parseFloat(input.value);
-                    updatedParams[f.key] = isNaN(parsed) ? f.default : parsed;
-                } else {
-                    updatedParams[f.key] = input.value;
-                }
+            const el = document.getElementById(`edit_param_${f.key}`);
+            if (!el) return;
+
+            if (f.type === 'boolean') {
+                updatedParams[f.key] = el.checked;
+            } else if (f.type === 'select') {
+                updatedParams[f.key] = el.value;
+            } else if (f.type === 'text') {
+                updatedParams[f.key] = el.value;
+            } else {
+                const num = parseFloat(el.value);
+                updatedParams[f.key] = isNaN(num) ? (f.default !== undefined ? f.default : 0) : num;
             }
         });
-    } else {
-        const nameInput = document.getElementById('edit_param_customName');
-        const argsInput = document.getElementById('edit_param_customArgs');
-        if (nameInput && nameInput.value.trim()) {
-            layerType = nameInput.value.trim();
+
+        // For Input block: if shape_preset is 'custom', read custom_shape string; else preset value
+        if (state.editingLayerType === 'Input') {
+            const presetSelect = document.getElementById('edit_param_shape_preset');
+            const customShapeInput = document.getElementById('edit_param_custom_shape');
+            if (presetSelect && presetSelect.value === 'custom' && customShapeInput && customShapeInput.value.trim()) {
+                updatedParams['shape'] = customShapeInput.value.trim();
+            } else if (presetSelect && presetSelect.value !== 'custom') {
+                updatedParams['shape'] = presetSelect.value;
+            }
         }
-        if (argsInput) {
-            updatedParams.customArgs = argsInput.value.trim();
+    } else {
+        const customArgsEl = document.getElementById('edit_param_customArgs');
+        if (customArgsEl) {
+            updatedParams.customArgs = customArgsEl.value.trim();
         }
     }
 
-    const targetNodeId = state.editingNodeId;
-    const displayName = getNodeDisplayName({ id: targetNodeId, layerType: layerType });
-
-    // Update in-memory Vis DataSet
-    state.nodesDataSet.update({
-        id: targetNodeId,
-        label: displayName,
-        title: displayName,
-        layerType: layerType,
-        params: updatedParams
+    const updatedNode = Object.assign({}, node, {
+        params: updatedParams,
+        label: formatNodeLabel(node.id, state.editingLayerType, updatedParams)
     });
 
+    state.nodesDataSet.update(updatedNode);
     closeEditModal();
 
-    // Persist to server API
     try {
         await api.updateNode({
-            id: targetNodeId,
-            label: displayName,
-            layerType: layerType,
-            params: updatedParams
+            id: String(node.id),
+            params: updatedParams,
+            label: updatedNode.label,
+            layerType: state.editingLayerType
         });
     } catch (e) {
         console.warn('Failed to persist node parameter updates to backend:', e);
@@ -595,8 +601,21 @@ export async function saveEditNode() {
 export function openEditNodeFromContext() {
     hideContextMenu();
     if (!state.network) return;
-    const selected = state.network.getSelectedNodes();
-    if (selected && selected.length === 1) {
-        openEditNodeModal(selected[0]);
+
+    // Prioritize specifically clicked or selected edge
+    if (state.contextClickedEdge) {
+        openEditEdgeModal(state.contextClickedEdge);
+        return;
+    }
+
+    const selEdges = state.network.getSelectedEdges();
+    const selNodes = state.network.getSelectedNodes();
+
+    if (selNodes && selNodes.length === 1 && (!selEdges || selEdges.length === 0)) {
+        openEditNodeModal(selNodes[0]);
+    } else if (selEdges && selEdges.length === 1) {
+        openEditEdgeModal(selEdges[0]);
+    } else if (selNodes && selNodes.length === 1) {
+        openEditNodeModal(selNodes[0]);
     }
 }

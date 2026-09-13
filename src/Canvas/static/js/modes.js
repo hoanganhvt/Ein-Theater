@@ -1,6 +1,6 @@
 // ── Canvas Interaction Modes (Move, Select, Add Node, Add Edge) ───
 import { state } from './state.js';
-import { cancelWireCreation } from './circuit.js';
+import { cancelWireCreation, updateConnectBanner } from './circuit.js';
 import { openAddNodeModal } from './modals.js';
 
 export function setMode(mode) {
@@ -89,7 +89,7 @@ export function setMode(mode) {
             }
         });
         if (banner) {
-            banner.innerHTML = '<span>🔗 <strong>Add Edge</strong> — Click a block to start wire, click/drag on grid to add corners (<strong>Space</strong> to flip bend), click target block to connect. <strong>Esc</strong> to cancel.</span>';
+            updateConnectBanner();
             banner.style.display = 'block';
         }
         if (container) container.style.cursor = 'crosshair';

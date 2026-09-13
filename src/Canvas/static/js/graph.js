@@ -4,7 +4,7 @@ import { api } from './api.js';
 import { LAYER_SCHEMAS, getDefaultParams, formatNodeLabel, getNodeDisplayName } from './schemas.js';
 import { setMode } from './modes.js';
 import { openAddNodeModal, openEditNodeModal } from './modals.js';
-import { setupCircuitCanvas, snapToGrid, computeOrthogonalLines, computeEdgeLines, invertEdgeFold, updateEdgeEndpoints, getEdgeAtCanvasPos, cancelWireCreation } from './circuit.js';
+import { setupCircuitCanvas, snapToGrid, computeOrthogonalLines, computeEdgeLines, invertEdgeFold, updateEdgeEndpoints, getEdgeAtCanvasPos, cancelWireCreation, updateEdgeUISelection, openEditEdgeModal } from './circuit.js';
 import { updateClipboardUI } from './clipboard.js';
 
 // Module-level tracking for dragging nodes with rigid edge geometry preservation
@@ -36,14 +36,15 @@ export async function loadGraph() {
             };
         });
 
-        const processedEdges = (data.edges || []).map(e => {
+        const processedEdges = (data.edges || []).map((e, idx) => {
             let lines = e.lines;
             const foldMode = e.foldMode || 'horizontal';
+            const customFold = (e.customFold !== undefined && e.customFold !== null) ? e.customFold : null;
             if (!lines || lines.length === 0) {
                 const fn = processedNodes.find(n => String(n.id) === String(e.from));
                 const tn = processedNodes.find(n => String(n.id) === String(e.to));
                 if (fn && tn) {
-                    lines = computeOrthogonalLines({ x: fn.x, y: fn.y }, { x: tn.x, y: tn.y }, foldMode);
+                    lines = computeEdgeLines({ x: fn.x, y: fn.y }, { x: tn.x, y: tn.y }, foldMode, customFold);
                 }
             }
             return {
@@ -51,9 +52,10 @@ export async function loadGraph() {
                 id: String(e.id),
                 from: String(e.from),
                 to: String(e.to),
+                index: e.index !== undefined ? e.index : idx,
                 lines: lines || [],
                 foldMode: foldMode,
-                customFold: e.customFold !== undefined ? e.customFold : null,
+                customFold: customFold,
                 color: {
                     color:     'rgba(0,0,0,0)',
                     highlight: 'rgba(0,0,0,0)',
@@ -182,7 +184,7 @@ export async function loadGraph() {
                             const fn = _dragStartPositions[fromId];
                             const tn = _dragStartPositions[toId];
                             if (fn && tn) {
-                                lines = computeOrthogonalLines(fn, tn, edge.foldMode || 'horizontal');
+                                lines = computeEdgeLines(fn, tn, edge.foldMode || 'horizontal', edge.customFold);
                             }
                         }
                         _dragStartInternalEdges[edge.id] = {
@@ -196,7 +198,7 @@ export async function loadGraph() {
                         if (!lines || lines.length === 0) {
                             const fn = allPositions[fromId] || (state.nodesDataSet.get(fromId) || { x: 0, y: 0 });
                             const tn = allPositions[toId] || (state.nodesDataSet.get(toId) || { x: 0, y: 0 });
-                            lines = computeOrthogonalLines(fn, tn, edge.foldMode || 'horizontal');
+                            lines = computeEdgeLines(fn, tn, edge.foldMode || 'horizontal', edge.customFold);
                         }
                         _dragStartExternalEdges[edge.id] = {
                             lines: JSON.parse(JSON.stringify(lines || [])),
@@ -384,9 +386,20 @@ export async function loadGraph() {
             }
 
             if (edgeUpdates.length > 0) {
-                api.updateEdges(edgeUpdates.map(e => ({ id: e.id, lines: e.lines }))).catch(err => {
+                api.updateEdges(edgeUpdates.map(e => {
+                    const edgeObj = state.edgesDataSet ? state.edgesDataSet.get(e.id) : null;
+                    return {
+                        id: e.id,
+                        lines: e.lines,
+                        foldMode: e.foldMode || (edgeObj ? edgeObj.foldMode : undefined),
+                        customFold: e.customFold !== undefined ? e.customFold : (edgeObj ? edgeObj.customFold : undefined)
+                    };
+                })).catch(err => {
                     console.error('Failed to batch update edges, falling back to individual updates:', err);
-                    edgeUpdates.forEach(e => api.updateEdge(e.id, e.lines).catch(console.error));
+                    edgeUpdates.forEach(e => {
+                        const edgeObj = state.edgesDataSet ? state.edgesDataSet.get(e.id) : null;
+                        api.updateEdge(e.id, e.lines, edgeObj ? edgeObj.edgeType : null, edgeObj ? edgeObj.foldMode : null, edgeObj ? edgeObj.customFold : null).catch(console.error);
+                    });
                 });
             }
 
@@ -422,6 +435,7 @@ export async function loadGraph() {
                     }
                 }
             }
+            updateEdgeUISelection();
         });
 
         state.network.on('doubleClick', function (params) {
@@ -433,16 +447,20 @@ export async function loadGraph() {
                     edgeId = getEdgeAtCanvasPos(params.pointer.canvas, 14);
                 }
                 if (edgeId) {
-                    // Double-clicking an edge inverts its fold orientation (H ⇄ V)
-                    invertEdgeFold(edgeId);
+                    openEditEdgeModal(edgeId);
                 }
             }
         });
 
-        state.network.on('select', updateClipboardUI);
-        state.network.on('deselectNode', updateClipboardUI);
-        state.network.on('deselectEdge', updateClipboardUI);
-        updateClipboardUI();
+        const handleSelectionChange = () => {
+            updateClipboardUI();
+            updateEdgeUISelection();
+        };
+
+        state.network.on('select', handleSelectionChange);
+        state.network.on('deselectNode', handleSelectionChange);
+        state.network.on('deselectEdge', handleSelectionChange);
+        handleSelectionChange();
     } catch (err) {
         console.error('Failed to load graph:', err);
     }
@@ -456,7 +474,7 @@ export async function createBlock(label, posX, posY) {
         // Snap placement position to nearest grid point
         const { x: snappedX, y: snappedY } = snapToGrid(posX, posY);
 
-        const newNode = await api.addNode(baseType, baseType, snappedX, snappedY);
+        const newNode = await api.addNode(baseType, baseType, snappedX, snappedY, defaultParams);
         const displayName = getNodeDisplayName(newNode);
 
         const nodeObj = {

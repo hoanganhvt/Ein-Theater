@@ -1,0 +1,143 @@
+{
+  "metadata": {
+    "device": "cpu",
+    "name": "just_another_day",
+    "projectId": "proj_3",
+    "input_type": "image",
+    "input_shape": [
+      3,
+      224,
+      224
+    ]
+  },
+  "nodes": [
+    {
+      "id": "x0",
+      "op": "placeholder",
+      "target": "x0",
+      "type": "input",
+      "input_type": "image",
+      "params": {
+        "input_type": "image",
+        "shape": [
+          3,
+          224,
+          224
+        ],
+        "shape_preset": "3, 224, 224",
+        "custom_shape": "3, 224, 224",
+        "batch_size": 1,
+        "dtype": "float32"
+      },
+      "inputs": [],
+      "args_str": ""
+    },
+    {
+      "id": "x1",
+      "op": "placeholder",
+      "target": "x1",
+      "type": "input",
+      "input_type": "image",
+      "params": {
+        "input_type": "image",
+        "shape": [
+          3,
+          224,
+          224
+        ],
+        "shape_preset": "3, 224, 224",
+        "custom_shape": "3, 224, 224",
+        "batch_size": 1,
+        "dtype": "float32"
+      },
+      "inputs": [],
+      "args_str": ""
+    },
+    {
+      "id": "x2",
+      "op": "placeholder",
+      "target": "x2",
+      "type": "input",
+      "input_type": "image",
+      "params": {
+        "input_type": "image",
+        "shape": [
+          3,
+          224,
+          224
+        ],
+        "shape_preset": "3, 224, 224",
+        "custom_shape": "3, 224, 224",
+        "batch_size": 1,
+        "dtype": "float32"
+      },
+      "inputs": [],
+      "args_str": ""
+    },
+    {
+      "id": "linear_0",
+      "op": "call_module",
+      "target": "linear_0",
+      "type": "nn.Linear",
+      "inputs": [
+        "x0"
+      ],
+      "args_str": "x0",
+      "params": {
+        "in_features": 128,
+        "out_features": 64,
+        "bias": true
+      },
+      "codeTemplate": "nn.Linear(in_features={in_features}, out_features={out_features}, bias={bias})"
+    },
+    {
+      "id": "output",
+      "op": "output",
+      "inputs": [
+        "linear_0"
+      ],
+      "args_str": "linear_0",
+      "params": {},
+      "type": "output"
+    }
+  ],
+  "canvas": {
+    "projectId": "proj_3",
+    "name": "just_another_day",
+    "nodes": [
+      {
+        "id": "linear_0",
+        "label": "linear 0",
+        "shape": "box",
+        "layerType": "nn.Linear",
+        "x": -600,
+        "y": 50
+      },
+      {
+        "id": "input_1",
+        "label": "input 1",
+        "shape": "box",
+        "layerType": "Input",
+        "x": -600,
+        "y": 150
+      },
+      {
+        "id": "input_2",
+        "label": "input 2",
+        "shape": "box",
+        "layerType": "Input",
+        "x": -500,
+        "y": 250
+      },
+      {
+        "id": "input_0",
+        "label": "input 0",
+        "shape": "box",
+        "layerType": "Input",
+        "x": -650,
+        "y": -50
+      }
+    ],
+    "edges": []
+  }
+}

@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -40,19 +41,27 @@ type Node struct {
 }
 
 type Edge struct {
-	ID       string `json:"id"`
-	From     string `json:"from"`
-	To       string `json:"to"`
-	Lines    []Line `json:"lines"`
-	EdgeType string `json:"edgeType,omitempty"`
+	ID         string   `json:"id"`
+	From       string   `json:"from"`
+	To         string   `json:"to"`
+	Lines      []Line   `json:"lines"`
+	EdgeType   string   `json:"edgeType,omitempty"`
+	Index      *int     `json:"index,omitempty"`
+	FoldMode   string   `json:"foldMode,omitempty"`
+	CustomFold *float64 `json:"customFold,omitempty"`
 }
 
 const GridSize = 50.0
 
 // ComputeEdgeLines computes orthogonal straight line segments (circuit traces)
-// connecting fromNode to toNode on the electrical circuit grid.
-// Each segment contains the coordinates of its first and last points.
+// connecting fromNode to toNode on the electrical circuit grid using default horizontal Z-bend.
 func ComputeEdgeLines(from Node, to Node) []Line {
+	return ComputeEdgeLinesWithMode(from, to, "horizontal", nil)
+}
+
+// ComputeEdgeLinesWithMode computes orthogonal straight line segments connecting fromNode to toNode
+// according to foldMode ("horizontal", "vertical", "l-horizontal", "l-vertical") and optional customFold coordinate.
+func ComputeEdgeLinesWithMode(from Node, to Node, foldMode string, customFold *float64) []Line {
 	x1, y1 := from.X, from.Y
 	x2, y2 := to.X, to.Y
 
@@ -76,21 +85,54 @@ func ComputeEdgeLines(from Node, to Node) []Line {
 		return []Line{makeLine(x1, y1, x2, y2)}
 	}
 
-	// 3. Orthogonal right-angle route on the electrical circuit grid
-	midX := math.Round(((x1+x2)/2.0)/GridSize) * GridSize
-	if midX == x1 || midX == x2 {
-		// L-route: 2 straight lines
+	// 3. L-bends
+	if foldMode == "l-horizontal" {
 		return []Line{
 			makeLine(x1, y1, x2, y1),
 			makeLine(x2, y1, x2, y2),
 		}
 	}
+	if foldMode == "l-vertical" {
+		return []Line{
+			makeLine(x1, y1, x1, y2),
+			makeLine(x1, y2, x2, y2),
+		}
+	}
 
-	// Z-route: 3 straight lines (horizontal -> vertical -> horizontal)
+	// 4. Z-bends
+	if foldMode == "vertical" {
+		foldY := math.Round(((y1+y2)/2.0)/GridSize) * GridSize
+		if customFold != nil {
+			foldY = *customFold
+		}
+		if foldY == y1 || foldY == y2 {
+			return []Line{
+				makeLine(x1, y1, x1, y2),
+				makeLine(x1, y2, x2, y2),
+			}
+		}
+		return []Line{
+			makeLine(x1, y1, x1, foldY),
+			makeLine(x1, foldY, x2, foldY),
+			makeLine(x2, foldY, x2, y2),
+		}
+	}
+
+	// Default: "horizontal" Z-bend (horizontal -> vertical -> horizontal)
+	foldX := math.Round(((x1+x2)/2.0)/GridSize) * GridSize
+	if customFold != nil {
+		foldX = *customFold
+	}
+	if foldX == x1 || foldX == x2 {
+		return []Line{
+			makeLine(x1, y1, x2, y1),
+			makeLine(x2, y1, x2, y2),
+		}
+	}
 	return []Line{
-		makeLine(x1, y1, midX, y1),
-		makeLine(midX, y1, midX, y2),
-		makeLine(midX, y2, x2, y2),
+		makeLine(x1, y1, foldX, y1),
+		makeLine(foldX, y1, foldX, y2),
+		makeLine(foldX, y2, x2, y2),
 	}
 }
 
@@ -100,8 +142,68 @@ type Project struct {
 	Name       string
 	nodes      map[string]Node
 	edges      map[string]Edge
+	edgeOrder  []string
 	nextNodeID int
 	nextEdgeID int
+}
+
+// IsSpecialEdgeType returns true if the connection type is a special non-sequential connection
+// such as a residual connection or a skip connection.
+func IsSpecialEdgeType(edgeType string) bool {
+	t := strings.ToLower(strings.TrimSpace(edgeType))
+	return t == "residual" || t == "skip" || strings.HasPrefix(t, "residual") || strings.HasPrefix(t, "skip")
+}
+
+// reindexEdges purges deleted edges from p.edgeOrder, groups edges so all special
+// edges (residual, skip...) are placed behind all normal edges in p.edgeOrder,
+// and assigns sequential 0-based indices (0, 1, 2, 3...) strictly to the special connections.
+// Normal feedforward connections remain unindexed (Index == nil).
+func (p *Project) reindexEdges() {
+	var normalEdges []string
+	var specialEdges []string
+
+	for _, eid := range p.edgeOrder {
+		if e, ok := p.edges[eid]; ok {
+			if IsSpecialEdgeType(e.EdgeType) {
+				specialEdges = append(specialEdges, eid)
+			} else {
+				normalEdges = append(normalEdges, eid)
+			}
+		}
+	}
+
+	// Sort special edges: existing indexed edges preserve their 0-based order (0, 1, 2...),
+	// and newly added special edges (Index == nil) are appended at the end.
+	sort.SliceStable(specialEdges, func(i, j int) bool {
+		ei := p.edges[specialEdges[i]]
+		ej := p.edges[specialEdges[j]]
+		if ei.Index != nil && ej.Index != nil {
+			return *ei.Index < *ej.Index
+		}
+		if ei.Index != nil && ej.Index == nil {
+			return true
+		}
+		if ei.Index == nil && ej.Index != nil {
+			return false
+		}
+		return i < j
+	})
+
+	for _, eid := range normalEdges {
+		e := p.edges[eid]
+		e.Index = nil
+		p.edges[eid] = e
+	}
+
+	for idx, eid := range specialEdges {
+		e := p.edges[eid]
+		curIdx := idx
+		e.Index = &curIdx
+		p.edges[eid] = e
+	}
+
+	// Place all special edges behind all normal edges in strict 0, 1, 2... index order
+	p.edgeOrder = append(normalEdges, specialEdges...)
 }
 
 // ProjectMeta is the lightweight summary returned in list responses.
@@ -315,6 +417,7 @@ func makeProject(name string) *Project {
 		Name:       name,
 		nodes:      make(map[string]Node),
 		edges:      make(map[string]Edge),
+		edgeOrder:  make([]string, 0),
 		nextNodeID: 0,
 		nextEdgeID: 0,
 	}

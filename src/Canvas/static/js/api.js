@@ -90,11 +90,19 @@ export const api = {
         return await res.json();
     },
 
-    async updateNode(nodeData) {
+    async updateNode(idOrData, maybeData = null) {
+        let payload;
+        if (maybeData !== null) {
+            payload = { id: String(idOrData), ...maybeData };
+        } else if (typeof idOrData === 'object' && idOrData !== null) {
+            payload = idOrData;
+        } else {
+            payload = { id: String(idOrData) };
+        }
         const res = await fetch('/api/updateNode', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(nodeData)
+            body: JSON.stringify(payload)
         });
         if (!res.ok) throw new Error(await res.text() || 'Failed to update node');
         return res;
@@ -133,13 +141,19 @@ export const api = {
         return res;
     },
 
-    async addEdge(from, to, lines = null) {
+    async addEdge(from, to, lines = null, foldMode = null, customFold = null, edgeType = null) {
         let res;
-        if (lines && lines.length > 0) {
+        const payload = { from: String(from), to: String(to) };
+        if (lines && lines.length > 0) payload.lines = lines;
+        if (foldMode) payload.foldMode = foldMode;
+        if (customFold !== null && customFold !== undefined) payload.customFold = customFold;
+        if (edgeType) payload.edgeType = edgeType;
+
+        if (lines || foldMode || customFold !== null || edgeType) {
             res = await fetch('/api/addEdge', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ from: String(from), to: String(to), lines })
+                body: JSON.stringify(payload)
             });
         } else {
             res = await fetch(`/api/addEdge?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { method: 'POST' });
@@ -148,11 +162,16 @@ export const api = {
         return await res.json();
     },
 
-    async updateEdge(id, lines, edgeType = null) {
+    async updateEdge(id, lines, edgeType = null, foldMode = null, customFold = null) {
+        const payload = { id, lines };
+        if (edgeType !== null) payload.edgeType = edgeType;
+        if (foldMode !== null) payload.foldMode = foldMode;
+        if (customFold !== null && customFold !== undefined) payload.customFold = customFold;
+
         const res = await fetch('/api/updateEdge', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, lines, edgeType })
+            body: JSON.stringify(payload)
         });
         if (!res.ok) throw new Error(await res.text() || 'Failed to update edge');
         return await res.json();
@@ -166,6 +185,16 @@ export const api = {
         });
         if (!res.ok) throw new Error(await res.text() || 'Failed to update edges');
         return res;
+    },
+
+    async setEdgeType(id, edgeType) {
+        const res = await fetch('/api/setEdgeType', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, edgeType })
+        });
+        if (!res.ok) throw new Error(await res.text() || 'Failed to set connection type');
+        return await res.json();
     },
 
     async deleteEdge(id) {

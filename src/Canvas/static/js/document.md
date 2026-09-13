@@ -234,37 +234,50 @@ Manages the right-click context menu on the canvas, selection deletion, and glob
 ---
 
 ### 3. `circuit.js`
-Renders the electrical schematic / circuit-simulator visual layer on the Vis.js canvas via `beforeDrawing` and `afterDrawing` hooks. Edges are treated as compound objects with a `lines` attribute containing multiple straight line segments with sharp 90° right angles. The user has full control over how each edge folds:
+Renders the electrical schematic / circuit-simulator visual layer on the Vis.js canvas via `beforeDrawing` and `afterDrawing` hooks. Edges are treated as compound objects with a `lines` attribute containing multiple straight line segments with sharp 90° right angles. The user has full control over how each edge bends and folds:
 
 - `GRID_SIZE` *(exported constant)*: Grid spacing in network-coordinate units (50 units). Used for grid rendering and snapping.
+- `BEND_MODES` *(exported array)*: The 4 supported orthogonal routing modes:
+  - `'horizontal'`: Z-Horizontal (H → V → H) with fold at midpoint or custom fold coordinate.
+  - `'vertical'`: Z-Vertical (V → H → V) with fold at midpoint or custom fold coordinate.
+  - `'l-horizontal'`: L-Horizontal (H → V, horizontal first then vertical).
+  - `'l-vertical'`: L-Vertical (V → H, vertical first then horizontal).
+- `BEND_LABELS` *(exported map)*: Human-readable display labels for toolbar banners and UI (`Z-Horizontal (H-V-H)`, `Z-Vertical (V-H-V)`, `L-Horizontal (H-V)`, `L-Vertical (V-H)`).
 - `snapToGrid(x, y)`: Pure helper — rounds a network-coordinate pair to the nearest 50-unit grid point. Returns `{ x, y }`.
 - `pointToSegmentDistance(px, py, x1, y1, x2, y2)`: Calculates perpendicular distance from canvas coordinates to a straight line segment.
 - `getEdgeAtCanvasPos(canvasPos, tolerance = 14)`: Precise spatial index hit-tester that determines which edge's orthogonal straight lines pass within tolerance of a canvas coordinate point. Automatically scales tolerance with current camera zoom (`tolerance / scale`) and computes lines on the fly if needed. Used for wire clicking, selection, hovering, double-clicking, and context menus.
-- `computeOrthogonalLines(p1, p2, bendMode)`: Computes pure right-angle straight line segments between two points. If p1 and p2 differ in both X and Y, creates an orthogonal 2-segment L-bend oriented according to `bendMode` (`'horizontal'` for H→V, `'vertical'` for V→H).
+- `computeOrthogonalLines(p1, p2, bendMode)`: Computes pure right-angle straight line segments between two points. Delegates to `computeEdgeLines` to support all 4 orthogonal bend modes.
 - `simplifyLines(lines)`: Cleans up line segment arrays by filtering out zero-length lines and merging consecutive collinear segments.
-- `computeEdgeLines(fromPos, toPos, foldMode, customFold)`: Calculates orthogonal straight line segments connecting two points with sharp 90° corners on the electrical circuit grid. Supports `foldMode` (`'horizontal'` for H→V→H, `'vertical'` for V→H→V) and `customFold` coordinate (user-dragged fold position). Returns an array of line objects, each containing `{ first: {x, y}, last: {x, y}, from: {x, y}, to: {x, y} }`.
-- `updateEdgeEndpoints(edge, fromPos, toPos)`: Updates edge lines when connected blocks are dragged while preserving 1-line collinear paths, 2-line L-bends (via `computeOrthogonalLines`), and all intermediate user-created corner waypoints without forcing them into 3-segment Z-bends.
-- `getEdgeFoldHandlePos(edge)`: Returns the canvas coordinates and orientation of the interactive fold handle for an edge.
-- `invertEdgeFold(edgeId)`: Toggles an edge's fold orientation between Horizontal-first and Vertical-first, recalculates lines, persists via `/api/updateEdge`, and triggers a canvas redraw.
-- `cancelWireCreation()`: Clears active in-progress wire drawing state, drawn path points (`_wirePath`), waypoints, mouse tracking, and resets the toolbar mode banner.
-- `extendWirePath(targetGrid)`: Extends the in-progress `_wirePath` along the 50px grid with sharp orthogonal 90° segments while dragging. Automatically detects reverse movement / backtracking along previously drawn lines and erases/shrinks backtracked segments in real time.
-- `finishWireCreation(targetNodeId)`: Converts `_wirePath` into an array of sharp straight `Line` objects and connects to the target node. If an edge already exists between the two nodes, gracefully updates the existing edge's line array to the newly drawn path (allowing wire redraws without false duplicate connection alerts); otherwise adds a new edge.
+- `computeEdgeLines(fromPos, toPos, foldMode, customFold)`: Calculates orthogonal straight line segments connecting two points with sharp 90° corners on the electrical circuit grid. Supports all 4 `foldMode` orientations and user-dragged `customFold` coordinates. Returns an array of line objects, each containing `{ first: {x, y}, last: {x, y}, from: {x, y}, to: {x, y} }`.
+- `updateEdgeEndpoints(edge, fromPos, toPos)`: Updates edge lines when connected blocks are dragged while preserving collinear paths, 2-line L-bends, 3-line Z-bends, and all intermediate user-created corner waypoints without collapsing user-chosen geometry.
+- `getEdgeFoldHandlePos(edge)`: Returns the canvas coordinates and fold orientation of the interactive diamond fold handle for an edge (for both 3-segment Z-bends and 2-segment L-bends).
+- `cycleEdgeFoldMode(edgeId)`: Cycles an edge through all 4 bend modes (`horizontal` → `vertical` → `l-horizontal` → `l-vertical`), recalculates lines, persists via `/api/updateEdge`, and triggers a canvas redraw.
+- `invertEdgeFold(edgeId)`: Toggles an edge's fold orientation (`horizontal` ⇄ `vertical`, `l-horizontal` ⇄ `l-vertical`), recalculates lines, persists via `/api/updateEdge`, and triggers a canvas redraw.
+- `updateConnectBanner()`: Updates the mode banner with the active bend mode name, starting node name, and corner count.
+- `cancelWireCreation()`: Clears active in-progress wire drawing state, waypoints, mouse tracking, and resets the toolbar mode banner.
+- `addWireWaypoint(targetGrid)`: Adds intermediate corner / fold waypoint(s) to `_wireWaypoints`, tracking each click as a reversible step in `_waypointSteps`.
+- `popWireWaypoint()`: Pops the most recently placed corner waypoint step upon pressing `Backspace`, `Delete`, or right-clicking.
+- `extendWirePath`: Backwards-compatible alias for `addWireWaypoint`.
+- `finishWireCreation(targetNodeId)`: Converts committed waypoints and bend mode into an array of sharp straight `Line` objects and connects to the target node. Persists `foldMode` and `customFold` to the backend via `api.addEdge` / `api.updateEdge`.
 - `setupCircuitCanvas()`: Registers canvas hooks on the active `state.network`:
-  - **`beforeDrawing`**: Fills the canvas background (`#f8fafc`), draws the electrical schematic dot grid, and renders all straight line segments (`edge.lines`). Automatically prunes any orphan edges whose connected nodes no longer exist.
-  - **`afterDrawing`**: Renders junction terminal dots at 90° corners, directional arrows entering destination node boxes, interactive diamond fold handles on selected edges, and the live connection preview when in `'connect'` mode.
+  - **`beforeDrawing`**: Fills canvas background (`#f8fafc`), draws the electrical schematic dot grid, and renders all straight line segments (`edge.lines`). Automatically prunes orphan edges.
+  - **`afterDrawing`**: Renders junction terminal dots at 90° corners, directional arrows entering destination node boxes, interactive diamond fold handles on selected edges, 0-indexed execution badges (`0, 1, 2...`), and the live connection preview in `'connect'` mode.
   - **Wire Selection & Removal**:
     - Hovering over a wire trace in `'move'` mode shows a pointer cursor.
-    - Left-clicking directly on any orthogonal wire segment selects that connection (via `setSelection({ nodes: [], edges: [edgeId] })`), highlighting it neon green and showing its diamond fold handle.
-    - Once selected, connections can be removed by pressing **`Delete`** or **`Backspace`** on the keyboard, or clicking the **`🗑️ Delete`** toolbar button.
-    - Right-clicking directly on a wire opens the context menu with **Delete Wire** (and **Invert Edge Fold**).
-  - **Interactive Wire Drawing (Click->Hold->Drag & Waypoints)**:
-    - Click and hold on any block, then drag across the grid to draw sharp right-angle circuit lines that strictly follow the cursor.
-    - Backtracking removal: dragging backwards along a drawn line automatically erases and removes segments in real time.
-    - Alternatively, click on empty canvas to drop intermediate corner waypoints.
-    - Release or click over a target block (which glows green) to complete the connection with the exact array of lines drawn.
-    - Redrawing connections: drawing between two already connected blocks smoothly updates the existing wire geometry with the newly drawn lines without showing intrusive alert popups.
-    - Press **`Space`** to flip bend orientation, **`Escape`** or right-click to cancel.
-  - **Fold Drag Interactions**: Binds mousedown/mousemove/mouseup to let users click and drag the diamond fold handle on any selected edge across the 50px grid, immediately updating line segments and saving to the backend.
+    - Left-clicking directly on any orthogonal wire segment selects that connection, highlighting it neon green and displaying its diamond fold handle.
+    - Connections can be removed by pressing **`Delete`** or **`Backspace`**, clicking **`🗑️ Delete`**, or right-clicking and choosing **Delete Wire**.
+  - **Interactive Wire Drawing & Bending**:
+    - Click any block to start drawing a wire.
+    - Move mouse across the canvas: live dashed preview follows cursor on the 50px grid.
+    - Press **`Space`** while drawing to cycle between all 4 bend modes (`Z-Horizontal`, `Z-Vertical`, `L-Horizontal`, `L-Vertical`) with instant real-time preview.
+    - Click on empty canvas to drop corner waypoints.
+    - Press **`Backspace`** or **`Delete`** to undo the last placed corner waypoint.
+    - Hover over destination block: preview snaps directly to target terminal and glows green. Click or release on destination block to connect.
+    - Press **`Escape`** or right-click to cancel wire creation.
+  - **Post-Creation Bend Editing**:
+    - Select any edge to reveal its diamond fold handle. Drag the handle to adjust fold position along the grid.
+    - Press **`Space`** with an edge selected to cycle its bend mode through all 4 orientations.
+    - Double-click an edge or choose **Cycle Bend Mode** from the context menu to cycle orientations.
 
 ---
 

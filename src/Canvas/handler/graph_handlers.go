@@ -23,16 +23,19 @@ func DataHandler(w http.ResponseWriter, r *http.Request) {
 	for _, n := range p.nodes {
 		data.Nodes = append(data.Nodes, n)
 	}
-	for _, e := range p.edges {
-		if len(e.Lines) == 0 {
-			fn, ok1 := p.nodes[e.From]
-			tn, ok2 := p.nodes[e.To]
-			if ok1 && ok2 {
-				e.Lines = ComputeEdgeLines(fn, tn)
-				p.edges[e.ID] = e
+	p.reindexEdges()
+	for _, eid := range p.edgeOrder {
+		if e, ok := p.edges[eid]; ok {
+			if len(e.Lines) == 0 {
+				fn, ok1 := p.nodes[e.From]
+				tn, ok2 := p.nodes[e.To]
+				if ok1 && ok2 {
+					e.Lines = ComputeEdgeLinesWithMode(fn, tn, e.FoldMode, e.CustomFold)
+					p.edges[e.ID] = e
+				}
 			}
+			data.Edges = append(data.Edges, e)
 		}
-		data.Edges = append(data.Edges, e)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
@@ -170,6 +173,7 @@ func DeleteNodeHandler(w http.ResponseWriter, r *http.Request) {
 			delete(p.edges, k)
 		}
 	}
+	p.reindexEdges()
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -206,6 +210,7 @@ func DeleteNodesHandler(w http.ResponseWriter, r *http.Request) {
 			delete(p.edges, k)
 		}
 	}
+	p.reindexEdges()
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -230,22 +235,21 @@ func MoveNodeHandler(w http.ResponseWriter, r *http.Request) {
 		if updateEdges {
 			for k, e := range p.edges {
 				if e.From == id || e.To == id {
-					if len(e.Lines) == 0 {
-						fn, ok1 := p.nodes[e.From]
-						tn, ok2 := p.nodes[e.To]
-						if ok1 && ok2 {
-							e.Lines = ComputeEdgeLines(fn, tn)
-							p.edges[k] = e
-						}
-					} else {
-						if e.From == id {
-							e.Lines[0].First = Point{X: x, Y: y}
-							e.Lines[0].From = Point{X: x, Y: y}
-						}
-						if e.To == id {
-							lastIdx := len(e.Lines) - 1
-							e.Lines[lastIdx].Last = Point{X: x, Y: y}
-							e.Lines[lastIdx].To = Point{X: x, Y: y}
+					fn, ok1 := p.nodes[e.From]
+					tn, ok2 := p.nodes[e.To]
+					if ok1 && ok2 {
+						if len(e.Lines) <= 3 {
+							e.Lines = ComputeEdgeLinesWithMode(fn, tn, e.FoldMode, e.CustomFold)
+						} else {
+							if e.From == id && len(e.Lines) > 0 {
+								e.Lines[0].First = Point{X: x, Y: y}
+								e.Lines[0].From = Point{X: x, Y: y}
+							}
+							if e.To == id && len(e.Lines) > 0 {
+								lastIdx := len(e.Lines) - 1
+								e.Lines[lastIdx].Last = Point{X: x, Y: y}
+								e.Lines[lastIdx].To = Point{X: x, Y: y}
+							}
 						}
 						p.edges[k] = e
 					}
@@ -289,16 +293,20 @@ func MoveNodesHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// AddEdgeReq defines payload for adding an edge with optional custom straight lines.
+// AddEdgeReq defines payload for adding an edge with optional custom straight lines and fold mode.
 type AddEdgeReq struct {
-	From  string `json:"from"`
-	To    string `json:"to"`
-	Lines []Line `json:"lines"`
+	From       string   `json:"from"`
+	To         string   `json:"to"`
+	Lines      []Line   `json:"lines"`
+	EdgeType   string   `json:"edgeType,omitempty"`
+	FoldMode   string   `json:"foldMode,omitempty"`
+	CustomFold *float64 `json:"customFold,omitempty"`
 }
 
 // AddEdgeHandler connects two nodes with an edge.
 func AddEdgeHandler(w http.ResponseWriter, r *http.Request) {
-	var from, to string
+	var from, to, foldMode, edgeType string
+	var customFold *float64
 	var customLines []Line
 
 	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
@@ -307,6 +315,9 @@ func AddEdgeHandler(w http.ResponseWriter, r *http.Request) {
 			from = req.From
 			to = req.To
 			customLines = req.Lines
+			edgeType = req.EdgeType
+			foldMode = req.FoldMode
+			customFold = req.CustomFold
 		}
 	}
 
@@ -315,6 +326,15 @@ func AddEdgeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if to == "" {
 		to = r.URL.Query().Get("to")
+	}
+	if edgeType == "" {
+		edgeType = r.URL.Query().Get("edgeType")
+		if edgeType == "" {
+			edgeType = r.URL.Query().Get("type")
+		}
+	}
+	if foldMode == "" {
+		foldMode = r.URL.Query().Get("foldMode")
 	}
 
 	mu.Lock()
@@ -345,11 +365,19 @@ func AddEdgeHandler(w http.ResponseWriter, r *http.Request) {
 			} else {
 				fn := p.nodes[from]
 				tn := p.nodes[to]
-				e.Lines = ComputeEdgeLines(fn, tn)
+				e.Lines = ComputeEdgeLinesWithMode(fn, tn, foldMode, customFold)
 			}
+			if edgeType != "" {
+				e.EdgeType = edgeType
+			}
+			if foldMode != "" {
+				e.FoldMode = foldMode
+			}
+			e.CustomFold = customFold
 			p.edges[k] = e
+			p.reindexEdges()
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(e)
+			json.NewEncoder(w).Encode(p.edges[k])
 			return
 		}
 	}
@@ -361,21 +389,33 @@ func AddEdgeHandler(w http.ResponseWriter, r *http.Request) {
 	if len(customLines) > 0 {
 		lines = customLines
 	} else {
-		lines = ComputeEdgeLines(p.nodes[from], p.nodes[to])
+		lines = ComputeEdgeLinesWithMode(p.nodes[from], p.nodes[to], foldMode, customFold)
 	}
 
-	e := Edge{ID: id, From: from, To: to, Lines: lines}
+	e := Edge{
+		ID:         id,
+		From:       from,
+		To:         to,
+		Lines:      lines,
+		EdgeType:   edgeType,
+		FoldMode:   foldMode,
+		CustomFold: customFold,
+	}
 	p.edges[id] = e
+	p.edgeOrder = append(p.edgeOrder, id)
+	p.reindexEdges()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(e)
+	json.NewEncoder(w).Encode(p.edges[id])
 }
 
 // UpdateEdgeReq defines the payload for updating an edge's custom lines/folds.
 type UpdateEdgeReq struct {
-	ID       string `json:"id"`
-	Lines    []Line `json:"lines"`
-	EdgeType string `json:"edgeType,omitempty"`
+	ID         string   `json:"id"`
+	Lines      []Line   `json:"lines"`
+	EdgeType   string   `json:"edgeType,omitempty"`
+	FoldMode   string   `json:"foldMode,omitempty"`
+	CustomFold *float64 `json:"customFold,omitempty"`
 }
 
 // UpdateEdgeHandler updates an edge's custom straight lines (user-decided folds).
@@ -410,14 +450,81 @@ func UpdateEdgeHandler(w http.ResponseWriter, r *http.Request) {
 		edge.Lines = req.Lines
 	}
 	if req.EdgeType != "" {
-		edge.EdgeType = req.EdgeType
-	} else if req.EdgeType == "data" {
-	    edge.EdgeType = ""
+		if req.EdgeType == "normal" || req.EdgeType == "data" {
+			edge.EdgeType = "normal"
+		} else {
+			edge.EdgeType = req.EdgeType
+		}
+	}
+	if req.FoldMode != "" {
+		edge.FoldMode = req.FoldMode
+	}
+	if req.CustomFold != nil {
+		edge.CustomFold = req.CustomFold
 	}
 	p.edges[req.ID] = edge
+	p.reindexEdges()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(edge)
+	json.NewEncoder(w).Encode(p.edges[req.ID])
+}
+
+// SetEdgeTypeHandler updates the connection type of an edge (normal, residual, skip)
+// and dynamically reindexes only the special connections.
+func SetEdgeTypeHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		ID       string `json:"id"`
+		EdgeType string `json:"edgeType"`
+	}
+	if r.Body != nil {
+		_ = json.NewDecoder(r.Body).Decode(&req)
+	}
+	if req.ID == "" {
+		req.ID = r.URL.Query().Get("id")
+	}
+	if req.EdgeType == "" {
+		req.EdgeType = r.URL.Query().Get("type")
+		if req.EdgeType == "" {
+			req.EdgeType = r.URL.Query().Get("edgeType")
+		}
+	}
+
+	if req.ID == "" {
+		http.Error(w, "missing edge id", http.StatusBadRequest)
+		return
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	p := cur()
+
+	edge, ok := p.edges[req.ID]
+	if !ok {
+		http.Error(w, "edge not found", http.StatusNotFound)
+		return
+	}
+
+	t := strings.ToLower(strings.TrimSpace(req.EdgeType))
+	if t == "normal" || t == "data" || t == "" {
+		edge.EdgeType = "normal"
+	} else if strings.HasPrefix(t, "res") {
+		edge.EdgeType = "residual"
+	} else if strings.HasPrefix(t, "skip") {
+		edge.EdgeType = "skip"
+	} else {
+		edge.EdgeType = t
+	}
+
+	p.edges[req.ID] = edge
+	p.reindexEdges()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(p.edges[req.ID])
 }
 
 // UpdateEdgesHandler batch updates multiple edges' lines.
@@ -443,13 +550,22 @@ func UpdateEdgesHandler(w http.ResponseWriter, r *http.Request) {
 				edge.Lines = req.Lines
 			}
 			if req.EdgeType != "" {
-				edge.EdgeType = req.EdgeType
-			} else if req.EdgeType == "data" {
-				edge.EdgeType = ""
+				if req.EdgeType == "normal" || req.EdgeType == "data" {
+					edge.EdgeType = "normal"
+				} else {
+					edge.EdgeType = req.EdgeType
+				}
+			}
+			if req.FoldMode != "" {
+				edge.FoldMode = req.FoldMode
+			}
+			if req.CustomFold != nil {
+				edge.CustomFold = req.CustomFold
 			}
 			p.edges[req.ID] = edge
 		}
 	}
+	p.reindexEdges()
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -459,7 +575,9 @@ func DeleteEdgeHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	mu.Lock()
 	defer mu.Unlock()
-	delete(cur().edges, id)
+	p := cur()
+	delete(p.edges, id)
+	p.reindexEdges()
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -470,6 +588,7 @@ func ClearGraphHandler(w http.ResponseWriter, r *http.Request) {
 	p := cur()
 	p.nodes = make(map[string]Node)
 	p.edges = make(map[string]Edge)
+	p.edgeOrder = make([]string, 0)
 	p.nextNodeID = 0
 	p.nextEdgeID = 0
 	w.WriteHeader(http.StatusOK)
@@ -568,12 +687,14 @@ func PasteGraphHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	var newEdgeIDs []string
 	for _, e := range req.Edges {
 		newFrom, okFrom := idMap[e.From]
 		newTo, okTo := idMap[e.To]
 		if okFrom && okTo {
 			newEdgeID := fmt.Sprintf("e%d", p.nextEdgeID)
 			p.nextEdgeID++
+			newEdgeIDs = append(newEdgeIDs, newEdgeID)
 
 			var newLines []Line
 			if len(e.Lines) > 0 {
@@ -588,18 +709,37 @@ func PasteGraphHandler(w http.ResponseWriter, r *http.Request) {
 			} else {
 				fn := p.nodes[newFrom]
 				tn := p.nodes[newTo]
-				newLines = ComputeEdgeLines(fn, tn)
+				newLines = ComputeEdgeLinesWithMode(fn, tn, e.FoldMode, e.CustomFold)
+			}
+
+			var newCustomFold *float64
+			if e.CustomFold != nil {
+				val := *e.CustomFold
+				if e.FoldMode == "vertical" {
+					val += req.Dy
+				} else {
+					val += req.Dx
+				}
+				newCustomFold = &val
 			}
 
 			newEdge := Edge{
-				ID:       newEdgeID,
-				From:     newFrom,
-				To:       newTo,
-				Lines:    newLines,
-				EdgeType: e.EdgeType,
+				ID:         newEdgeID,
+				From:       newFrom,
+				To:         newTo,
+				Lines:      newLines,
+				EdgeType:   e.EdgeType,
+				FoldMode:   e.FoldMode,
+				CustomFold: newCustomFold,
 			}
 			p.edges[newEdgeID] = newEdge
-			createdEdges = append(createdEdges, newEdge)
+			p.edgeOrder = append(p.edgeOrder, newEdgeID)
+		}
+	}
+	p.reindexEdges()
+	for _, eid := range newEdgeIDs {
+		if ed, ok := p.edges[eid]; ok {
+			createdEdges = append(createdEdges, ed)
 		}
 	}
 

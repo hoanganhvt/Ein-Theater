@@ -1,0 +1,276 @@
+{
+  "metadata": {
+    "device": "cpu",
+    "name": "tricky_transformer",
+    "input_type": "text",
+    "input_shape": [
+      63
+    ]
+  },
+  "nodes": [
+    {
+      "id": "x",
+      "op": "placeholder",
+      "inputs": [],
+      "args_str": "",
+      "params": {
+        "shape": [
+          63
+        ],
+        "input_type": "text"
+      },
+      "type": "input",
+      "codeTemplate": ""
+    },
+    {
+      "id": "emb",
+      "op": "call_module",
+      "inputs": [
+        "x"
+      ],
+      "args_str": "x",
+      "params": {
+        "num_embeddings": 3500,
+        "embedding_dim": 72
+      },
+      "type": "nn.Embedding",
+      "codeTemplate": "nn.Embedding(num_embeddings={num_embeddings}, embedding_dim={embedding_dim})",
+      "target": "emb"
+    },
+    {
+      "id": "attn1",
+      "op": "call_module",
+      "inputs": [
+        "emb"
+      ],
+      "args_str": "emb, emb, emb",
+      "params": {
+        "embed_dim": 999,
+        "num_heads": 6,
+        "dropout": 0.0
+      },
+      "type": "nn.MultiheadAttention",
+      "codeTemplate": "nn.MultiheadAttention(embed_dim={embed_dim}, num_heads={num_heads}, dropout={dropout}, bias={bias}, batch_first={batch_first})",
+      "target": "attn1"
+    },
+    {
+      "id": "getitem",
+      "op": "call_function",
+      "inputs": [
+        "attn1"
+      ],
+      "args_str": "attn1, 0",
+      "params": {},
+      "type": "function",
+      "codeTemplate": "",
+      "target": "getitem"
+    },
+    {
+      "id": "getitem_1",
+      "op": "call_function",
+      "inputs": [
+        "attn1"
+      ],
+      "args_str": "attn1, 1",
+      "params": {},
+      "type": "function",
+      "codeTemplate": "",
+      "target": "getitem"
+    },
+    {
+      "id": "add",
+      "op": "call_function",
+      "inputs": [
+        "emb",
+        "getitem"
+      ],
+      "args_str": "emb, getitem",
+      "params": {},
+      "type": "function",
+      "codeTemplate": "",
+      "target": "add"
+    },
+    {
+      "id": "ln1",
+      "op": "call_module",
+      "inputs": [
+        "add"
+      ],
+      "args_str": "add",
+      "params": {
+        "normalized_shape": 999,
+        "eps": 1e-05
+      },
+      "type": "nn.LayerNorm",
+      "codeTemplate": "nn.LayerNorm(normalized_shape={normalized_shape}, eps={eps}, elementwise_affine={elementwise_affine})",
+      "target": "ln1"
+    },
+    {
+      "id": "fc1",
+      "op": "call_module",
+      "inputs": [
+        "ln1"
+      ],
+      "args_str": "ln1",
+      "params": {
+        "in_features": 999,
+        "out_features": 288,
+        "bias": true
+      },
+      "type": "nn.Linear",
+      "codeTemplate": "nn.Linear(in_features={in_features}, out_features={out_features}, bias={bias})",
+      "target": "fc1"
+    },
+    {
+      "id": "relu",
+      "op": "call_function",
+      "inputs": [
+        "fc1"
+      ],
+      "args_str": "fc1",
+      "params": {},
+      "type": "function",
+      "codeTemplate": "",
+      "target": "relu"
+    },
+    {
+      "id": "fc2",
+      "op": "call_module",
+      "inputs": [
+        "relu"
+      ],
+      "args_str": "relu",
+      "params": {
+        "in_features": 999,
+        "out_features": 72,
+        "bias": true
+      },
+      "type": "nn.Linear",
+      "codeTemplate": "nn.Linear(in_features={in_features}, out_features={out_features}, bias={bias})",
+      "target": "fc2"
+    },
+    {
+      "id": "add_1",
+      "op": "call_function",
+      "inputs": [
+        "ln1",
+        "fc2"
+      ],
+      "args_str": "ln1, fc2",
+      "params": {},
+      "type": "function",
+      "codeTemplate": "",
+      "target": "add"
+    },
+    {
+      "id": "ln2",
+      "op": "call_module",
+      "inputs": [
+        "add_1"
+      ],
+      "args_str": "add_1",
+      "params": {
+        "normalized_shape": 999,
+        "eps": 1e-05
+      },
+      "type": "nn.LayerNorm",
+      "codeTemplate": "nn.LayerNorm(normalized_shape={normalized_shape}, eps={eps}, elementwise_affine={elementwise_affine})",
+      "target": "ln2"
+    },
+    {
+      "id": "attn2",
+      "op": "call_module",
+      "inputs": [
+        "ln2"
+      ],
+      "args_str": "ln2, ln2, ln2",
+      "params": {
+        "embed_dim": 999,
+        "num_heads": 8,
+        "dropout": 0.0
+      },
+      "type": "nn.MultiheadAttention",
+      "codeTemplate": "nn.MultiheadAttention(embed_dim={embed_dim}, num_heads={num_heads}, dropout={dropout}, bias={bias}, batch_first={batch_first})",
+      "target": "attn2"
+    },
+    {
+      "id": "getitem_2",
+      "op": "call_function",
+      "inputs": [
+        "attn2"
+      ],
+      "args_str": "attn2, 0",
+      "params": {},
+      "type": "function",
+      "codeTemplate": "",
+      "target": "getitem"
+    },
+    {
+      "id": "getitem_3",
+      "op": "call_function",
+      "inputs": [
+        "attn2"
+      ],
+      "args_str": "attn2, 1",
+      "params": {},
+      "type": "function",
+      "codeTemplate": "",
+      "target": "getitem"
+    },
+    {
+      "id": "add_2",
+      "op": "call_function",
+      "inputs": [
+        "ln2",
+        "getitem_2"
+      ],
+      "args_str": "ln2, getitem_2",
+      "params": {},
+      "type": "function",
+      "codeTemplate": "",
+      "target": "add"
+    },
+    {
+      "id": "ln3",
+      "op": "call_module",
+      "inputs": [
+        "add_2"
+      ],
+      "args_str": "add_2",
+      "params": {
+        "normalized_shape": 999,
+        "eps": 1e-05
+      },
+      "type": "nn.LayerNorm",
+      "codeTemplate": "nn.LayerNorm(normalized_shape={normalized_shape}, eps={eps}, elementwise_affine={elementwise_affine})",
+      "target": "ln3"
+    },
+    {
+      "id": "head",
+      "op": "call_module",
+      "inputs": [
+        "ln3"
+      ],
+      "args_str": "ln3",
+      "params": {
+        "in_features": 999,
+        "out_features": 10,
+        "bias": true
+      },
+      "type": "nn.Linear",
+      "codeTemplate": "nn.Linear(in_features={in_features}, out_features={out_features}, bias={bias})",
+      "target": "head"
+    },
+    {
+      "id": "output",
+      "op": "output",
+      "inputs": [
+        "head"
+      ],
+      "args_str": "head",
+      "params": {},
+      "type": "output",
+      "codeTemplate": ""
+    }
+  ]
+}

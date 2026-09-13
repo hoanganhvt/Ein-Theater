@@ -1291,3 +1291,381 @@ div.vis-network div.vis-close {
     transform: translateY(0);
 }
 
+/* ── Edge Type UI Controls & Toolbar ────────────────────────────── */
+.header-edge-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f1f5f9;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    margin-right: 6px;
+}
+.header-edge-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.header-edge-nodes {
+    font-size: 11px;
+    font-weight: 600;
+    color: #334155;
+    padding: 0 4px;
+    white-space: nowrap;
+}
+.header-edge-pills {
+    display: flex;
+    gap: 4px;
+}
+.header-edge-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.btn-edge-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 4px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.btn-edge-pill:hover {
+    background: #e2e8f0;
+}
+.btn-edge-pill.active {
+    background: #0f172a;
+    color: #ffffff;
+    border-color: #0f172a;
+}
+.btn-edge-pill.active-normal {
+    background: #15803d;
+    color: #ffffff;
+    border-color: #166534;
+}
+.btn-edge-pill.active-residual {
+    background: #7e22ce;
+    color: #ffffff;
+    border-color: #6b21a8;
+}
+.btn-edge-pill.active-skip {
+    background: #0e7490;
+    color: #ffffff;
+    border-color: #155e75;
+}
+.btn-edge-pill-danger:hover {
+    background: #ef4444 !important;
+    border-color: #dc2626 !important;
+    color: #ffffff !important;
+}
+.toolbar-divider-sm {
+    width: 1px;
+    height: 18px;
+    background: #cbd5e1;
+    margin: 0 4px;
+}
+
+/* Pill Dots */
+.pill-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.dot-normal   { background-color: #16a34a; box-shadow: 0 0 4px #16a34a; }
+.dot-residual { background-color: #a855f7; box-shadow: 0 0 4px #a855f7; }
+.dot-skip     { background-color: #06b6d4; box-shadow: 0 0 4px #06b6d4; }
+
+/* Floating Edge Control Bar */
+.floating-edge-bar {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(15, 23, 42, 0.94);
+    backdrop-filter: blur(10px);
+    color: #f8fafc;
+    padding: 8px 16px;
+    border-radius: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    z-index: 180;
+    animation: slideUpFade 0.2s ease-out;
+}
+@keyframes slideUpFade {
+    from { opacity: 0; transform: translate(-50%, 10px); }
+    to   { opacity: 1; transform: translate(-50%, 0); }
+}
+.floating-edge-drag {
+    font-size: 15px;
+    opacity: 0.8;
+}
+.floating-edge-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 80px;
+}
+.floating-edge-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.1;
+}
+.floating-edge-nodes {
+    font-size: 10px;
+    color: #94a3b8;
+    white-space: nowrap;
+}
+.floating-edge-divider {
+    width: 1px;
+    height: 22px;
+    background: rgba(255, 255, 255, 0.18);
+}
+.floating-edge-types {
+    display: flex;
+    gap: 5px;
+}
+.floating-type-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 11px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.floating-type-btn:hover {
+    background: rgba(255, 255, 255, 0.18);
+    transform: translateY(-1px);
+}
+.floating-type-btn.active-normal {
+    background: #16a34a;
+    color: #ffffff;
+    border-color: #22c55e;
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.4);
+}
+.floating-type-btn.active-residual {
+    background: #9333ea;
+    color: #ffffff;
+    border-color: #c084fc;
+    box-shadow: 0 0 10px rgba(192, 132, 252, 0.4);
+}
+.floating-type-btn.active-skip {
+    background: #0891b2;
+    color: #ffffff;
+    border-color: #22d3ee;
+    box-shadow: 0 0 10px rgba(34, 211, 238, 0.4);
+}
+.floating-edge-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.btn-edge-act {
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.06);
+    color: #cbd5e1;
+    cursor: pointer;
+    transition: all 0.12s ease;
+}
+.btn-edge-act:hover {
+    background: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+}
+.btn-edge-act-danger:hover {
+    background: #ef4444;
+    border-color: #ef4444;
+    color: #ffffff;
+}
+
+/* Sidebar Connection Types Section */
+.connections-section {
+    border-top: 1px solid #e2e8f0;
+    margin-top: 8px;
+    padding-top: 8px;
+}
+.connections-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 0;
+}
+.connection-item {
+    cursor: pointer;
+}
+.connection-item:hover {
+    border-color: #94a3b8;
+}
+.connection-tag-icon {
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+/* Edit Edge Modal Dialog */
+#editEdgeModal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #ffffff;
+    padding: 22px 24px;
+    border-radius: 12px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+    z-index: 1000;
+    width: 480px;
+    max-width: 92vw;
+    border: 1px solid #cbd5e1;
+    animation: modalScaleIn 0.15s ease-out;
+}
+.edge-nodes-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 16px;
+}
+.edge-nodes-arrow {
+    color: #0284c7;
+    font-size: 15px;
+}
+.section-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #64748b;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+.edge-type-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.edge-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.edge-card:hover {
+    border-color: #94a3b8;
+    background: #f8fafc;
+}
+.edge-card.selected {
+    border-color: #0284c7;
+    background: #f0f9ff;
+}
+.edge-card-radio {
+    margin-top: 3px;
+}
+.edge-card-content {
+    flex: 1;
+}
+.edge-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #0f172a;
+    margin-bottom: 3px;
+}
+.edge-card-content p {
+    margin: 0;
+    font-size: 11.5px;
+    color: #64748b;
+    line-height: 1.35;
+}
+.edge-card-tag {
+    font-size: 9.5px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.tag-normal { background: #dcfce7; color: #166534; }
+.tag-residual { background: #f3e8ff; color: #6b21a8; }
+.tag-skip { background: #cffafe; color: #155e75; }
+
+.edge-routing-row select {
+    width: 100%;
+    padding: 7px 10px;
+    font-size: 13px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #1e293b;
+    outline: none;
+}
+.edge-routing-row select:focus {
+    border-color: #0284c7;
+    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+/* Connect banner type toggle */
+.connect-type-toggle {
+    display: inline-flex;
+    gap: 4px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+.connect-type-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    cursor: pointer;
+    transition: all 0.12s;
+}
+.connect-type-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+.connect-type-btn.active {
+    background: #ffffff;
+    color: #007acc;
+    border-color: #ffffff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+

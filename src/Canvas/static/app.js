@@ -64,7 +64,24 @@ import {
     promptCreateFolderSidebar,
     loadModelFromFolder
 } from './js/workspace.js';
-import { invertEdgeFold, getEdgeAtCanvasPos } from './js/circuit.js';
+import {
+    invertEdgeFold,
+    cycleEdgeFoldMode,
+    getEdgeAtCanvasPos,
+    getActiveEdgeId,
+    setSelectedEdgeType,
+    cycleSelectedEdgeType,
+    setWireCreationType,
+    openEditEdgeModal,
+    closeEditEdgeModal,
+    selectModalEdgeType,
+    saveEditEdgeModal,
+    deleteEdgeFromModal,
+    deleteSelectedEdge,
+    deleteSelectedEdgeFromBar,
+    handleSidebarConnectionType,
+    updateEdgeUISelection
+} from './js/circuit.js';
 import {
     copySelection,
     cutSelection,
@@ -76,10 +93,13 @@ import {
 } from './js/clipboard.js';
 
 export function invertSelectedEdgeFold() {
-    const selEdgeIds = state.network ? state.network.getSelectedEdges() : [];
-    if (selEdgeIds && selEdgeIds.length > 0) {
-        invertEdgeFold(selEdgeIds[0]);
-    }
+    const edgeId = getActiveEdgeId();
+    if (edgeId) invertEdgeFold(edgeId);
+}
+
+export function cycleSelectedEdgeFold() {
+    const edgeId = getActiveEdgeId();
+    if (edgeId) cycleEdgeFoldMode(edgeId);
 }
 
 // ── Attach Public Handlers to Window for Inline HTML Event Handlers ───
@@ -88,6 +108,19 @@ Object.assign(window, {
     api,
     getEdgeAtCanvasPos,
     invertSelectedEdgeFold,
+    cycleSelectedEdgeFold,
+    setSelectedEdgeType,
+    cycleSelectedEdgeType,
+    setWireCreationType,
+    openEditEdgeModal,
+    closeEditEdgeModal,
+    selectModalEdgeType,
+    saveEditEdgeModal,
+    deleteEdgeFromModal,
+    deleteSelectedEdge,
+    deleteSelectedEdgeFromBar,
+    handleSidebarConnectionType,
+    updateEdgeUISelection,
     // Project & Title
     createProject,
     switchProject,

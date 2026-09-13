@@ -398,9 +398,12 @@ func SaveModelHandler(w http.ResponseWriter, r *http.Request) {
 	for _, n := range p.nodes {
 		nodesList = append(nodesList, n)
 	}
-	edgesList := make([]Edge, 0, len(p.edges))
-	for _, e := range p.edges {
-		edgesList = append(edgesList, e)
+	p.reindexEdges()
+	edgesList := make([]Edge, 0, len(p.edgeOrder))
+	for _, eid := range p.edgeOrder {
+		if e, ok := p.edges[eid]; ok {
+			edgesList = append(edgesList, e)
+		}
 	}
 
 	graphPayload := GraphData{
@@ -455,6 +458,34 @@ func SaveModelHandler(w http.ResponseWriter, r *http.Request) {
 			"folder": filepath.Join(cleanTarget, p.Name),
 		})
 		return
+	}
+
+	// Synchronize any auto-fitted node parameters into the in-memory project
+	if jsonPath, ok := result["jsonFile"].(string); ok && jsonPath != "" {
+		if jsonBytes, err := os.ReadFile(jsonPath); err == nil {
+			var savedModel struct {
+				Canvas struct {
+					Nodes []Node `json:"nodes"`
+				} `json:"canvas"`
+			}
+			if err := json.Unmarshal(jsonBytes, &savedModel); err == nil && len(savedModel.Canvas.Nodes) > 0 {
+				mu.Lock()
+				if p != nil {
+					for _, sn := range savedModel.Canvas.Nodes {
+						if existing, exists := p.nodes[sn.ID]; exists && sn.Params != nil {
+							if existing.Params == nil {
+								existing.Params = make(map[string]interface{})
+							}
+							for k, v := range sn.Params {
+								existing.Params[k] = v
+							}
+							p.nodes[sn.ID] = existing
+						}
+					}
+				}
+				mu.Unlock()
+			}
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -603,6 +634,7 @@ func LoadModelHandler(w http.ResponseWriter, r *http.Request) {
 		p.nodes[n.ID] = n
 	}
 
+	p.edgeOrder = make([]string, 0)
 	for _, e := range graphData.Edges {
 		if len(e.Lines) == 0 {
 			fn, ok1 := p.nodes[e.From]
@@ -612,7 +644,9 @@ func LoadModelHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		p.edges[e.ID] = e
+		p.edgeOrder = append(p.edgeOrder, e.ID)
 	}
+	p.reindexEdges()
 
 	p.nextEdgeID = len(p.edges)
 

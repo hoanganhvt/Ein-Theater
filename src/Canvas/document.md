@@ -244,9 +244,10 @@ All Canvas routes registered on the server multiplexer by `handler.RegisterRoute
 | `/api/deleteNodes` | `POST` | JSON: `["id1", "id2"]` or Query: `ids` | Batch deletes multiple nodes and connected edges. |
 | `/api/moveNode` | `POST` | Query: `id`, `x`, `y`, `update_edges`? | Updates single node coordinates with grid snap. |
 | `/api/moveNodes` | `POST` | JSON: `[{"id", "x", "y"}]` | Batch updates coordinates for multiple nodes in a single transaction. |
-| `/api/addEdge` | `POST` | JSON: `{ from, to, lines? }` or Query | Creates or updates directed orthogonal wire connection. |
-| `/api/updateEdge` | `POST` | JSON: `{ id, lines, edgeType? }` | Updates custom line segments and fold waypoints for an edge. |
-| `/api/updateEdges` | `POST` | JSON: `[{"id", "lines"}]` | Batch updates line segments and waypoints for multiple edges. |
+| `/api/addEdge` | `POST` | JSON: `{ from, to, lines?, foldMode?, customFold? }` or Query | Creates or updates directed orthogonal wire connection with specified bend mode. |
+| `/api/updateEdge` | `POST` | JSON: `{ id, lines, edgeType?, foldMode?, customFold? }` | Updates custom line segments, connection type (`edgeType`), bend mode (`foldMode`), and fold coordinate (`customFold`) for an edge. |
+| `/api/setEdgeType` | `POST` | Query or JSON: `id`, `type` (`normal`, `residual`, `skip`) | Updates connection type, separates normal and special edges (placing special edges behind normal edges), and recalculates contiguous special indices. |
+| `/api/updateEdges` | `POST` | JSON: `[{"id", "lines", "foldMode"?, "customFold"?}]` | Batch updates line segments, bend modes, and waypoints for multiple edges. |
 | `/api/deleteEdge` | `POST` | Query: `id` | Deletes directed wire connection by ID. |
 | `/api/paste`<br>`/api/pasteGraph` | `POST` | JSON: `{ nodes, edges, dx, dy }` | Duplicates elements into active project with new 0-indexed IDs and offset waypoints. |
 | `/api/clear` | `POST` | None | Wipes all nodes and edges from canvas and resets ID counters to 0. |
@@ -260,7 +261,7 @@ All Canvas routes registered on the server multiplexer by `handler.RegisterRoute
 | `/api/workspace/browse` | `GET` | Query: `dir` | Lists files/folders in target path. Detects verified model packages (`isModel: true`). |
 | `/api/workspace/select-native` | `POST` | None | Opens native Windows folder browser modal via PowerShell. |
 | `/api/workspace/create-folder` | `POST` | JSON: `{ dir, name }` | Creates new subdirectory in target directory. |
-| `/api/workspace/save-model`<br>`/api/saveModel` | `POST` | JSON: `{ projectId?, dir? }` | Serializes canvas, runs `gen_code.py`, and creates `<model_name>/<model_name>.json` and `.py`. |
+| `/api/workspace/save-model`<br>`/api/saveModel` | `POST` | JSON: `{ projectId?, dir? }` | Serializes canvas to `temp.json`, runs `auto_shape_size_fit` to reconcile shapes & padding, creates final `<model_name>/<model_name>.json` and `.py`, removes `temp.json`, and updates active model parameters in memory. |
 | `/api/workspace/load-model`<br>`/api/loadModel` | `POST` | JSON: `{ path?, dir? }` | Loads verified model from folder onto active canvas. |
 
 ---
@@ -296,6 +297,8 @@ All Canvas routes registered on the server multiplexer by `handler.RegisterRoute
   "id": "e1",
   "from": "conv_0",
   "to": "relu_0",
+  "edgeType": "normal",
+  "index": null,
   "foldMode": "horizontal",
   "customFold": 350,
   "lines": [

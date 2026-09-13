@@ -472,12 +472,29 @@ export async function saveActiveModel() {
         const modelName = res.modelName || 'Model';
         const folderName = res.folderName || modelName;
         await loadProjects();
+
+        // Refresh canvas graph to show any fitted parameters in visual node cards
+        const totalAdjustments = (res.adjustments?.length || 0) + (res.padding_adjustments?.length || 0);
+        if (totalAdjustments > 0) {
+            await loadGraph();
+        }
+
         const title = document.getElementById('modelTitle');
         if (title && modelName) {
             title.textContent = modelName;
             document.title = modelName + ' – Neural Network Builder';
         }
-        showToast(`✅ Saved '${modelName}' into '${folderName}/' (${folderName}.json, ${folderName}.py)`);
+
+        let msg = `✅ Saved '${modelName}' into '${folderName}/' (${folderName}.json, ${folderName}.py)`;
+        if (totalAdjustments > 0) {
+            msg += ` — ${totalAdjustments} layer shape${totalAdjustments > 1 ? 's' : ''} auto-fitted`;
+            console.log('[Auto Shape Fit] Adjustments:', res.adjustments, res.padding_adjustments);
+        }
+        if (res.warnings && res.warnings.length > 0) {
+            msg += ` (⚠️ ${res.warnings.length} warning${res.warnings.length > 1 ? 's' : ''})`;
+            console.warn('[Auto Shape Fit] Warnings:', res.warnings);
+        }
+        showToast(msg);
     } catch (err) {
         console.error('Save model error:', err);
         alert('Failed to save model: ' + err.message);
