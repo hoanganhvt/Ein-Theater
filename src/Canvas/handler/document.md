@@ -51,8 +51,8 @@ Handles CRUD operations for neural network nodes and directed circuit edges with
 | Function / Type | HTTP Method & Route | Request Body / Query Params | Description |
 | :--- | :--- | :--- | :--- |
 | `DataHandler(w, r)` | `GET /api/data` | None | Serializes and returns all nodes and edges belonging to the currently active project as JSON (`GraphData`). |
-| `AddNodeHandler(w, r)` | `POST /api/addNode` | Query: `label`, `layerType`, `x`, `y` | Allocates a 0-indexed ID (`<prefix>_<index>`) via `p.getNextNodeID(layerType)`, assigns a clean display label (e.g., `linear 0`, `conv 0`), snaps coordinates to the 50px grid, and adds the node to the active project. Returns created `Node` JSON. |
-| `UpdateNodeReq` | *(Struct)* | JSON: `{ "id", "label", "layerType", "params" }` | Request payload struct for updating node attributes and hyperparameters. |
+| `AddNodeHandler(w, r)` | `POST /api/addNode` | Query: `label`, `layerType`, `x`, `y` | Allocates a 0-indexed ID (`<prefix>_<index>`) via `p.getNextNodeID(layerType)`, assigns a clean display label (e.g., `linear 0`, `conv 0`, `input 0`), snaps coordinates to the 50px grid, and adds the node to the active project. Returns created `Node` JSON. |
+| `UpdateNodeReq` | *(Struct)* | JSON: `{ "id", "label"?, "layerType"?, "params"?, "parent"?, "parentZone"? }` | Request payload struct for updating node attributes, hyperparameters, and hierarchical placement. |
 | `UpdateNodeHandler(w, r)` | `POST /api/updateNode` | JSON: `UpdateNodeReq` | Parses JSON body and updates a node's label, layer type, and hyperparameter configuration map (`params`) in the active project. |
 | `DeleteNodeHandler(w, r)` | `POST /api/deleteNode` | Query: `id` | Deletes a single node by ID and automatically removes all connected edges. |
 | `DeleteNodesHandler(w, r)` | `POST /api/deleteNodes` | JSON array `["linear_0", "conv_0"]` or Query: `ids=linear_0,conv_0` | Batch deletes multiple nodes and all attached edges in a single atomic transaction. |
@@ -188,3 +188,4 @@ Provides shared route registration and dynamic path resolvers used by both `canv
 - [Root Documentation](../../../document.md) — Comprehensive overview of Ein Theater.
 - [Frontend JavaScript Documentation](../static/js/document.md) — Client-side ES6 architecture and Vis.js/Canvas rendering pipeline.
 - [PyTorch Code Generation Engine](../utils/generate%20code/document.md) — AST compiler, FX graph tracing, and connection classification reference.
+- [Auto Shape Size Fit Engine](../utils/auto%20shape%20size%20fit/document.md) — Automated tensor shape propagation, dimension inference, and skip/residual padding auto-resolution engine.

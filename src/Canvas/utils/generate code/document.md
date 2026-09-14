@@ -217,3 +217,4 @@ flowchart TD
 - [Root Documentation](../../../../document.md) — Main overview of Ein Theater.
 - [Backend Handler Documentation](../../handler/document.md) — Detailed Go backend architecture, concurrency model, and REST handlers.
 - [Frontend JavaScript Documentation](../../static/js/document.md) — Client-side ES6 architecture and Vis.js/Canvas rendering pipeline.
+- [Auto Shape Size Fit Engine](../auto%20shape%20size%20fit/document.md) — Automated tensor shape propagation, dimension inference, and skip/residual padding auto-resolution engine.

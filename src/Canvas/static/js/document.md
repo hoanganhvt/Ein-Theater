@@ -328,9 +328,9 @@ Handles UI dialog modals for creating new blocks and modifying existing layer hy
   - `closeModal()`: Closes add block modal and overlay.
   - `openAddNodeAtContext()`: Opens add node modal using the right-click context menu coordinates.
 - **Edit Node Parameters Modal:**
-  - `openEditNodeModal(nodeId)`: Opens the parameter editor dynamically populated based on the layer's schema fields (numeric inputs, min/max hints, checkboxes for booleans). The header badge clearly displays the layer type and display name (e.g. `nn.Linear (linear 0)`).
+  - `openEditNodeModal(nodeId)`: Opens the parameter editor dynamically populated based on the layer's schema fields (numeric inputs, min/max hints, checkboxes for booleans, dropdowns, and Input modality presets). The header badge clearly displays the layer type and display name (e.g. `nn.Linear (linear 0)`).
   - `closeEditModal()`: Dismisses the parameter editor modal.
-  - `saveEditNode()`: Reads updated parameter form inputs, computes clean display label (`getNodeDisplayName`), updates the local Vis.js DataSet (`label` and `title`), and calls `api.updateNode`.
+  - `saveEditNode()`: Reads updated parameter form inputs, handles Input block shape presets (image, text, audio, raw data, or custom shape), updates custom layer names, computes the clean display label via `getNodeDisplayName()`, updates the local Vis.js DataSet (`label`, `title`, `layerType`, `params`), and persists changes to the backend via `api.updateNode`.
   - `openEditNodeFromContext()`: Context menu action to open edit modal for the currently selected node.
   - `closeAllModals()`: Closes all modals and resets transient states.
 
@@ -347,7 +347,7 @@ Controls interaction modes on the canvas toolbar.
 ### 7. `palette.js`
 Handles dynamic rendering and user interactions from the left sidebar layer palette.
 
-- `renderPalette()`: Dynamically renders the 10 most fundamental PyTorch layers inside `#paletteList` under the "Fundemental Blocks" section (`nn.Linear`, `nn.Conv2d`, `nn.ReLU`, `nn.MaxPool2d`, `nn.BatchNorm2d`, `nn.LayerNorm`, `nn.Dropout`, `nn.LSTM`, `nn.MultiheadAttention`, `nn.Embedding`), followed by a "+ More / Custom..." block that launches the full categorized 152-module selection modal. Automatically calls `setupPaletteDragAndDrop()`.
+- `renderPalette()`: Dynamically renders the 11 fundamental building blocks inside `#paletteList` under the "Fundemental Blocks" section: the `Input` source block (supporting pre-configured modality shapes for image, text, audio, and raw data) followed by the 10 core PyTorch layers (`nn.Linear`, `nn.Conv2d`, `nn.ReLU`, `nn.MaxPool2d`, `nn.BatchNorm2d`, `nn.LayerNorm`, `nn.Dropout`, `nn.LSTM`, `nn.MultiheadAttention`, `nn.Embedding`), followed by a "+ More / Custom..." block that launches the full categorized 152-module selection modal. Automatically calls `setupPaletteDragAndDrop()`.
 - `setupPaletteDragAndDrop()`:
   - Binds HTML5 drag events (`dragstart`, `dragend`) on draggable layer palette items.
   - Listens for canvas `dragover`, `dragleave`, and `drop`, converting DOM client coordinates to Vis.js canvas coordinates to place dropped blocks.
@@ -377,11 +377,11 @@ Manages PyTorch neural network layer schemas, defaults, clean human-readable nam
 - `LAYER_SCHEMAS`: Configuration object keyed by layer type (`nn.Linear`, `nn.Conv2d`, `nn.ReLU`, etc.) containing:
   - `fields`: Array of parameter definitions (`key`, `label`, `type`, `default`, `min`, `max`, `step`).
   - `labelTemplate`: String template for rendering canvas labels with variable substitution (`{type}`, `{in_features}`) and conditional blocks (`{#inplace}...{/inplace}`, `{^inplace}...{/inplace}`).
-- `getNodeDisplayName(nodeOrType, id = null)`: Resolves clean, readable names (e.g. `linear 0`, `conv 0`, `relu 0`). Strips `nn.`/`torch.`, normalizes types (`conv2d` → `conv`, `batchnorm2d` → `batchnorm`, `maxpool2d` → `maxpool`), and replaces underscores with spaces.
-- `formatNodeLabel(layerType, params = null, displayName = null)`: Computes the node label shown on canvas for a layer type. Guarantees that only the clean module name is displayed, preventing parameter numbers from cluttering blocks.
+- `getNodeDisplayName(nodeOrType, id = null)`: Resolves clean, readable names (e.g. `linear 0`, `conv 0`, `relu 0`, `input 0`). Strips `nn.`/`torch.`, normalizes types (`conv2d` → `conv`, `batchnorm2d` → `batchnorm`, `maxpool2d` → `maxpool`), and replaces underscores with spaces. Safely handles non-string labels without throwing.
+- `formatNodeLabel(layerTypeOrNode, params = null, displayName = null)`: Computes the node label shown on canvas for a layer type. Guaranteed to always return a clean string display name, defensively guarding against non-string arguments or parameter dictionaries to prevent canvas text rendering failures.
 - `renderLabelTemplate(template, data)`: Evaluates mustache-style templating and conditionals for dynamic block text.
 - `getDefaultParams(layerType)`: Returns key-value object of default values for the specified layer schema.
-- `getLayerBaseType(node)`: Extracts base layer name string from a node.
+- `getLayerBaseType(node)`: Extracts base layer name string from a node, safely handling non-string labels.
 
 ---
 
@@ -450,3 +450,4 @@ Manages workspace directory selection, file tree rendering, model detection, fol
 - [Root Documentation](../../../document.md) — Main overview of Ein Theater.
 - [Backend Handler Documentation](../../handler/document.md) — Detailed Go backend architecture, concurrency model, and REST handlers.
 - [PyTorch Code Generation Engine](../../utils/generate%20code/document.md) — AST compiler, FX graph tracing, and connection classification reference.
+- [Auto Shape Size Fit Engine](../../utils/auto%20shape%20size%20fit/document.md) — Automated tensor shape propagation, dimension inference, and skip/residual padding auto-resolution engine.

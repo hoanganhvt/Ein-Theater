@@ -36,7 +36,8 @@ Then open your browser at `http://localhost:8080`.
 
 - ⚡ **Electronic Circuit Schematic Canvas**: 50px dot-grid with snap-to-grid, orthogonal 90° right-angle wiring, interactive diamond fold handles, and rigid multi-block drag preservation.
 - 📋 **Full Clipboard System**: Copy (`Ctrl+C`), cut (`Ctrl+X`), and paste (`Ctrl+V`) single blocks or multi-block circuits with internal wire preservation and automatic 0-indexed ID generation.
-- 🧩 **152 Categorized PyTorch Modules**: Complete coverage of `torch.nn` layer classes across 15 categories, plus a 10-layer Fundamental Blocks sidebar palette.
+- 🧩 **152 Categorized PyTorch Modules & Input Source Block**: Complete coverage of `torch.nn` layer classes across 15 categories, an `Input` block with modality presets (Image, Text, Audio, Raw Data), and an 11-block Fundamental Blocks sidebar palette.
+- 📐 **Auto Shape Size Fit Engine**: Automated tensor shape propagation, dimension fitting (`in_features`, `in_channels`, `embed_dim`), and mathematical padding resolution for skip, residual, and concatenation connections.
 - 💾 **1-Click Model Serialization & Code Generation**: Generates clean, standalone, executable PyTorch `nn.Module` scripts with device detection (`cuda`/`cpu`) and graph specifications (`<model_name>.json` and `<model_name>.py`).
 - 🧠 **Smart Model Folder Detection**: Automatically identifies verified model packages in the workspace and restores them onto the canvas in a single click.
 
@@ -48,4 +49,5 @@ Then open your browser at `http://localhost:8080`.
 - [Canvas Subsystem Documentation](./src/Canvas/document.md) — Architecture, standalone vs integrated execution, and component breakdown of Canvas mode.
 - [Go Backend Handlers Documentation](./src/Canvas/handler/document.md) — Concurrency model, state structs, and HTTP handlers.
 - [Frontend Client Modules Documentation](./src/Canvas/static/js/document.md) — Vis.js custom rendering, PCB circuit drawing, and reactive state.
-- [PyTorch Code Generation Engine](./src/Canvas/utils/generate%20code/document.md) — Symbolic tracing, connection classification, and AST code generator.
+- [PyTorch Code Generation Engine](./src/Canvas/utils/generate%20code/document.md) — Symbolic tracing, connection classification, and AST code generator.
+- [Auto Shape Size Fit Engine](./src/Canvas/utils/auto%20shape%20size%20fit/document.md) — Automated tensor shape propagation, dimension inference, and skip/residual padding auto-resolution.

@@ -40,20 +40,26 @@
   - Orthogonal 90° right-angle wiring with custom diamond fold waypoints that can be interactively dragged or flipped (Horizontal ⇄ Vertical).
   - Rubber-band marquee box selection (`Select` mode), rigid multi-block dragging with 100% wire shape and fold preservation, and batch deletion.
   - **Full Clipboard System (Copy, Cut, Paste)**: Copy and paste single blocks or multi-block collections (`Ctrl+C` / `Ctrl+V` or right-click context menu) with full preservation of internal circuit wiring, exact layer hyperparameters, staggered or cursor-targeted grid placement, and cross-model session persistence. Automatically switches to Move mode with elements selected for immediate dragging.
-- **Fundamental Blocks Palette**:
-  - The left sidebar displays strictly the **10 most fundamental PyTorch layers** for fast access:
-    1. `nn.Linear`
-    2. `nn.Conv2d`
-    3. `nn.ReLU`
-    4. `nn.MaxPool2d`
-    5. `nn.BatchNorm2d`
-    6. `nn.LayerNorm`
-    7. `nn.Dropout`
-    8. `nn.LSTM`
-    9. `nn.MultiheadAttention`
-    10. `nn.Embedding`
+- **Fundamental Blocks Palette & Input Node**:
+  - The left sidebar displays an **11-block Fundamental Blocks palette** for fast access:
+    1. `Input` (Placeholder source block with Image, Text, Audio, and Raw Data presets)
+    2. `nn.Linear`
+    3. `nn.Conv2d`
+    4. `nn.ReLU`
+    5. `nn.MaxPool2d`
+    6. `nn.BatchNorm2d`
+    7. `nn.LayerNorm`
+    8. `nn.Dropout`
+    9. `nn.LSTM`
+    10. `nn.MultiheadAttention`
+    11. `nn.Embedding`
   - Drag-and-drop directly onto the canvas or single-click to spawn near the center of the current view.
   - Quick launcher (`+ More / Custom...`) opens the full 152-module categorized catalog.
+- **Auto Shape Size Fit Engine (`auto shape size fit`)**:
+  - Integrated automated tensor shape propagation and parameter fitting running during model save/export.
+  - Automatically matches downstream layer dimensions (e.g. `in_features`, `in_channels`, `embed_dim`, `num_features`).
+  - Mathematical padding solver traces upstream through activations and computes exact symmetric padding ($2p = s(H_{target} - 1) + d(k - 1) + 1 - H_{in}$) to align spatial dimensions for skip, residual, and concatenation connections.
+  - Synchronizes fitted parameters back into the in-memory Go model state and updates the active canvas UI.
 - **152 Categorized PyTorch Modules**:
   - Complete coverage of `torch.nn.Module` subclasses defined in `modules.json`.
   - Partitioned into **15 functional categories**: Linear, Convolution, Pooling, Non-linear Activations, Normalization, Recurrent, Transformer, Attention, Dropout, Sparse / Embedding, Loss Functions, Vision, Padding, Distance, and Utilities.
@@ -150,9 +156,22 @@ Ein Theater/
         │   ├── project_handlers.go # Multi-model lifecycle & renaming
         │   └── workspace_handlers.go # Filesystem browsing, folder creation, model save/load pipeline
         ├── utils/              # Canvas utility services & compilers
+        │   ├── auto shape size fit/ # Automated tensor shape propagation & padding auto-resolution
+        │   │   ├── document.md # Auto Shape Size Fit architecture & mathematical specifications
+        │   │   ├── __init__.py # Package exports (auto_shape_size_fit, ShapeFitter, topological_sort)
+        │   │   ├── layers.py   # Layer dimension fitting & output shape computation
+        │   │   ├── padding_solver.py # Spatial padding solver for skip/residual/concat connections
+        │   │   ├── shape_fitter.py # Orchestrator class (ShapeFitter) & CLI interface
+        │   │   └── topo.py     # Kahn's topological sort & cycle detection
         │   └── generate code/  # Template-driven PyTorch code synthesis engine
         │       ├── document.md # Code generator engine architecture & CLI documentation
-        │       └── gen_code.py # Core FX tracer, connection classifier, AST code generator & CLI compiler
+        │       ├── __init__.py # Package initialization
+        │       ├── canvas.py   # Visual schematic JSON to FX computational graph compiler
+        │       ├── classifier.py # Connection semantics classifier (normal, skip, residual, gated)
+        │       ├── codegen.py  # AST Python code synthesis & model packaging
+        │       ├── common.py   # Model identifier sanitization & modules.json lookup
+        │       ├── gen_code.py # Core FX tracer, connection classifier, AST code generator & CLI compiler
+        │       └── tracer.py   # PyTorch FX symbolic tracer & parameter extraction
         ├── static/             # Canvas mode static assets
         │   ├── data/
         │   │   └── modules.json# Static asset copy of 152 PyTorch module schemas
@@ -480,3 +499,4 @@ For in-depth developer documentation of internal subsystems, refer to:
 - [`src/Canvas/handler/document.md`](./src/Canvas/handler/document.md) — Detailed Go backend architecture, concurrency model, data structs, and handler implementations.
 - [`src/Canvas/static/js/document.md`](./src/Canvas/static/js/document.md) — Comprehensive frontend client architecture, Vis.js custom rendering pipeline, PCB circuit line algorithms, and reactive state management.
 - [`src/Canvas/utils/generate code/document.md`](./src/Canvas/utils/generate%20code/document.md) — PyTorch FX symbolic tracing, connection classification, AST code generation engine, and CLI compiler reference.
+- [`src/Canvas/utils/auto shape size fit/document.md`](./src/Canvas/utils/auto%20shape%20size%20fit/document.md) — Automated tensor shape propagation, dimension inference, and skip/residual padding auto-resolution engine.

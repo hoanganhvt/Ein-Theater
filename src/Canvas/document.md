@@ -20,7 +20,7 @@
   - [HTML Templates & Dynamic Sidebar (`templates/`)](#html-templates--dynamic-sidebar-templates)
   - [152-Module PyTorch Schema (`data/modules.json`)](#152-module-pytorch-schema-datamodulesjson)
   - [Python FX Code Generation Engine (`utils/generate code/`)](#python-fx-code-generation-engine-utilsgenerate-code)
-  - [Planned Utilities (`utils/auto shape size fit/`)](#planned-utilities-utilsauto-shape-size-fit)
+  - [Auto Shape Size Fit Engine (`utils/auto shape size fit/`)](#auto-shape-size-fit-engine-utilsauto-shape-size-fit)
 - [REST API Reference](#rest-api-reference)
 - [Data Serialization Specifications](#data-serialization-specifications)
   - [Node Schema](#node-schema)
@@ -35,10 +35,11 @@
 The Canvas subsystem bridges interactive graphical CAD with deep learning code generation:
 
 1. **Circuit Schematic Editor**: Visualizes models on an infinite 50px dot-grid canvas with 90° right-angle wiring, diamond fold waypoints, marquee multi-selection, rigid dragging, and full clipboard operations (`Ctrl+C`, `Ctrl+X`, `Ctrl+V`).
-2. **Fundamental Blocks & 152-Module Catalog**: Provides 10 instant-access core layers in the sidebar palette (`nn.Linear`, `nn.Conv2d`, `nn.ReLU`, `nn.MaxPool2d`, `nn.BatchNorm2d`, `nn.LayerNorm`, `nn.Dropout`, `nn.LSTM`, `nn.MultiheadAttention`, `nn.Embedding`) and 152 modules partitioned across 15 functional categories in `modules.json`.
-3. **Scoped 0-Indexed Identification**: Automatically numbers layer instances cleanly per type and workspace (`linear_0`, `conv_0`, `relu_0`), reusing deleted indices.
+2. **Fundamental Blocks & 152-Module Catalog**: Provides an 11-block instant-access palette in the sidebar (`Input` block with image/text/audio/raw presets plus 10 core layers: `nn.Linear`, `nn.Conv2d`, `nn.ReLU`, `nn.MaxPool2d`, `nn.BatchNorm2d`, `nn.LayerNorm`, `nn.Dropout`, `nn.LSTM`, `nn.MultiheadAttention`, `nn.Embedding`) and 152 modules partitioned across 15 functional categories in `modules.json`.
+3. **Scoped 0-Indexed Identification**: Automatically numbers layer instances cleanly per type and workspace (`linear_0`, `conv_0`, `relu_0`, `input_0`), reusing deleted indices.
 4. **Bidirectional Code Synthesis**: Compiles visual schematics into runnable PyTorch `nn.Module` classes using topological sorting and semantic connection classification via `src/Canvas/utils/generate code/gen_code.py`.
-5. **Workspace & Model Detection**: Discovers verified model packages containing both `<model_name>.json` and `<model_name>.py`, decorating them with a brain badge (`🧠`) for 1-click canvas restoration.
+5. **Auto Shape Size Fit & Padding Resolution**: Automatically infers dimensional shapes (`in_features`, `in_channels`, `embed_dim`) and computes exact symmetric padding for skip/residual/concat connections during save.
+6. **Workspace & Model Detection**: Discovers verified model packages containing both `<model_name>.json` and `<model_name>.py`, decorating them with a brain badge (`🧠`) for 1-click canvas restoration.
 
 ---
 
@@ -373,4 +374,5 @@ For deep technical dives into individual subsystems within Canvas, refer to:
 - [`handler/document.md`](./handler/document.md) — Detailed Go backend architecture, concurrency model, data structs, and handler implementations.
 - [`static/js/document.md`](./static/js/document.md) — Comprehensive frontend client architecture, Vis.js custom rendering pipeline, PCB circuit line algorithms, and reactive state management.
 - [`utils/generate code/document.md`](./utils/generate%20code/document.md) — PyTorch FX symbolic tracing, connection classification, AST code generation engine, and CLI compiler reference.
+- [`utils/auto shape size fit/document.md`](./utils/auto%20shape%20size%20fit/document.md) — Automated tensor shape propagation, dimension inference, and skip/residual padding auto-resolution engine.
 - [Root Project Documentation](../../document.md) — High-level architecture, quickstart guide, and global system overview.

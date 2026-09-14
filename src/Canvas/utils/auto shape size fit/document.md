@@ -181,3 +181,13 @@ A dedicated generator script [`test/auto shape size fit/generate_tricky_models.p
 | **`tricky_lenet`** | `test shape fit/tricky_lenet/` | Prime spatial dimensions $(1, 37, 43)$, dilated convolution ($d=2$), pooling, and exact flattened dimension calculation ($896$ features). | `[1, 17]` |
 | **`tricky_inception`** | `test shape fit/tricky_inception/` | Odd spatial size $(16, 31, 31)$, parallel branches with $1 \times 1$, $3 \times 3$ ($p=0 \to 1$), and $5 \times 5$ ($p=0 \to 2$) requiring multi-branch padding auto-resolution. | `[1, 10, 31, 31]` |
 | **`tricky_convnext`** | `test shape fit/tricky_convnext/` | $7 \times 7$ Depthwise conv with `padding=0` causing spatial collapse ($28 \times 28 \to 22 \times 22$) vs skip connection. Auto-solver solved $2p=6 \implies p=3$ and restored parity. | `[1, 24, 28, 28]` |
+
+---
+
+## Related Documentation
+
+- [Canvas Subsystem Documentation](../../document.md) — Comprehensive overview of the Canvas mode architecture.
+- [Root Documentation](../../../../document.md) — Main overview of Ein Theater.
+- [PyTorch Code Generation Engine](../generate%20code/document.md) — AST compiler, FX graph tracing, and connection classification reference.
+- [Backend Handler Documentation](../../handler/document.md) — Detailed Go backend architecture, concurrency model, and REST handlers.
+- [Frontend JavaScript Documentation](../../static/js/document.md) — Client-side ES6 architecture and Vis.js/Canvas rendering pipeline.
