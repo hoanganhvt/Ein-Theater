@@ -8,12 +8,12 @@ import { setupCircuitCanvas, snapToGrid, computeOrthogonalLines, computeEdgeLine
 import { updateClipboardUI } from './clipboard.js';
 
 // Module-level tracking for dragging nodes with rigid edge geometry preservation
-let _dragStartPositions     = null; // { [nodeId]: { x, y } }
+let _dragStartPositions = null; // { [nodeId]: { x, y } }
 let _dragStartInternalEdges = null; // { [edgeId]: { lines, foldMode, customFold } }
 let _dragStartExternalEdges = null; // { [edgeId]: { lines, foldMode, customFold, from, to } }
-let _draggedNodeIds         = null; // Set<string>
-let _dragRefNodeId          = null; // string
-let _dragRefStartPos        = null; // { x, y }
+let _draggedNodeIds = null; // Set<string>
+let _dragRefNodeId = null; // string
+let _dragRefStartPos = null; // { x, y }
 
 export async function loadGraph() {
     try {
@@ -57,11 +57,11 @@ export async function loadGraph() {
                 foldMode: foldMode,
                 customFold: customFold,
                 color: {
-                    color:     'rgba(0,0,0,0)',
+                    color: 'rgba(0,0,0,0)',
                     highlight: 'rgba(0,0,0,0)',
-                    hover:     'rgba(0,0,0,0)',
-                    inherit:   false,
-                    opacity:   0
+                    hover: 'rgba(0,0,0,0)',
+                    inherit: false,
+                    opacity: 0
                 },
                 width: 10
             };
@@ -110,11 +110,11 @@ export async function loadGraph() {
                 selectionWidth: 0,
                 hoverWidth: 0,
                 color: {
-                    color:     'rgba(0,0,0,0)',
+                    color: 'rgba(0,0,0,0)',
                     highlight: 'rgba(0,0,0,0)',
-                    hover:     'rgba(0,0,0,0)',
-                    inherit:   false,
-                    opacity:   0
+                    hover: 'rgba(0,0,0,0)',
+                    inherit: false,
+                    opacity: 0
                 },
                 smooth: false,
                 arrows: { to: { enabled: false } }
@@ -248,12 +248,12 @@ export async function loadGraph() {
             for (const [edgeId, base] of Object.entries(_dragStartInternalEdges || {})) {
                 const translatedLines = (base.lines || []).map(l => {
                     const p1 = l.first || l.from;
-                    const p2 = l.last  || l.to;
+                    const p2 = l.last || l.to;
                     return {
                         first: { x: p1.x + dx, y: p1.y + dy },
-                        last:  { x: p2.x + dx, y: p2.y + dy },
-                        from:  { x: p1.x + dx, y: p1.y + dy },
-                        to:    { x: p2.x + dx, y: p2.y + dy }
+                        last: { x: p2.x + dx, y: p2.y + dy },
+                        from: { x: p1.x + dx, y: p1.y + dy },
+                        to: { x: p2.x + dx, y: p2.y + dy }
                     };
                 });
 
@@ -336,12 +336,12 @@ export async function loadGraph() {
             for (const [edgeId, base] of Object.entries(_dragStartInternalEdges || {})) {
                 const finalLines = (base.lines || []).map(l => {
                     const p1 = l.first || l.from;
-                    const p2 = l.last  || l.to;
+                    const p2 = l.last || l.to;
                     return {
                         first: { x: p1.x + snappedDx, y: p1.y + snappedDy },
-                        last:  { x: p2.x + snappedDx, y: p2.y + snappedDy },
-                        from:  { x: p1.x + snappedDx, y: p1.y + snappedDy },
-                        to:    { x: p2.x + snappedDx, y: p2.y + snappedDy }
+                        last: { x: p2.x + snappedDx, y: p2.y + snappedDy },
+                        from: { x: p1.x + snappedDx, y: p1.y + snappedDy },
+                        to: { x: p2.x + snappedDx, y: p2.y + snappedDy }
                     };
                 });
 
@@ -478,14 +478,14 @@ export async function createBlock(label, posX, posY) {
         const displayName = getNodeDisplayName(newNode);
 
         const nodeObj = {
-            id:        String(newNode.id),
-            label:     displayName,
-            title:     displayName,
+            id: String(newNode.id),
+            label: displayName,
+            title: displayName,
             layerType: baseType,
-            params:    defaultParams,
-            shape:     'box',
-            x:         (typeof newNode.x === 'number' && !isNaN(newNode.x)) ? newNode.x : snappedX,
-            y:         (typeof newNode.y === 'number' && !isNaN(newNode.y)) ? newNode.y : snappedY
+            params: defaultParams,
+            shape: 'box',
+            x: (typeof newNode.x === 'number' && !isNaN(newNode.x)) ? newNode.x : snappedX,
+            y: (typeof newNode.y === 'number' && !isNaN(newNode.y)) ? newNode.y : snappedY
         };
 
         if (state.nodesDataSet) {

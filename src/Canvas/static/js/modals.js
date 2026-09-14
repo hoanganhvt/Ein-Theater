@@ -221,7 +221,7 @@ export function setupAddNodeModalListeners() {
 
 export function openAddNodeModal(nodeData = null, callback = null) {
     state.addNodeCallback = callback;
-    state.tempNodeData    = nodeData;
+    state.tempNodeData = nodeData;
 
     setupAddNodeModalListeners();
 
@@ -234,11 +234,11 @@ export function openAddNodeModal(nodeData = null, callback = null) {
     populateNodeTypeDropdown('all', '');
 
     const overlay = document.getElementById('modalOverlay');
-    const modal   = document.getElementById('nodeModal');
+    const modal = document.getElementById('nodeModal');
     const customInput = document.getElementById('customNodeName');
 
     if (overlay) overlay.style.display = 'block';
-    if (modal)   modal.style.display   = 'block';
+    if (modal) modal.style.display = 'block';
     if (customInput) customInput.value = '';
 
     toggleCustom();
@@ -278,7 +278,7 @@ export async function saveNode() {
     const cb = state.addNodeCallback;
     const td = state.tempNodeData;
     state.addNodeCallback = null;
-    state.tempNodeData    = null;
+    state.tempNodeData = null;
 
     let posX = 0, posY = 0;
     if (td && typeof td.x === 'number' && !isNaN(td.x)) {
@@ -297,14 +297,14 @@ export async function saveNode() {
             const newNode = await api.addNode(baseType, baseType, posX, posY, defaultParams);
             const displayName = getNodeDisplayName(newNode);
             const nodeObj = {
-                id:        String(newNode.id),
-                label:     displayName,
-                title:     displayName,
+                id: String(newNode.id),
+                label: displayName,
+                title: displayName,
                 layerType: baseType,
-                params:    defaultParams,
-                shape:     'box',
-                x:         (typeof newNode.x === 'number' && !isNaN(newNode.x)) ? newNode.x : posX,
-                y:         (typeof newNode.y === 'number' && !isNaN(newNode.y)) ? newNode.y : posY
+                params: defaultParams,
+                shape: 'box',
+                x: (typeof newNode.x === 'number' && !isNaN(newNode.x)) ? newNode.x : posX,
+                y: (typeof newNode.y === 'number' && !isNaN(newNode.y)) ? newNode.y : posY
             };
             cb(nodeObj);
         } catch (err) {
@@ -320,18 +320,18 @@ export async function saveNode() {
 export function cancelNode() {
     const cb = state.addNodeCallback;
     state.addNodeCallback = null;
-    state.tempNodeData    = null;
+    state.tempNodeData = null;
     closeModal();
     if (cb) cb(null);
 }
 
 export function closeModal() {
     const overlay = document.getElementById('modalOverlay');
-    const modal   = document.getElementById('nodeModal');
+    const modal = document.getElementById('nodeModal');
     if (overlay) overlay.style.display = 'none';
-    if (modal)   modal.style.display   = 'none';
+    if (modal) modal.style.display = 'none';
     state.addNodeCallback = null;
-    state.tempNodeData    = null;
+    state.tempNodeData = null;
 }
 
 export function openAddNodeAtContext() {
@@ -541,7 +541,8 @@ export async function saveEditNode() {
     const node = state.nodesDataSet.get(state.editingNodeId);
     if (!node) return;
 
-    const schema = LAYER_SCHEMAS[state.editingLayerType];
+    let layerType = state.editingLayerType || node.layerType || 'Block';
+    const schema = LAYER_SCHEMAS[layerType];
     const updatedParams = {};
 
     if (schema) {
@@ -562,7 +563,7 @@ export async function saveEditNode() {
         });
 
         // For Input block: if shape_preset is 'custom', read custom_shape string; else preset value
-        if (state.editingLayerType === 'Input') {
+        if (layerType === 'Input') {
             const presetSelect = document.getElementById('edit_param_shape_preset');
             const customShapeInput = document.getElementById('edit_param_custom_shape');
             if (presetSelect && presetSelect.value === 'custom' && customShapeInput && customShapeInput.value.trim()) {
@@ -572,15 +573,22 @@ export async function saveEditNode() {
             }
         }
     } else {
+        const customNameEl = document.getElementById('edit_param_customName');
+        if (customNameEl && customNameEl.value.trim()) {
+            layerType = customNameEl.value.trim();
+        }
         const customArgsEl = document.getElementById('edit_param_customArgs');
         if (customArgsEl) {
             updatedParams.customArgs = customArgsEl.value.trim();
         }
     }
 
+    const displayName = getNodeDisplayName({ id: node.id, layerType: layerType, label: node.label });
     const updatedNode = Object.assign({}, node, {
+        layerType: layerType,
         params: updatedParams,
-        label: formatNodeLabel(node.id, state.editingLayerType, updatedParams)
+        label: displayName,
+        title: displayName
     });
 
     state.nodesDataSet.update(updatedNode);
@@ -590,8 +598,8 @@ export async function saveEditNode() {
         await api.updateNode({
             id: String(node.id),
             params: updatedParams,
-            label: updatedNode.label,
-            layerType: state.editingLayerType
+            label: displayName,
+            layerType: layerType
         });
     } catch (e) {
         console.warn('Failed to persist node parameter updates to backend:', e);

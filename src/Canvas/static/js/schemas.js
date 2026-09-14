@@ -198,7 +198,7 @@ export function getDefaultParams(layerType) {
 export function getLayerBaseType(node) {
     if (!node) return 'Custom Node';
     if (node.layerType) return node.layerType;
-    const label = node.label || '';
+    const label = typeof node.label === 'string' ? node.label : '';
     return label.split('\n')[0].trim() || 'Custom Node';
 }
 
@@ -236,15 +236,16 @@ export function renderLabelTemplate(template, data) {
 export function getNodeDisplayName(nodeOrType, id = null) {
     let baseType = '';
     let idStr = '';
-    
+
     if (typeof nodeOrType === 'object' && nodeOrType !== null) {
         idStr = String(nodeOrType.id || '').trim();
-        baseType = nodeOrType.layerType || (nodeOrType.label || '').split('\n')[0].trim() || 'Block';
+        const labelStr = typeof nodeOrType.label === 'string' ? nodeOrType.label : '';
+        baseType = nodeOrType.layerType || labelStr.split('\n')[0].trim() || 'Block';
     } else {
         baseType = String(nodeOrType || 'Block');
         idStr = id !== null ? String(id).trim() : '';
     }
-    
+
     let cleanType = baseType.replace(/^nn\./, '').replace(/^torch\./, '').toLowerCase();
     if (cleanType === 'conv2d') cleanType = 'conv';
     else if (cleanType === 'batchnorm2d') cleanType = 'batchnorm';
@@ -266,9 +267,15 @@ export function getNodeDisplayName(nodeOrType, id = null) {
  * Computes the node label shown on canvas for a layer type.
  * Always displays the clean module name (e.g. 'linear 0', 'conv 0'), not parameter numbers.
  */
-export function formatNodeLabel(layerType, params = null, displayName = null) {
-    if (displayName) {
-        return displayName;
+export function formatNodeLabel(layerTypeOrNode, params = null, displayName = null) {
+    if (typeof displayName === 'string' && displayName.trim()) {
+        return displayName.trim();
     }
-    return getNodeDisplayName(layerType);
+    if (typeof layerTypeOrNode === 'object' && layerTypeOrNode !== null) {
+        return getNodeDisplayName(layerTypeOrNode);
+    }
+    if (typeof params === 'string' && params.trim()) {
+        return getNodeDisplayName({ id: layerTypeOrNode, layerType: params });
+    }
+    return getNodeDisplayName(layerTypeOrNode);
 }
