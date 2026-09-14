@@ -54,6 +54,7 @@ class ShapeFitter:
         self.adjustments: List[str] = []
         self.padding_adjustments: List[str] = []
         self.warnings: List[str] = []
+        self.integrated_mismatches: List[Dict[str, Any]] = []
 
     def fit(self) -> Dict[str, Any]:
         """
@@ -68,7 +69,8 @@ class ShapeFitter:
                 'adjustments': [],
                 'padding_adjustments': [],
                 'warnings': ['Model graph contains no nodes.'],
-                'shapes': {}
+                'shapes': {},
+                'integrated_mismatches': []
             }
 
         # Step 1: Topological sort (Kahn's algorithm)
@@ -97,7 +99,8 @@ class ShapeFitter:
             'adjustments': self.adjustments,
             'padding_adjustments': self.padding_adjustments,
             'warnings': self.warnings,
-            'shapes': {k: list(v) for k, v in self.shapes.items()}
+            'shapes': {k: list(v) for k, v in self.shapes.items()},
+            'integrated_mismatches': self.integrated_mismatches
         }
 
     def _get_input_shapes(self, node: Dict[str, Any]) -> List[Optional[List[int]]]:
@@ -261,6 +264,52 @@ class ShapeFitter:
             start_dim = int(node.get('params', {}).get('start_dim', 1))
             end_dim = int(node.get('params', {}).get('end_dim', -1))
             self.shapes[nid] = layers.compute_flatten(in_shape, start_dim, end_dim)
+
+        elif ntype in ('IntegratedModel', 'integrated_model') or node.get('layerType') == 'IntegratedModel' or node.get('params', {}).get('model_path'):
+            params = node.get('params', {})
+            inputs_def = params.get('inputs', [])
+            outputs_def = params.get('outputs', [])
+            model_name = params.get('model_name', nid)
+            model_path = params.get('model_path', '')
+
+            # Expected input shape from integrated model
+            expected_shape = None
+            if inputs_def and isinstance(inputs_def, list) and len(inputs_def) > 0:
+                raw_s = inputs_def[0].get('shape')
+                if raw_s:
+                    if isinstance(raw_s, (list, tuple)):
+                        raw_list = [int(x) for x in raw_s]
+                    else:
+                        raw_list = [int(raw_s)]
+                    expected_shape = [in_shape[0]] + raw_list if len(raw_list) < len(in_shape) else raw_list
+
+            # Check if incoming shape matches expected input shape (compare non-batch dimensions)
+            if expected_shape is not None:
+                in_dims = list(in_shape[1:]) if len(in_shape) > 1 else list(in_shape)
+                exp_dims = list(expected_shape[1:]) if len(expected_shape) > 1 else list(expected_shape)
+                if in_dims != exp_dims:
+                    mismatch_info = {
+                        'node_id': nid,
+                        'model_name': model_name,
+                        'model_path': model_path,
+                        'expected_shape': expected_shape,
+                        'actual_shape': list(in_shape),
+                        'warning': f"Integrated model '{model_name}' expects input shape {expected_shape}, but incoming tensor has shape {in_shape}."
+                    }
+                    self.integrated_mismatches.append(mismatch_info)
+                    self.warnings.append(mismatch_info['warning'])
+
+            # Determine output shape
+            if outputs_def and isinstance(outputs_def, list) and len(outputs_def) > 0 and outputs_def[0].get('shape'):
+                raw_out = outputs_def[0].get('shape')
+                if isinstance(raw_out, (list, tuple)):
+                    raw_out_list = [int(x) for x in raw_out]
+                else:
+                    raw_out_list = [int(raw_out)]
+                out_shape = [in_shape[0]] + raw_out_list if len(raw_out_list) < len(in_shape) else raw_out_list
+            else:
+                out_shape = [in_shape[0], 10]
+            self.shapes[nid] = out_shape
 
         else:
             # Default shape-preserving layer (ReLU, GELU, Dropout, Identity, etc.)

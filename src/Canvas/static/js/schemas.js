@@ -238,6 +238,12 @@ export function getNodeDisplayName(nodeOrType, id = null) {
     let idStr = '';
 
     if (typeof nodeOrType === 'object' && nodeOrType !== null) {
+        // ponytail: integrated model displays IC chip identifier with instance number
+        if (nodeOrType.layerType === 'IntegratedModel' || (nodeOrType.params && nodeOrType.params.model_path)) {
+            const mName = (nodeOrType.params && nodeOrType.params.model_name) ? nodeOrType.params.model_name : 'Integrated Model';
+            const instId = nodeOrType.id && String(nodeOrType.id).includes('_') ? String(nodeOrType.id).split('_').pop() : '';
+            return instId ? `IC: ${mName} #${instId}` : `IC: ${mName}`;
+        }
         idStr = String(nodeOrType.id || '').trim();
         const labelStr = typeof nodeOrType.label === 'string' ? nodeOrType.label : '';
         baseType = nodeOrType.layerType || labelStr.split('\n')[0].trim() || 'Block';

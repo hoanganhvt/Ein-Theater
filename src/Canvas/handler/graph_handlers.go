@@ -94,7 +94,11 @@ func AddNodeHandler(w http.ResponseWriter, r *http.Request) {
 	p := cur()
 	id := p.getNextNodeID(layerType)
 	displayName := strings.ReplaceAll(id, "_", " ")
-	n := Node{ID: id, Label: displayName, LayerType: layerType, Shape: shape, X: x, Y: y, Params: params}
+	finalLabel := displayName
+	if label != "" && label != "New Block" && label != layerType {
+		finalLabel = label
+	}
+	n := Node{ID: id, Label: finalLabel, LayerType: layerType, Shape: shape, X: x, Y: y, Params: params}
 	p.nodes[id] = n
 
 	w.Header().Set("Content-Type", "application/json")

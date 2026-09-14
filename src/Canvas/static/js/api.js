@@ -219,11 +219,25 @@ export const api = {
         return await res.json();
     },
 
-    async saveModel(projectId = '', dir = '') {
+    async inspectModel(path) {
+        const res = await fetch(`/api/workspace/inspect-model?path=${encodeURIComponent(path)}`);
+        if (!res.ok) {
+            const errText = await res.text();
+            try {
+                const parsed = JSON.parse(errText);
+                throw new Error(parsed.error || errText);
+            } catch (e) {
+                throw new Error(errText || 'Failed to inspect model folder');
+            }
+        }
+        return await res.json();
+    },
+
+    async saveModel(projectId = '', dir = '', confirmAutofit = false) {
         const res = await fetch('/api/workspace/save-model', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ projectId, dir })
+            body: JSON.stringify({ projectId, dir, confirmAutofit })
         });
         if (!res.ok) {
             const errText = await res.text();

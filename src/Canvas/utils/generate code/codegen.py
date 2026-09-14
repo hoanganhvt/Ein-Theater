@@ -6,7 +6,7 @@ _curr_dir = os.path.dirname(os.path.abspath(__file__))
 if _curr_dir not in sys.path:
     sys.path.insert(0, _curr_dir)
 
-from common import fix_model_name, load_modules_map
+from common import fix_model_name, fix_input_name, load_modules_map
 from canvas import canvas_to_json_graph
 
 
@@ -49,28 +49,23 @@ def generate_code_from_canvas(canvas_data):
     """Generates PyTorch model code directly from canvas graph data."""
     json_graph_str = canvas_to_json_graph(canvas_data)
     fit_fn = get_auto_shape_fit_fn()
+    shapes = None
     if fit_fn is not None:
         try:
             fit_res = fit_fn(json_graph_str)
             json_graph_str = json.dumps(fit_res['model'], indent=2)
+            shapes = fit_res.get('shapes')
         except Exception:
             pass
-    return generate_code_from_json(json_graph_str)
+    return generate_code_from_json(json_graph_str, include_runner=True, shapes=shapes)
 
 
-def save_model_to_folder(canvas_data, output_dir=None):
+def save_model_to_folder(canvas_data, output_dir=None, confirm_autofit=False):
     """
     Saves the model in output_dir inside a folder named after the model:
       <output_dir>/<model_name>/
         - <model_name>.json
         - <model_name>.py
-
-    Lifecycle:
-      1. Generates initial raw JSON graph from canvas.
-      2. Writes <target_folder>/temp.json.
-      3. Invokes auto_shape_size_fit on temp.json to fix shapes and padding.
-      4. Generates final Python code (<model_name>.py) and final JSON (<model_name>.json).
-      5. Removes temp.json.
     """
     if isinstance(canvas_data, str):
         data = json.loads(canvas_data)
@@ -105,10 +100,162 @@ def save_model_to_folder(canvas_data, output_dir=None):
         fit_fn = get_auto_shape_fit_fn()
         if fit_fn is not None:
             fit_res = fit_fn(temp_model_data)
+            integrated_mismatches = fit_res.get('integrated_mismatches', [])
+
+            # Check if user confirmation is needed before modifying the integrated model
+            if integrated_mismatches and not confirm_autofit:
+                if os.path.exists(temp_json_path):
+                    try:
+                        os.remove(temp_json_path)
+                    except OSError:
+                        pass
+                warn_lines = [f"• {m['warning']}" for m in integrated_mismatches]
+                full_warning = "\n".join(warn_lines)
+                m0 = integrated_mismatches[0]
+                model_names = ", ".join(list(dict.fromkeys(m.get('model_name', 'model') for m in integrated_mismatches)))
+                return {
+                    'status': 'needs_confirmation',
+                    'needs_confirmation': True,
+                    'mismatches': integrated_mismatches,
+                    'warning': full_warning,
+                    'model_name': model_names,
+                    'expected_shape': m0['expected_shape'],
+                    'actual_shape': m0['actual_shape']
+                }
+
+            # User confirmed autofitting integrated model internal nodes
+            if integrated_mismatches and confirm_autofit:
+                # ponytail: support multiple integrated models with distinct fitted folders per unique input shape
+                fitted_models_map = {}  # (sub_name, tuple(in_spec)) -> { 'name': new_sub_name, 'clean_path': clean_new_path, 'out_shape': sub_out_shape }
+                name_counters = {}
+
+                for m in integrated_mismatches:
+                    sub_path = m.get('model_path')
+                    sub_name = m.get('model_name')
+                    new_shape = m.get('actual_shape')
+                    in_spec = new_shape[1:] if len(new_shape) > 1 else new_shape
+                    key = (sub_name, tuple(in_spec))
+
+                    clean_new_path = ''
+                    new_sub_name = ''
+                    sub_out_shape = None
+
+                    if key in fitted_models_map:
+                        cached = fitted_models_map[key]
+                        new_sub_name = cached['name']
+                        clean_new_path = cached['clean_path']
+                        sub_out_shape = cached['out_shape']
+                    elif sub_path and os.path.exists(sub_path):
+                        sub_json_path = os.path.join(sub_path, f"{sub_name}.json")
+                        if not os.path.exists(sub_json_path):
+                            for fn in os.listdir(sub_path):
+                                if fn.endswith('.json') and not fn.startswith('temp'):
+                                    sub_json_path = os.path.join(sub_path, fn)
+                                    sub_name = os.path.splitext(fn)[0]
+                                    break
+                        if os.path.exists(sub_json_path):
+                            try:
+                                with open(sub_json_path, 'r', encoding='utf-8') as f_sub:
+                                    sub_data = json.load(f_sub)
+
+                                name_counters[sub_name] = name_counters.get(sub_name, 0) + 1
+                                count = name_counters[sub_name]
+                                new_sub_name = f"{sub_name}_fitted" if count == 1 else f"{sub_name}_fitted_{count}"
+                                new_sub_dir = os.path.join(target_folder, new_sub_name)
+                                os.makedirs(new_sub_dir, exist_ok=True)
+                                new_sub_json_path = os.path.join(new_sub_dir, f"{new_sub_name}.json")
+                                new_sub_py_path = os.path.join(new_sub_dir, f"{new_sub_name}.py")
+
+                                sub_canvas = sub_data.get('canvas', {})
+                                sub_nodes = sub_canvas.get('nodes', []) or sub_data.get('nodes', [])
+                                for sn in sub_nodes:
+                                    stype = str(sn.get('layerType') or sn.get('type') or '').lower()
+                                    if stype == 'input' or sn.get('op') == 'placeholder':
+                                        sparams = sn.setdefault('params', {})
+                                        sparams['shape'] = in_spec
+                                        sparams['custom_shape'] = ', '.join(str(x) for x in in_spec)
+
+                                if 'metadata' in sub_data:
+                                    sub_data['metadata']['input_shape'] = in_spec
+                                    sub_data['metadata']['name'] = new_sub_name
+                                if 'canvas' in sub_data:
+                                    sub_data['canvas']['name'] = new_sub_name
+
+                                sub_fit = fit_fn(sub_data)
+                                sub_fitted_model = sub_fit.get('model', sub_data)
+                                sub_py_code = generate_code_from_json(sub_fitted_model, model_name=new_sub_name)
+
+                                with open(new_sub_json_path, 'w', encoding='utf-8') as f_sub_out:
+                                    json.dump(sub_fitted_model, f_sub_out, indent=2)
+                                with open(new_sub_py_path, 'w', encoding='utf-8') as f_sub_py:
+                                    f_sub_py.write(sub_py_code)
+
+                                clean_new_path = os.path.abspath(new_sub_dir).replace('\\', '/')
+
+                                if 'shapes' in sub_fit and sub_fit['shapes']:
+                                    last_nid = list(sub_fit['shapes'].keys())[-1]
+                                    sub_out_shape = sub_fit['shapes'][last_nid]
+                                    if isinstance(sub_out_shape, list) and len(sub_out_shape) > 1:
+                                        sub_out_shape = sub_out_shape[1:]
+
+                                fitted_models_map[key] = {
+                                    'name': new_sub_name,
+                                    'clean_path': clean_new_path,
+                                    'out_shape': sub_out_shape
+                                }
+                                adjustments.append(f"Created shape-fitted model '{new_sub_name}' in '{new_sub_name}/' and integrated path into model JSON")
+                            except Exception as sub_err:
+                                warnings.append(f"Autofit sub-model error: {sub_err}")
+
+                    if new_sub_name and clean_new_path:
+                        # Update integrated model path and port shapes in parent model
+                        for n in temp_model_data.get('nodes', []):
+                            if n.get('id') == m['node_id'] or n.get('target') == m['node_id']:
+                                n['model_path'] = clean_new_path
+                                n['model_name'] = new_sub_name
+                                n['type'] = new_sub_name
+                                n_params = n.setdefault('params', {})
+                                n_params['model_path'] = clean_new_path
+                                n_params['model_name'] = new_sub_name
+                                if 'inputs' in n_params and isinstance(n_params['inputs'], list) and len(n_params['inputs']) > 0:
+                                    n_params['inputs'][0]['shape'] = in_spec
+                                if sub_out_shape and 'outputs' in n_params and isinstance(n_params['outputs'], list) and len(n_params['outputs']) > 0:
+                                    n_params['outputs'][0]['shape'] = sub_out_shape
+
+                        # Update visual canvas representation in parent model
+                        canvas_nodes = temp_model_data.get('canvas', {}).get('nodes', [])
+                        for cn in canvas_nodes:
+                            if str(cn.get('id', '')) == str(m['node_id']):
+                                c_params = cn.setdefault('params', {})
+                                c_params['model_path'] = clean_new_path
+                                c_params['model_name'] = new_sub_name
+                                if 'inputs' in c_params and isinstance(c_params['inputs'], list) and len(c_params['inputs']) > 0:
+                                    c_params['inputs'][0]['shape'] = in_spec
+                                if sub_out_shape and 'outputs' in c_params and isinstance(c_params['outputs'], list) and len(c_params['outputs']) > 0:
+                                    c_params['outputs'][0]['shape'] = sub_out_shape
+
+                                inst_id = str(cn.get('id', '')).split('_')[-1] if '_' in str(cn.get('id', '')) else ''
+                                header = f"⚡ [IC] {new_sub_name} #{inst_id}" if inst_id else f"⚡ [IC] {new_sub_name}"
+                                lines = [header, "────────────────────────"]
+                                for inp in c_params.get('inputs', []):
+                                    s = inp.get('shape', '')
+                                    s_str = f"[{', '.join(str(x) for x in s)}]" if isinstance(s, list) else str(s)
+                                    lines.append(f"▶ IN:  {inp.get('name', 'in')} {s_str}".strip())
+                                lines.append("────────────────────────")
+                                for out in c_params.get('outputs', []):
+                                    s = out.get('shape', '')
+                                    s_str = f"[{', '.join(str(x) for x in s)}]" if isinstance(s, list) else str(s)
+                                    lines.append(f"◀ OUT: {out.get('name', 'out')} {s_str}".strip())
+                                cn['label'] = "\n".join(lines)
+                                cn['title'] = f"Integrated Model: {new_sub_name} (#{inst_id})\nPath: {clean_new_path}"
+
+                # Re-run shape fitter on the parent graph
+                fit_res = fit_fn(temp_model_data)
+
             fitted_model = fit_res.get('model', temp_model_data)
-            adjustments = fit_res.get('adjustments', [])
+            adjustments.extend(fit_res.get('adjustments', []))
             pad_adjustments = fit_res.get('padding_adjustments', [])
-            warnings = fit_res.get('warnings', [])
+            warnings.extend(fit_res.get('warnings', []))
             final_graph_str = json.dumps(fitted_model, indent=2)
         else:
             final_graph_str = raw_graph_str
@@ -117,80 +264,8 @@ def save_model_to_folder(canvas_data, output_dir=None):
         warnings.append(f"Auto shape fit encountered error: {e}")
 
     # 4. Only after that, generate final code and final json
-    py_code = generate_code_from_json(final_graph_str, model_name=safe_name)
-
-    parsed_graph = json.loads(final_graph_str) if isinstance(final_graph_str, str) else final_graph_str
-    placeholders = [n for n in parsed_graph.get('nodes', []) if n.get('op') == 'placeholder']
-
-    dummy_lines = []
-    call_args = []
-
-    if placeholders:
-        for p in placeholders:
-            p_id = p['id']
-            itype = (p.get('input_type') or p.get('params', {}).get('input_type') or 'raw data').lower().strip()
-            shape = p.get('params', {}).get('shape')
-            bs = p.get('params', {}).get('batch_size', 1)
-            try:
-                bs = int(bs)
-            except (ValueError, TypeError):
-                bs = 1
-
-            if itype in ('image', 'img'):
-                dims = shape if shape else [3, 224, 224]
-                dim_str = ", ".join(str(d) for d in dims)
-                dummy_lines.append(f"    # Sample dummy image input (shape: [{bs}, {dim_str}])")
-                dummy_lines.append(f"    dummy_{p_id} = torch.randn({bs}, {dim_str}, device=device)")
-            elif itype in ('text', 'txt'):
-                dims = shape if shape else [128]
-                dim_str = ", ".join(str(d) for d in dims)
-                dummy_lines.append(f"    # Sample dummy text token IDs (shape: [{bs}, {dim_str}])")
-                dummy_lines.append(f"    dummy_{p_id} = torch.randint(0, 1000, ({bs}, {dim_str}), dtype=torch.long, device=device)")
-            elif itype in ('audio', 'sound'):
-                dims = shape if shape else [1, 16000]
-                dim_str = ", ".join(str(d) for d in dims)
-                dummy_lines.append(f"    # Sample dummy audio waveform (shape: [{bs}, {dim_str}])")
-                dummy_lines.append(f"    dummy_{p_id} = torch.randn({bs}, {dim_str}, device=device)")
-            else:
-                dims = shape if shape else [64]
-                dim_str = ", ".join(str(d) for d in dims)
-                dummy_lines.append(f"    # Sample dummy tensor (shape: [{bs}, {dim_str}])")
-                dummy_lines.append(f"    dummy_{p_id} = torch.randn({bs}, {dim_str}, device=device)")
-
-            call_args.append(f"dummy_{p_id}")
-    else:
-        dummy_lines.append("    dummy_x = torch.randn(1, 64, device=device)")
-        call_args.append("dummy_x")
-
-    dummy_code = "\n".join(dummy_lines)
-    call_args_str = ", ".join(call_args)
-
-    runner_code = f"""
-if __name__ == '__main__':
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = {safe_name}(device=device)
-    print(f"Model '{safe_name}' initialized successfully on {{device}}:")
-    print(model)
-    total_params = sum(p.numel() for p in model.parameters())
-    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"\\nModel Parameters: {{total_params:,}} total ({{trainable_params:,}} trainable)")
-
-{dummy_code}
-    try:
-        output = model({call_args_str})
-        if output is not None:
-            print("\\n[OK] Forward pass test successful!")
-            if isinstance(output, torch.Tensor):
-                print(f"Output tensor shape: {{tuple(output.shape)}}")
-            elif isinstance(output, (list, tuple)):
-                print(f"Output shapes: {{[tuple(o.shape) if hasattr(o, 'shape') else type(o) for o in output]}}")
-        else:
-            print("\\n[OK] Model forward is empty (no edges connected).")
-    except Exception as e:
-        print(f"\\n[!] Note: Forward pass test with dummy inputs encountered: {{e}}")
-"""
-    if "__main__" not in py_code:
-        py_code = py_code + "\n" + runner_code
+    shapes = fit_res.get('shapes') if 'fit_res' in locals() and isinstance(fit_res, dict) else None
+    py_code = generate_code_from_json(final_graph_str, model_name=safe_name, include_runner=True, shapes=shapes)
 
     json_file_path = os.path.join(target_folder, f"{safe_name}.json")
     py_file_path = os.path.join(target_folder, f"{safe_name}.py")
@@ -252,7 +327,29 @@ def generate_code_from_json(json_data, model_name=None):
         class_name = fix_model_name(str(model_name))
 
     modules_map = load_modules_map()
-    imports = "import torch\nimport torch.nn as nn\nimport operator\n\n"
+    imports = "import torch\nimport torch.nn as nn\nimport operator\n"
+
+    # Integrated models import
+    integrated_imports = []
+    seen_integrated = set()
+    for node in nodes:
+        if node.get('is_integrated') or (isinstance(node.get('params'), dict) and node.get('params', {}).get('model_path')):
+            sub_name = node.get('model_name') or node.get('type')
+            sub_path = node.get('model_path') or node.get('params', {}).get('model_path', '')
+            if sub_name and sub_name not in seen_integrated:
+                seen_integrated.add(sub_name)
+                norm_path = str(sub_path).replace('\\', '/')
+                integrated_imports.append(
+                    f"import sys\n"
+                    f"if r'{norm_path}' not in sys.path:\n"
+                    f"    sys.path.insert(0, r'{norm_path}')\n"
+                    f"from {sub_name} import {sub_name}"
+                )
+    if integrated_imports:
+        imports += "\n" + "\n".join(integrated_imports) + "\n"
+    else:
+        imports += "\n"
+
     header = f"class {class_name}(nn.Module):\n    def __init__(self, device='{device}'):\n        super().__init__()\n        self.device = device\n"
 
     init_code = ""
@@ -289,7 +386,9 @@ def generate_code_from_json(json_data, model_name=None):
             continue
 
         edge_comment = ""
-        if 'edge_index' in node and node['edge_index'] is not None:
+        if node.get('edge_comments'):
+            edge_comment = "".join([f"        # {c}\n" for c in node['edge_comments']])
+        elif 'edge_index' in node and node['edge_index'] is not None:
             edge_type = node.get('edge_type', '')
             if edge_type == 'residual':
                 edge_comment = f"        # Residual Edge #{node['edge_index']}: {node.get('edge_from', '')} -> {node.get('edge_to', '')}\n"
@@ -302,25 +401,46 @@ def generate_code_from_json(json_data, model_name=None):
             safe_target = node['target'].replace('.', '_')
             if safe_target not in instantiated_modules:
                 instantiated_modules.add(safe_target)
-                params = dict(node.get('params', {}) or {})
-                if not params:
-                    mod_def = modules_map.get(node.get('type', ''), {})
-                    if 'fields' in mod_def:
-                        for f in mod_def['fields']:
-                            if 'default' in f:
-                                params[f['key']] = f['default']
-                try:
-                    template = node.get('codeTemplate', '')
-                    if template:
-                        instantiation = template.format(**params)
-                    else:
-                        raise ValueError("no template")
-                except Exception:
-                    args_parts = [f"{k}={repr(v)}" for k, v in params.items() if k != 'customArgs']
-                    if not args_parts and params.get('customArgs'):
-                        args_parts = [params['customArgs']]
-                    instantiation = f"{node.get('type', 'nn.Identity')}({', '.join(args_parts)})"
-                init_code += f"        self.{safe_target} = {instantiation}\n"
+                is_sub = node.get('is_integrated') or (isinstance(node.get('params'), dict) and bool(node.get('params', {}).get('model_path')))
+                if is_sub:
+                    sub_name = node.get('model_name') or node.get('type')
+                    p_map = node.get('params', {}) or {}
+                    w_path = str(node.get('weights_path') or p_map.get('weights_path', '')).replace('\\', '/')
+                    freeze = bool(node.get('freeze_weights', p_map.get('freeze_weights', False)))
+
+                    init_code += f"        # Integrated Model: {sub_name}\n"
+                    init_code += f"        self.{safe_target} = {sub_name}(device=self.device)\n"
+                    init_code += f"        # [Coming Soon] Load weights from checkpoint\n"
+                    init_code += f"        weights_path = r\"{w_path}\"\n"
+                    init_code += f"        if weights_path:\n"
+                    init_code += f"            # self.{safe_target}.load_state_dict(torch.load(weights_path, map_location=self.device))\n"
+                    init_code += f"            pass\n"
+                    init_code += f"        # [Coming Soon] Freeze model weights\n"
+                    init_code += f"        freeze_weights = {freeze}\n"
+                    init_code += f"        if freeze_weights:\n"
+                    init_code += f"            # for p in self.{safe_target}.parameters():\n"
+                    init_code += f"            #     p.requires_grad = False\n"
+                    init_code += f"            pass\n"
+                else:
+                    params = dict(node.get('params', {}) or {})
+                    if not params:
+                        mod_def = modules_map.get(node.get('type', ''), {})
+                        if 'fields' in mod_def:
+                            for f in mod_def['fields']:
+                                if 'default' in f:
+                                    params[f['key']] = f['default']
+                    try:
+                        template = node.get('codeTemplate', '')
+                        if template:
+                            instantiation = template.format(**params)
+                        else:
+                            raise ValueError("no template")
+                    except Exception:
+                        args_parts = [f"{k}={repr(v)}" for k, v in params.items() if k != 'customArgs']
+                        if not args_parts and params.get('customArgs'):
+                            args_parts = [params['customArgs']]
+                        instantiation = f"{node.get('type', 'nn.Identity')}({', '.join(args_parts)})"
+                    init_code += f"        self.{safe_target} = {instantiation}\n"
 
             if node.get('in_forward', True) and node.get('args_str'):
                 line = ""

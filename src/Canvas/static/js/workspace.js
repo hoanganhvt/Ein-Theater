@@ -102,6 +102,21 @@ export async function loadWorkspaceFiles(dirPath) {
                 <span class="file-name">${esc(f.name)}</span>
                 ${badgeHtml}
             `;
+            if (f.isModel) {
+                item.setAttribute('draggable', 'true');
+                item.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', JSON.stringify({
+                        type: 'model_folder',
+                        path: f.path,
+                        name: f.name
+                    }));
+                    e.dataTransfer.effectAllowed = 'copy';
+                    item.classList.add('dragging');
+                });
+                item.addEventListener('dragend', () => {
+                    item.classList.remove('dragging');
+                });
+            }
             item.addEventListener('click', async () => {
                 if (f.isModel) {
                     await loadModelFromFolder(f.path);
@@ -466,7 +481,22 @@ export async function saveActiveModel() {
     }
 
     try {
-        const res = await api.saveModel(state.currentProjectId || '', state.workingDir);
+        let res = await api.saveModel(state.currentProjectId || '', state.workingDir, false);
+
+        if (res.status === 'needs_confirmation') {
+            const warnMsg = res.warning || `Integrated model '${res.model_name}' shape mismatch.`;
+            const count = (res.mismatches && res.mismatches.length) || 1;
+            const targetText = count > 1 ? `${count} integrated models (${res.model_name})` : `'${res.model_name}'`;
+            const confirmed = confirm(
+                `⚠️ Integrated Model Shape Mismatch Warning:\n\n${warnMsg}\n\nDo you want to confirm autofitting the input and all internal nodes of ${targetText} to match?`
+            );
+            if (!confirmed) {
+                showToast('⚠️ Save cancelled: integrated model shape mismatch not confirmed.');
+                return;
+            }
+            res = await api.saveModel(state.currentProjectId || '', state.workingDir, true);
+        }
+
         await loadWorkspaceFiles(state.workingDir);
 
         const modelName = res.modelName || 'Model';

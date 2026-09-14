@@ -185,7 +185,10 @@ def canvas_to_json_graph(canvas_data):
         layer_type = node.get('layerType', 'nn.Identity')
         params = node.get('params', {}) or {}
 
-        clean_type = layer_type.replace('nn.', '').replace('.', '_').lower()
+        is_integrated = (layer_type == 'IntegratedModel' or bool(params.get('model_path')))
+        sub_name = fix_model_name(params.get('model_name') or 'IntegratedModel') if is_integrated else ''
+
+        clean_type = (sub_name.lower() if is_integrated else layer_type.replace('nn.', '').replace('.', '_').lower())
         if clean_type == 'conv2d':
             clean_type = 'conv'
         elif clean_type == 'batchnorm2d':
@@ -215,18 +218,29 @@ def canvas_to_json_graph(canvas_data):
                     defaults[f['key']] = f['default']
         merged_params = {**defaults, **params}
 
-        if not code_template:
+        if is_integrated:
+            code_template = f"{sub_name}()"
+            actual_type = sub_name
+        elif not code_template:
             if 'customArgs' in params and params['customArgs']:
                 code_template = f"{layer_type}({params['customArgs']})"
             else:
                 args_parts = [f"{k}={repr(v)}" for k, v in merged_params.items() if k != 'customArgs']
                 code_template = f"{layer_type}({', '.join(args_parts)})"
+            actual_type = layer_type
+        else:
+            actual_type = layer_type
 
         node_meta[nid] = {
             'target': target,
-            'layer_type': layer_type,
+            'layer_type': actual_type,
             'params': merged_params,
-            'codeTemplate': code_template
+            'codeTemplate': code_template,
+            'is_integrated': is_integrated,
+            'model_name': sub_name,
+            'model_path': params.get('model_path', ''),
+            'weights_path': params.get('weights_path', ''),
+            'freeze_weights': params.get('freeze_weights', False)
         }
 
     # 3. Filter valid edges and partition: all special edges are placed behind all normal edges
@@ -267,209 +281,248 @@ def canvas_to_json_graph(canvas_data):
     # All special edges are placed behind all normal edges, strictly following index 0, 1, 2, 3...
     sorted_edges = normal_sorted + special_sorted
 
-    # 4. Generate forward code according to the edge list
-    if len(sorted_edges) > 0:
-        seen_in_edges = {}
-        in_edges_map = {}
-        for e in sorted_edges:
-            v = str(e['to'])
-            in_edges_map.setdefault(v, []).append(e)
+    def make_module_node(target, meta, inputs, args_str, in_forward=True):
+        return {
+            'id': target,
+            'op': 'call_module',
+            'target': target,
+            'type': meta.get('layer_type', 'nn.Identity'),
+            'inputs': inputs,
+            'args_str': args_str,
+            'params': meta.get('params', {}),
+            'codeTemplate': meta.get('codeTemplate', ''),
+            'is_integrated': meta.get('is_integrated', False),
+            'model_name': meta.get('model_name', ''),
+            'model_path': meta.get('model_path', ''),
+            'weights_path': meta.get('weights_path', ''),
+            'freeze_weights': meta.get('freeze_weights', False),
+            'in_forward': in_forward
+        }
 
-        for e in sorted_edges:
-            u = str(e['from'])
-            v = str(e['to'])
-            edge_type = str(e.get('edgeType') or e.get('type') or 'normal').lower()
-            edge_is_special = is_special_edge(e)
-            edge_idx = e.get('index') if edge_is_special else None
+    # 4. Generate forward code using topological node traversal and connection semantics
+    if len(valid_edges) > 0:
+        data['edges'] = sorted_edges
 
-            u_node = node_map[u]
-            v_node = node_map[v]
+        def set_edge_meta_for(entry, e):
+            u = str(e.get('from', ''))
+            v = str(e.get('to', ''))
+            u_node = node_map.get(u, {})
+            v_node = node_map.get(v, {})
             u_label = str(u_node.get('label', u)).replace('\n', ' ')
             v_label = str(v_node.get('label', v)).replace('\n', ' ')
+            edge_type = str(e.get('edgeType') or e.get('type') or 'normal').lower()
+            entry['edge_from'] = u_label
+            entry['edge_to'] = v_label
+            entry['edge_type'] = edge_type
+            if is_special_edge(e) and e.get('index') is not None:
+                entry['edge_index'] = e['index']
+            return entry
 
-            def set_edge_meta(entry):
-                entry['edge_from'] = u_label
-                entry['edge_to'] = v_label
-                entry['edge_type'] = edge_type
-                if edge_idx is not None:
-                    entry['edge_index'] = edge_idx
-                return entry
+        # Build topological sort over nodes based on valid edges
+        succ = {str(n['id']): [] for n in nodes}
+        in_degree = {str(n['id']): 0 for n in nodes}
+        for e in valid_edges:
+            u = str(e['from'])
+            v = str(e['to'])
+            succ[u].append(v)
+            in_degree[v] += 1
 
-            # Determine source variable
-            if u in var_names:
-                src_var = var_names[u]
-            elif is_input_node(u_node):
-                src_var = var_names.get(u, primary_input_var)
-            else:
-                # Source module hasn't been called yet; invoke it with primary input
-                target_u = node_targets.get(u, u)
-                var_names[u] = target_u
-                meta_u = node_meta.get(u)
-                if meta_u:
-                    fx_nodes.append({
-                        'id': target_u,
-                        'op': 'call_module',
-                        'target': target_u,
-                        'type': meta_u['layer_type'],
-                        'inputs': [primary_input_var],
-                        'args_str': primary_input_var,
-                        'params': meta_u['params'],
-                        'codeTemplate': meta_u['codeTemplate']
-                    })
-                src_var = target_u
+        roots = [nid for nid, deg in in_degree.items() if deg == 0]
+        roots.sort(key=lambda nid: (0 if is_input_node(node_map[nid]) else 1, node_map[nid].get('x', 0), node_map[nid].get('y', 0)))
 
-            # Determine destination behavior
-            seen_in_edges.setdefault(v, []).append(src_var)
-            in_count = len(seen_in_edges[v])
-            total_in = len(in_edges_map[v])
+        queue = list(roots)
+        topo_order = []
+        deg_copy = dict(in_degree)
+
+        while queue:
+            queue.sort(key=lambda nid: (0 if is_input_node(node_map[nid]) else 1, node_map[nid].get('x', 0), node_map[nid].get('y', 0)))
+            curr = queue.pop(0)
+            topo_order.append(curr)
+            for nxt in succ[curr]:
+                deg_copy[nxt] -= 1
+                if deg_copy[nxt] == 0:
+                    queue.append(nxt)
+
+        if len(topo_order) < len(node_map):
+            remaining = [nid for nid in node_map if nid not in topo_order]
+            remaining.sort(key=lambda nid: (0 if is_input_node(node_map[nid]) else 1, node_map[nid].get('x', 0), node_map[nid].get('y', 0)))
+            topo_order.extend(remaining)
+
+        connected_nodes = set()
+        for e in valid_edges:
+            connected_nodes.add(str(e['from']))
+            connected_nodes.add(str(e['to']))
+        connected_nodes.update(input_nodes)
+
+        for v in topo_order:
+            v_node = node_map[v]
+            if is_input_node(v_node):
+                continue
+
+            if v not in connected_nodes:
+                meta_v = node_meta.get(v, {})
+                target_v = node_targets.get(v, v)
+                fx_nodes.append(make_module_node(target_v, meta_v, [], '', in_forward=False))
+                continue
+
+            in_edges = [e for e in sorted_edges if str(e.get('to', '')) == v]
+            feed_edges = [e for e in in_edges if str(e.get('edgeType') or e.get('type') or '').lower() != 'residual']
+            res_edges = [e for e in in_edges if str(e.get('edgeType') or e.get('type') or '').lower() == 'residual']
+
+            feed_sources = []
+            for ed in feed_edges:
+                u = str(ed['from'])
+                if u in var_names:
+                    feed_sources.append(var_names[u])
+                elif is_input_node(node_map.get(u, {})):
+                    feed_sources.append(primary_input_var)
+                else:
+                    target_u = node_targets.get(u, u)
+                    if u not in var_names:
+                        var_names[u] = target_u
+                        meta_u = node_meta.get(u)
+                        if meta_u:
+                            fx_nodes.append(make_module_node(target_u, meta_u, [primary_input_var], primary_input_var))
+                    feed_sources.append(var_names[u])
 
             v_type_lower = str(v_node.get('layerType', '')).lower()
-            v_label_lower = v_label.lower()
+            v_label_lower = str(v_node.get('label', v)).lower()
             target_v = node_targets.get(v, v)
             meta_v = node_meta.get(v, {})
 
             is_output = ('output' in v_type_lower or 'output' in v_label_lower or 'return' in v_label_lower)
+            is_explicit_add = ('add' in v_type_lower or 'add' in v_label_lower)
+            is_explicit_concat = ('cat' in v_type_lower or 'concat' in v_label_lower or v_type_lower == 'torch.cat')
 
             if is_output:
-                var_names[v] = src_var
+                var_names[v] = feed_sources[0] if feed_sources else primary_input_var
                 continue
 
-            is_explicit_add = ('add' in v_type_lower or 'add' in v_label_lower)
-            is_explicit_concat = ('cat' in v_type_lower or 'concat' in v_label_lower)
-
-            if is_explicit_add:
-                if in_count == 1:
-                    var_names[v] = target_v
-                    fx_nodes.append(set_edge_meta({
+            if is_explicit_concat:
+                var_names[v] = target_v
+                if len(feed_sources) <= 1:
+                    src = feed_sources[0] if feed_sources else primary_input_var
+                    entry = {
                         'id': target_v,
                         'op': 'assign',
                         'target': target_v,
-                        'inputs': [src_var],
-                        'args_str': src_var
-                    }))
+                        'inputs': [src],
+                        'args_str': src
+                    }
+                    if feed_edges and is_special_edge(feed_edges[0]):
+                        entry = set_edge_meta_for(entry, feed_edges[0])
+                    fx_nodes.append(entry)
                 else:
-                    fx_nodes.append(set_edge_meta({
-                        'id': target_v,
-                        'op': 'accumulate',
-                        'target': 'add',
-                        'inputs': [target_v, src_var],
-                        'args_str': src_var
-                    }))
-            elif is_explicit_concat:
-                if in_count == 1:
-                    var_names[v] = target_v
-                    fx_nodes.append(set_edge_meta({
-                        'id': target_v,
-                        'op': 'assign',
-                        'target': target_v,
-                        'inputs': [src_var],
-                        'args_str': src_var
-                    }))
-                else:
-                    fx_nodes.append(set_edge_meta({
+                    entry = {
                         'id': target_v,
                         'op': 'call_function',
                         'target': 'cat',
-                        'inputs': [target_v, src_var],
-                        'args_str': f"[{target_v}, {src_var}], dim=1"
-                    }))
-            else:
-                # Standard PyTorch nn.Module layer (e.g. nn.Conv2d, nn.Linear)
-                normal_in_edges = [ed for ed in in_edges_map[v] if not is_special_edge(ed)]
-                num_normal_in = len(normal_in_edges)
+                        'inputs': feed_sources,
+                        'args_str': f"[{', '.join(feed_sources)}], dim=1",
+                        'params': {'dim': 1}
+                    }
+                    special_skips = [e for e in feed_edges if is_special_edge(e)]
+                    if special_skips:
+                        entry = set_edge_meta_for(entry, special_skips[0])
+                        all_comments = []
+                        for sp in special_skips:
+                            etype = (str(sp.get('edgeType') or sp.get('type') or 'Skip')).capitalize()
+                            eidx = sp.get('index', 0)
+                            efrom = str(node_map.get(sp['from'], {}).get('label', sp['from'])).replace('\n', ' ')
+                            eto = str(node_map.get(sp['to'], {}).get('label', sp['to'])).replace('\n', ' ')
+                            all_comments.append(f"{etype} Edge #{eidx}: {efrom} -> {eto}")
+                        entry['edge_comments'] = all_comments
+                    fx_nodes.append(entry)
 
-                if edge_is_special:
-                    # Special edge (residual shortcut or skip concat)
-                    # If target_v was not yet computed (e.g. only special edges exist), compute it first
-                    if v not in var_names:
-                        var_names[v] = target_v
-                        fx_nodes.append({
-                            'id': target_v,
-                            'op': 'call_module',
-                            'target': target_v,
-                            'type': meta_v.get('layer_type', 'nn.Identity'),
-                            'inputs': [src_var],
-                            'args_str': src_var,
-                            'params': meta_v.get('params', {}),
-                            'codeTemplate': meta_v.get('codeTemplate', '')
-                        })
-                    else:
-                        cur_var = var_names[v]
-                        if edge_type == 'residual':
-                            fx_nodes.append(set_edge_meta({
-                                'id': cur_var,
-                                'op': 'accumulate',
-                                'target': 'add',
-                                'inputs': [cur_var, src_var],
-                                'args_str': src_var
-                            }))
-                        elif edge_type == 'skip':
-                            fx_nodes.append(set_edge_meta({
-                                'id': cur_var,
-                                'op': 'call_function',
-                                'target': 'cat',
-                                'inputs': [cur_var, src_var],
-                                'args_str': f"[{cur_var}, {src_var}], dim=1"
-                            }))
-                        else:
-                            fx_nodes.append(set_edge_meta({
-                                'id': cur_var,
-                                'op': 'accumulate',
-                                'target': 'add',
-                                'inputs': [cur_var, src_var],
-                                'args_str': src_var
-                            }))
+            elif is_explicit_add:
+                var_names[v] = target_v
+                all_sources = feed_sources + [var_names.get(e['from'], primary_input_var) for e in res_edges if e['from'] in var_names]
+                all_in_edges = feed_edges + res_edges
+                if not all_sources:
+                    all_sources = [primary_input_var]
+
+                if len(all_sources) <= 1:
+                    entry = {
+                        'id': target_v,
+                        'op': 'assign',
+                        'target': target_v,
+                        'inputs': [all_sources[0]],
+                        'args_str': all_sources[0]
+                    }
+                    if all_in_edges and is_special_edge(all_in_edges[0]):
+                        entry = set_edge_meta_for(entry, all_in_edges[0])
+                    fx_nodes.append(entry)
                 else:
-                    # Normal incoming edge feeding module's primary input
-                    normal_in_count = len([s for s in seen_in_edges[v] if True])
-                    if num_normal_in <= 1:
-                        var_names[v] = target_v
-                        fx_nodes.append(set_edge_meta({
+                    entry0 = {
+                        'id': target_v,
+                        'op': 'assign',
+                        'target': target_v,
+                        'inputs': [all_sources[0]],
+                        'args_str': all_sources[0]
+                    }
+                    if all_in_edges and is_special_edge(all_in_edges[0]):
+                        entry0 = set_edge_meta_for(entry0, all_in_edges[0])
+                    fx_nodes.append(entry0)
+                    for ed, src in zip(all_in_edges[1:], all_sources[1:]):
+                        acc = {
                             'id': target_v,
-                            'op': 'call_module',
-                            'target': target_v,
-                            'type': meta_v.get('layer_type', 'nn.Identity'),
-                            'inputs': [src_var],
-                            'args_str': src_var,
-                            'params': meta_v.get('params', {}),
-                            'codeTemplate': meta_v.get('codeTemplate', '')
-                        }))
-                    else:
-                        if in_count < num_normal_in:
-                            buf_var = f"{target_v}_in{in_count}"
-                            fx_nodes.append(set_edge_meta({
-                                'id': buf_var,
-                                'op': 'assign',
-                                'target': buf_var,
-                                'inputs': [src_var],
-                                'args_str': src_var
-                            }))
-                        else:
-                            var_names[v] = target_v
-                            all_inputs = [f"{target_v}_in{k}" for k in range(1, num_normal_in)] + [src_var]
-                            cat_str = f"torch.cat([{', '.join(all_inputs)}], dim=1)"
-                            fx_nodes.append(set_edge_meta({
-                                'id': target_v,
-                                'op': 'call_module',
-                                'target': target_v,
-                                'type': meta_v.get('layer_type', 'nn.Identity'),
-                                'inputs': all_inputs,
-                                'args_str': cat_str,
-                                'params': meta_v.get('params', {}),
-                                'codeTemplate': meta_v.get('codeTemplate', '')
-                            }))
+                            'op': 'accumulate',
+                            'target': 'add',
+                            'inputs': [target_v, src],
+                            'args_str': src
+                        }
+                        acc = set_edge_meta_for(acc, ed)
+                        fx_nodes.append(acc)
+
+            else:
+                # Standard PyTorch nn.Module layer (e.g. nn.Conv2d, nn.Linear, IntegratedModel)
+                var_names[v] = target_v
+                if len(feed_sources) <= 1:
+                    src = feed_sources[0] if feed_sources else primary_input_var
+                    entry = make_module_node(target_v, meta_v, [src], src)
+                    if feed_edges and is_special_edge(feed_edges[0]):
+                        entry = set_edge_meta_for(entry, feed_edges[0])
+                    fx_nodes.append(entry)
+                else:
+                    cat_str = f"torch.cat([{', '.join(feed_sources)}], dim=1)"
+                    entry = make_module_node(target_v, meta_v, feed_sources, cat_str)
+                    special_skips = [e for e in feed_edges if is_special_edge(e)]
+                    if special_skips:
+                        entry = set_edge_meta_for(entry, special_skips[0])
+                        all_comments = []
+                        for sp in special_skips:
+                            etype = (str(sp.get('edgeType') or sp.get('type') or 'Skip')).capitalize()
+                            eidx = sp.get('index', 0)
+                            efrom = str(node_map.get(sp['from'], {}).get('label', sp['from'])).replace('\n', ' ')
+                            eto = str(node_map.get(sp['to'], {}).get('label', sp['to'])).replace('\n', ' ')
+                            all_comments.append(f"{etype} Edge #{eidx}: {efrom} -> {eto}")
+                        entry['edge_comments'] = all_comments
+                    fx_nodes.append(entry)
+
+                # Residual shortcuts (if any)
+                for ed in res_edges:
+                    res_src = var_names.get(ed['from'], primary_input_var)
+                    acc = {
+                        'id': target_v,
+                        'op': 'accumulate',
+                        'target': 'add',
+                        'inputs': [target_v, res_src],
+                        'args_str': res_src
+                    }
+                    acc = set_edge_meta_for(acc, ed)
+                    fx_nodes.append(acc)
 
         # Leaf outputs: nodes with inputs but no outgoing edges
         leaf_nodes = [
             nid for nid in node_map
             if nid in var_names
             and not is_input_node(node_map[nid])
-            and len([ed for ed in sorted_edges if str(ed.get('from', '')) == nid]) == 0
+            and len([ed for ed in valid_edges if str(ed.get('from', '')) == nid]) == 0
         ]
-        if not leaf_nodes and sorted_edges:
-            last_to = str(sorted_edges[-1]['to'])
-            if last_to in var_names:
-                leaf_nodes = [last_to]
+        if not leaf_nodes and topo_order:
+            non_input_topo = [nid for nid in topo_order if not is_input_node(node_map[nid]) and nid in var_names]
+            if non_input_topo:
+                leaf_nodes = [non_input_topo[-1]]
 
         out_vars = [var_names[nid] for nid in leaf_nodes if nid in var_names]
         if not out_vars and fx_nodes:
@@ -486,17 +539,7 @@ def canvas_to_json_graph(canvas_data):
     else:
         # If there are no edges, do not force any calls into the forward function
         for nid, meta in node_meta.items():
-            fx_nodes.append({
-                'id': meta['target'],
-                'op': 'call_module',
-                'target': meta['target'],
-                'type': meta['layer_type'],
-                'inputs': [],
-                'args_str': '',
-                'params': meta['params'],
-                'codeTemplate': meta['codeTemplate'],
-                'in_forward': False
-            })
+            fx_nodes.append(make_module_node(meta['target'], meta, [], '', in_forward=False))
 
     return json.dumps({
         'metadata': {

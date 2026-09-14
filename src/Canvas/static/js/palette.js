@@ -1,10 +1,11 @@
-// ── Drag & Drop / Click from Sidebar Palette to Canvas ────────────
 import { state } from './state.js';
-import { createBlock } from './graph.js';
+import { createBlock, createIntegratedBlock } from './graph.js';
 import { MODULES_LIST, LAYER_SCHEMAS } from './schemas.js';
 import { esc } from './utils.js';
 import { openAddNodeModal } from './modals.js';
 import { setMode } from './modes.js';
+import { api } from './api.js';
+import { showToast } from './workspace.js';
 
 let canvasListenersInitialized = false;
 
@@ -107,8 +108,8 @@ export function setupPaletteDragAndDrop() {
         e.preventDefault();
         canvasContainer.classList.remove('drag-over');
 
-        const blockType = e.dataTransfer.getData('text/plain');
-        if (!blockType || !state.network) return;
+        const rawData = e.dataTransfer.getData('text/plain');
+        if (!rawData || !state.network) return;
 
         // Convert DOM coordinates to Vis.js canvas coordinates
         const rect = canvasContainer.getBoundingClientRect();
@@ -121,7 +122,41 @@ export function setupPaletteDragAndDrop() {
         const posX = Math.round(canvasPos.x);
         const posY = Math.round(canvasPos.y);
 
-        const nodeObj = await createBlock(blockType, posX, posY);
+        // ponytail: check if dropped payload is a registered model folder from workspace sidebar
+        let modelFolderData = null;
+        try {
+            const parsed = JSON.parse(rawData);
+            if (parsed && parsed.type === 'model_folder') {
+                modelFolderData = parsed;
+            }
+        } catch (_) {}
+
+        if (modelFolderData) {
+            try {
+                const inspect = await api.inspectModel(modelFolderData.path);
+                if (!inspect || !inspect.isModel) {
+                    showToast('⚠️ Dropped folder is not a valid registered model (.json and .py required).');
+                    return;
+                }
+                if (!inspect.hasInputs) {
+                    showToast(`⚠️ Cannot integrate '${inspect.modelName}': Model folder has no Input blocks.`);
+                    return;
+                }
+                const nodeObj = await createIntegratedBlock(inspect, posX, posY);
+                if (nodeObj && nodeObj.id) {
+                    setMode('move');
+                    state.network.selectNodes([String(nodeObj.id)]);
+                    state.network.redraw();
+                    showToast(`⚡ Integrated model '${inspect.modelName}' added to canvas`);
+                }
+            } catch (err) {
+                console.error('Failed to integrate model folder:', err);
+                showToast('Failed to integrate model: ' + err.message);
+            }
+            return;
+        }
+
+        const nodeObj = await createBlock(rawData, posX, posY);
         if (nodeObj && nodeObj.id) {
             setMode('move');
             state.network.selectNodes([String(nodeObj.id)]);

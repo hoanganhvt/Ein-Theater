@@ -179,12 +179,18 @@ Ein Theater supports an explicit **`Input`** source block on the canvas with cus
 4. **Interactive Controls**:
    - Right-click an edge to open the Context Menu -> **Connection Type ▶** (`Normal Flow`, `Residual Connection`, `Skip Connection`).
    - Press **`T`** or **`t`** with an edge selected to cycle connection types (`normal` -> `residual` -> `skip` -> `normal`).
-5. **Code Annotations in Generated Code**:
+5. **Code Annotations & Connection Semantics in Generated Code**:
    - Normal feedforward calls remain clean without distracting comments.
-   - Special connections are explicitly annotated with their type and index:
+   - **Skip Connections (`skip`)**: Concatenated along channel dimension (`dim=1`) *before* being fed into the destination layer (e.g. U-Net decoder blocks) or explicit `cat` node:
    ```python
-   # Residual Edge #0: conv 0 -> residual add
-   add_0 = add_0 + conv_c0
+   # Skip Edge #0: conv1 -> conv3
+   conv3 = self.conv3(torch.cat([conv2, conv1], dim=1))
+   ```
+   - **Residual Connections (`residual`)**: Additive shortcuts accumulated *after* the transformation (e.g. ResNet blocks):
+   ```python
+   conv3 = self.conv3(conv2)
+   # Residual Edge #0: conv1 -> conv3
+   conv3 = conv3 + conv1
    ```
 
 ---

@@ -89,6 +89,7 @@ def main():
     parser.add_argument("--save-canvas", help="Path to JSON file containing canvas graph data to save (use '-' for stdin)")
     parser.add_argument("--canvas-json", help="Direct JSON string of canvas graph data")
     parser.add_argument("--out-dir", help="Target directory where model_name/ folder will be saved", default=None)
+    parser.add_argument("--confirm-autofit", action="store_true", help="Confirm autofitting integrated model internal shapes")
 
     args, unknown = parser.parse_known_args()
 
@@ -102,7 +103,7 @@ def main():
         else:
             canvas_data = json.loads(args.canvas_json)
 
-        res = save_model_to_folder(canvas_data, output_dir=args.out_dir)
+        res = save_model_to_folder(canvas_data, output_dir=args.out_dir, confirm_autofit=args.confirm_autofit)
         print(json.dumps(res))
         sys.exit(0)
     else:

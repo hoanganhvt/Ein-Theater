@@ -108,6 +108,7 @@ func RegisterRoutesWithRoot(mux *http.ServeMux, rootHandler http.HandlerFunc) {
 	mux.HandleFunc("/api/workspace/browse", BrowseWorkspaceHandler)
 	mux.HandleFunc("/api/workspace/select-native", SelectNativeFolderHandler)
 	mux.HandleFunc("/api/workspace/create-folder", CreateFolderHandler)
+	mux.HandleFunc("/api/workspace/inspect-model", InspectModelHandler)
 	mux.HandleFunc("/api/workspace/save-model", SaveModelHandler)
 	mux.HandleFunc("/api/saveModel", SaveModelHandler)
 	mux.HandleFunc("/api/workspace/load-model", LoadModelHandler)
