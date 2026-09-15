@@ -38,6 +38,7 @@ from canvas import (
 )
 
 from codegen import (
+    to_relative_path,
     generate_code_from_json,
     generate_code_from_canvas,
     save_model_to_folder,
@@ -65,6 +66,7 @@ __all__ = [
     # Canvas
     'canvas_to_json_graph',
     # Codegen
+    'to_relative_path',
     'generate_code_from_json',
     'generate_code_from_canvas',
     'save_model_to_folder',
