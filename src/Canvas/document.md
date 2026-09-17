@@ -37,8 +37,8 @@ The Canvas subsystem bridges interactive graphical CAD with deep learning code g
 1. **Circuit Schematic Editor**: Visualizes models on an infinite 50px dot-grid canvas with 90° right-angle wiring, diamond fold waypoints, marquee multi-selection, rigid dragging, and full clipboard operations (`Ctrl+C`, `Ctrl+X`, `Ctrl+V`).
 2. **Fundamental Blocks & 152-Module Catalog**: Provides an 11-block instant-access palette in the sidebar (`Input` block with image/text/audio/raw presets plus 10 core layers: `nn.Linear`, `nn.Conv2d`, `nn.ReLU`, `nn.MaxPool2d`, `nn.BatchNorm2d`, `nn.LayerNorm`, `nn.Dropout`, `nn.LSTM`, `nn.MultiheadAttention`, `nn.Embedding`) and 152 modules partitioned across 15 functional categories in `modules.json`.
 3. **Scoped 0-Indexed Identification**: Automatically numbers layer instances cleanly per type and workspace (`linear_0`, `conv_0`, `relu_0`, `input_0`), reusing deleted indices.
-4. **Bidirectional Code Synthesis**: Compiles visual schematics into runnable PyTorch `nn.Module` classes using topological sorting and semantic connection classification via `src/Canvas/utils/generate code/gen_code.py`.
-5. **Auto Shape Size Fit & Padding Resolution**: Automatically infers dimensional shapes (`in_features`, `in_channels`, `embed_dim`) and computes exact symmetric padding for skip/residual/concat connections during save.
+4. **Bidirectional Code Synthesis**: Compiles visual schematics into runnable PyTorch `nn.Module` classes using topological sorting via `src/Canvas/utils/generate code/gen_code.py`.
+5. **Python Shape Adaptation**: Uses a persistent JSON-lines Python worker executing dummy tensors on PyTorch's meta device for real-time dimension inference without allocating real memory.
 6. **Workspace & Model Detection**: Discovers verified model packages containing both `<model_name>.json` and `<model_name>.py`, decorating them with a brain badge (`🧠`) for 1-click canvas restoration.
 
 ---
@@ -86,16 +86,15 @@ src/Canvas/
 │   ├── canvas.html         # Standalone Canvas mode HTML template
 │   └── sidebar.html        # Mode sidebar fragment loaded dynamically into #sidebarSlot
 └── utils/                  # Canvas mode computational utilities
-    ├── auto shape size fit/# Planned module for automated tensor dimension propagation
     └── generate code/      # PyTorch FX graph tracing & FX code generation engine
         ├── document.md     # Code generator architecture & CLI compiler reference
         ├── __init__.py     # Package initialization
         ├── canvas.py       # Visual schematic JSON to FX computational graph compiler
-        ├── classifier.py   # Connection semantics classifier (normal, skip, residual, gated)
         ├── codegen.py      # FX Python code synthesis & model packaging
         ├── common.py       # Model name sanitization (fix_model_name) & modules.json lookup
         ├── gen_code.py     # Façade & CLI compiler (--save-canvas, --canvas-json, --out-dir)
-        └── tracer.py       # PyTorch FX symbolic tracer & parameter extraction
+        ├── shape_inference.py # Persistent JSON-lines shape inference worker
+        └── test_shape_inference.py # Tests for shape adaptation
 ```
 
 ---
@@ -154,7 +153,7 @@ go run Canvas/canvas.go
    ┌──────────────────────────────▼──────────────────────────────┐
    │       Python FX Code Generator (Canvas/utils/generate code) │
    │   canvas_to_json_graph (Topological Sort + Coordinates)     │
-   │   classify_connection (Residual, Skip Concat, Gated)        │
+   │   shape_inference.py (Meta Tensor Dynamic Adaptation)       │
    │   generate_code_from_json (Standalone nn.Module FX Gen)   │
    │   save_model_to_folder (<name>/<name>.json + <name>.py)     │
    └─────────────────────────────────────────────────────────────┘
@@ -217,14 +216,13 @@ A modular Python compiler located in [`src/Canvas/utils/generate code/`](./utils
 Submodules:
 - `gen_code.py`: Façade CLI compiler supporting `--save-canvas` and `--canvas-json`.
 - `canvas.py`: Performs Kahn's topological sort on visual blocks while preserving spatial coordinates, mapping visual edges to computational flow.
-- `classifier.py`: Analyzes intermediate FX graph nodes to identify connection types (normal, residual, U-Net concatenation, gated skip).
-- `tracer.py`: Uses `torch.fx.symbolic_trace` to inspect PyTorch models and serialize them into graph JSON.
+- `shape_inference.py`: Uses `torch` meta tensors to dynamically infer block output shapes.
 - `codegen.py`: Synthesizes standalone, executable PyTorch `nn.Module` source code with device detection (`cuda`/`cpu`) and self-testing entry points, outputting `<model_name>.json` and `<model_name>.py`.
 - `common.py`: Dynamic lookup for `modules.json` and model identifier sanitization (`fix_model_name`).
 
-### Planned Utilities (`utils/auto shape size fit/`)
+### Python Shape Adaptation (`shape_inference.py`)
 
-`src/Canvas/utils/auto shape size fit/` is reserved for automated tensor shape propagation and dimension inference across visual layers (e.g. automatically matching `in_features` of a linear layer to the flattened output dimensions of an upstream convolution/pooling block).
+Python worker (`src/Canvas/utils/generate code/shape_inference.py`) that evaluates graph connections interactively. It uses PyTorch's `meta` device to execute layer forward passes on dummy tensors, automatically resolving dimensional shape constraints and returning inferred tensor parameters dynamically without allocating real memory or waiting for the code generator to run.
 
 ---
 

@@ -26,7 +26,7 @@
   - [Loading Verified Models onto Canvas](#loading-verified-models-onto-canvas)
   - [Workspace Folder Management](#workspace-folder-management)
   - [Keyboard Shortcuts & Gestures](#keyboard-shortcuts--gestures)
-- [PyTorch FX Symbolic Tracing & Code Generation CLI](#pytorch-fx-symbolic-tracing--code-generation-cli)
+- [PyTorch FX Graph Generation & CLI](#pytorch-fx-graph-generation--cli)
 - [Backend REST API Reference](#backend-rest-api-reference)
 - [Sub-Module Documentation](#sub-module-documentation)
 
@@ -55,11 +55,11 @@
     11. `nn.Embedding`
   - Drag-and-drop directly onto the canvas or single-click to spawn near the center of the current view.
   - Quick launcher (`+ More / Custom...`) opens the full 152-module categorized catalog.
-- **Auto Shape Size Fit Engine (`auto shape size fit`)**:
-  - Integrated automated tensor shape propagation and parameter fitting running during model save/export.
-  - Automatically matches downstream layer dimensions (e.g. `in_features`, `in_channels`, `embed_dim`, `num_features`).
-  - Mathematical padding solver traces upstream through activations and computes exact symmetric padding ($2p = s(H_{target} - 1) + d(k - 1) + 1 - H_{in}$) to align spatial dimensions for skip, residual, and concatenation connections.
-  - Synchronizes fitted parameters back into the in-memory Go model state and updates the active canvas UI.
+- **Python Shape Adaptation (`shape_inference.py`)**:
+  - Uses a persistent JSON-lines Python worker executing dummy tensors on PyTorch's `meta` device.
+  - Automatically infers tensor dimensions and matches downstream layer constraints (e.g. `in_features`, `in_channels`).
+  - Runs in the background and resolves shape mismatches dynamically without allocating real memory or blocking the UI.
+  - Synchronizes fitted parameters and output sizes back into the canvas state in real time.
 - **152 Categorized PyTorch Modules**:
   - Complete coverage of `torch.nn.Module` subclasses defined in `modules.json`.
   - Partitioned into **15 functional categories**: Linear, Convolution, Pooling, Non-linear Activations, Normalization, Recurrent, Transformer, Attention, Dropout, Sparse / Embedding, Loss Functions, Vision, Padding, Distance, and Utilities.
@@ -87,9 +87,9 @@
 - **Multi-Model Project Management**:
   - Sidebar project tabs supporting concurrent model architectures within a single session.
   - Fast model creation, deletion, and inline model title renaming.
-- **Python FX Graph Tracing & Code Synthesis (`src/Canvas/utils/generate code/`)**:
-  - Symbolic execution via `torch.fx.symbolic_trace`.
-  - Automatic classification of edge semantics: normal sequential flows, residual connections, U-Net / DenseNet skip concatenations, gated multiplicative modulations, and multi-input / multi-output branching.
+- **Python FX Graph & Code Synthesis (`src/Canvas/utils/generate code/`)**:
+  - Uses Kahn's topological sort and `torch.fx.GraphModule` to build executable models.
+  - Recursive integrated models allow you to nest sub-models dynamically.
   - Graph JSON serialization and automated compilation into clean, executable PyTorch `nn.Module` Python source code.
   - CLI commands supporting canvas-to-code compilation (`--save-canvas`, `--canvas-json`, `--out-dir`).
 
@@ -114,7 +114,7 @@
                                │ Stdin / Stdout JSON Protocol
    ┌───────────────────────────▼────────────────────────────┐
    │             Python FX Engine & Generator               │
-   │  torch.fx Tracing • Connection Classifier • AST Gen    │
+   │  Meta Tensor Inference • Recursive Models • AST Gen    │
    │   Automated nn.Module Code Generator & Test Suite      │
    │    Model Package Builder (<name>.json & <name>.py)     │
    └────────────────────────────────────────────────────────┘
@@ -143,7 +143,7 @@ Ein Theater/
     │   └── style.css           # Unified global stylesheet & shared design system
     └── Canvas/                 # [Mode: Canvas] Neural Architecture Design Studio
         ├── canvas.go           # Standalone Canvas mode runner & server entry point
-        ├── document.md         # Canvas subsystem master documentation
+        ├── shape-inference.md  # Python shape adaptation documentation
         ├── data/
         │   └── modules.json    # PyTorch 152-module schema definitions, templates & parameter bounds
         ├── handler/            # Canvas Go backend HTTP handlers
@@ -156,22 +156,15 @@ Ein Theater/
         │   ├── project_handlers.go # Multi-model lifecycle & renaming
         │   └── workspace_handlers.go # Filesystem browsing, folder creation, model save/load pipeline
         ├── utils/              # Canvas utility services & compilers
-        │   ├── auto shape size fit/ # Automated tensor shape propagation & padding auto-resolution
-        │   │   ├── document.md # Auto Shape Size Fit architecture & mathematical specifications
-        │   │   ├── __init__.py # Package exports (auto_shape_size_fit, ShapeFitter, topological_sort)
-        │   │   ├── layers.py   # Layer dimension fitting & output shape computation
-        │   │   ├── padding_solver.py # Spatial padding solver for skip/residual/concat connections
-        │   │   ├── shape_fitter.py # Orchestrator class (ShapeFitter) & CLI interface
-        │   │   └── topo.py     # Kahn's topological sort & cycle detection
         │   └── generate code/  # Template-driven PyTorch code synthesis engine
         │       ├── document.md # Code generator engine architecture & CLI documentation
         │       ├── __init__.py # Package initialization
         │       ├── canvas.py   # Visual schematic JSON to FX computational graph compiler
-        │       ├── classifier.py # Connection semantics classifier (normal, skip, residual, gated)
         │       ├── codegen.py  # FX Python code synthesis & model packaging
         │       ├── common.py   # Model identifier sanitization & modules.json lookup
-        │       ├── gen_code.py # Core FX tracer, connection classifier, AST code generator & CLI compiler
-        │       └── tracer.py   # PyTorch FX symbolic tracer & parameter extraction
+        │       ├── gen_code.py # CLI code generator
+        │       ├── shape_inference.py # Persistent JSON-lines shape inference worker
+        │       └── test_shape_inference.py # Unit tests for shape adaptation
         ├── static/             # Canvas mode static assets
         │   ├── data/
         │   │   └── modules.json# Static asset copy of 152 PyTorch module schemas
@@ -397,16 +390,12 @@ Organize multi-model projects directly within the interface:
 
 ---
 
-## PyTorch FX Symbolic Tracing & Code Generation CLI
+## PyTorch FX Code Generation CLI
 
-Located in [`src/Canvas/utils/generate code/gen_code.py`](./src/Canvas/utils/generate%20code/gen_code.py), the Python engine provides bidirectional translation between PyTorch computational graphs and Ein Theater JSON schematics:
+Located in [`src/Canvas/utils/generate code/gen_code.py`](./src/Canvas/utils/generate%20code/gen_code.py), the Python engine provides compilation from Ein Theater JSON schematics to executable PyTorch modules:
 
-1. **Symbolic Tracing**: Uses PyTorch FX (`torch.fx.symbolic_trace`) to capture high-level execution graphs without executing tensor math.
-2. **Semantics Classification**: Inspects intermediate graph nodes and automatically tags connection types:
-   - **Normal Connections**: Direct sequential data flow.
-   - **Skip Connections**: Long-range feature concatenation (`torch.cat`, `torch.stack`).
-   - **Residual Connections**: Additive skip pathways (`+`, `torch.add`).
-   - **Gated Skips**: Multiplicative attention / feature modulation (`*`, `torch.mul`).
+1. **Topological Sort**: Orders visual canvas nodes using Kahn's algorithm and resolves argument mapping.
+2. **Shape Adaptation**: Uses `shape_inference.py` to evaluate the graph using PyTorch meta tensors, adapting parameters dynamically.
 3. **Command Line Interface (CLI)**:
    ```bash
    # Save and compile canvas JSON into <out-dir>/<model_name>/ (<model_name>.json + .py)
@@ -499,4 +488,4 @@ For in-depth developer documentation of internal subsystems, refer to:
 - [`src/Canvas/handler/document.md`](./src/Canvas/handler/document.md) — Detailed Go backend architecture, concurrency model, data structs, and handler implementations.
 - [`src/Canvas/static/js/document.md`](./src/Canvas/static/js/document.md) — Comprehensive frontend client architecture, Vis.js custom rendering pipeline, PCB circuit line algorithms, and reactive state management.
 - [`src/Canvas/utils/generate code/document.md`](./src/Canvas/utils/generate%20code/document.md) — PyTorch FX symbolic tracing, connection classification, FX code generation engine, and CLI compiler reference.
-- [`src/Canvas/utils/auto shape size fit/document.md`](./src/Canvas/utils/auto%20shape%20size%20fit/document.md) — Automated tensor shape propagation, dimension inference, and skip/residual padding auto-resolution engine.
+- [`src/Canvas/shape-inference.md`](./src/Canvas/shape-inference.md) — Python shape adaptation and meta tensor execution.

@@ -449,5 +449,5 @@ Manages workspace directory selection, file tree rendering, model detection, fol
 - [Canvas Subsystem Documentation](../../document.md) — Comprehensive overview of the Canvas mode architecture.
 - [Root Documentation](../../../document.md) — Main overview of Ein Theater.
 - [Backend Handler Documentation](../../handler/document.md) — Detailed Go backend architecture, concurrency model, and REST handlers.
-- [PyTorch Code Generation Engine](../../utils/generate%20code/document.md) — FX code builder, FX graph tracing, and connection classification reference.
-- [Auto Shape Size Fit Engine](../../utils/auto%20shape%20size%20fit/document.md) — Automated tensor shape propagation, dimension inference, and skip/residual padding auto-resolution engine.
+- [PyTorch Code Generation Engine](../../utils/generate%20code/document.md) — FX code builder, FX graph tracing, and code generation reference.
+- [Python Shape Adaptation](../../shape-inference.md) — Python shape adaptation and meta tensor execution.

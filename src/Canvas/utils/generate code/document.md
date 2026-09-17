@@ -12,10 +12,10 @@ The pipeline is split into three core modules, executed dynamically via the `gen
    - Accepts the raw visual JSON payload (`nodes`, `edges`).
    - Resolves node identities, handles dynamic connection tracking, and parses visual topologies into an intermediate sequence of operational FX-like nodes.
    - Outputs a unified standard graph format (`canvas_to_json_graph(canvas_data)`).
-2. **Auto Shape Size Fit Engine (`../auto shape size fit/shape_fitter.py`)**:
-   - Executes a dummy forward pass natively through the PyTorch framework using `torch.fx.passes.ShapeProp`.
-   - Resolves mismatched kernel dimensions, features, and channels on-the-fly (`in_channels`, `in_features`, `num_features`).
-   - Retrieves the mathematically proven tensor shape for every intermediate node.
+2. **Python Shape Adaptation (`shape_inference.py`)**:
+   - Uses a persistent JSON-lines Python worker executing dummy tensors on PyTorch's meta device.
+   - Automatically infers tensor dimensions and matches downstream layer constraints (e.g. `in_features`, `in_channels`).
+   - Retrieves the exact tensor shape for every intermediate node without allocating real memory or blocking the UI.
 3. **FX Graph & Source Synthesizer (`codegen.py`)**:
    - Parses the corrected JSON and builds a true `torch.fx.Graph`.
    - Iterates over the graph sequentially mapping operations (`call_module`, `placeholder`, `call_function`, `output`, `accumulate`).
@@ -83,7 +83,7 @@ When a model is saved (via the UI **Save** button / `Ctrl+S` or CLI `--save-canv
 flowchart TD
     A["User hits Save / CLI --save-canvas"] --> B["1. Generate raw fx_nodes from Canvas"]
     B --> C["2. Write <target_folder>/temp.json"]
-    C --> D["3. auto_shape_size_fit(temp.json)<br/>- Natively execute via FX ShapeProp<br/>- Auto-correct Module parameters<br/>- Track mathematical shapes"]
+    C --> D["3. shape_inference.py<br/>- Execute dummy meta tensors<br/>- Adapt layer constructor parameters<br/>- Extract tensor output sizes"]
     D --> E["4. Synthesize final artifacts:<br/>- <model_name>.py (FX compiled Python)<br/>- <model_name>.json (fitted spec)"]
     E --> F["5. Remove temp.json from disk"]
     F --> G["Sync fitted parameters into Go memory & UI Canvas"]
@@ -115,4 +115,4 @@ gen_code.save_model_to_folder(canvas_data, output_dir="./output_folder")
 
 - [Canvas Subsystem Documentation](../../document.md) — Comprehensive overview of the Canvas mode architecture.
 - [Root Documentation](../../../../document.md) — Main overview of Ein Theater.
-- [Auto Shape Size Fit Engine](../auto%20shape%20size%20fit/document.md) — Documentation on PyTorch FX native shape inference and interceptor engine.
+- [Python Shape Adaptation](../../shape-inference.md) — Documentation on Python shape adaptation and meta tensor execution.
