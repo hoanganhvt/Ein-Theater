@@ -13,6 +13,45 @@ The registry owns `register_module` and `register_adapter`. Built-in fitting rul
 live in `auto_shape_fitting/adapters.py` and load with the shape interpreter.
 Registering a custom module here does not create imports in generated source.
 
+## Runtime flow: shared requests from the pipelines
+
+This package has no single application workflow. Parsing, fitting, and saving call
+its functions with small values. The main constructor-resolution path is:
+
+```mermaid
+flowchart LR
+    A[Node: layerType and params] --> B[parameters: palette defaults plus overrides]
+    B --> C[module_class: registry or torch.nn]
+    C --> D[constructor_kwargs: filter against signature]
+    D --> E[Constructor arguments]
+    E --> F[Caller renders source or instantiates module]
+```
+
+| Function | Input | Processing and output |
+| --- | --- | --- |
+| `fix_model_name` / `fix_input_name` | User label; optional input index | Apply naming rules and return a Python-oriented name; input naming also handles default labels and reserved keywords |
+| `find_modules_json_path` | No arguments | Probe repository-relative and working-directory paths; return the first existing palette path or `None` |
+| `load_modules_map` | No arguments | Read palette JSON and index definitions by `type`; return a dictionary, or `{}` if loading fails |
+| `parameters` | Node dictionary | Read cached palette defaults, parse literal values, apply node overrides, and return merged parameters |
+| `module_class` | Type string such as `nn.Linear` | Check explicitly registered modules, then `torch.nn`; return an `nn.Module` class or raise for an unsupported type |
+| `constructor_kwargs` | Module class and parameters | Inspect `__init__`, retain accepted keywords (or all if `**kwargs` is supported), always exclude `customArgs`; return a dictionary |
+| `ordered_edges` | List of edge dictionaries | Sort by numeric suffix for `e<number>` IDs, otherwise original position; use original position to break ties; return a new ordered list |
+
+For example, a Linear node with `out_features=3` receives palette defaults before
+its explicit parameters override them. During fitting, an adapter then replaces
+`in_features` using the incoming tensor; during generation, constructor filtering
+keeps that fitted value. Sharing resolution prevents the two callers from choosing
+different constructor fields. These helpers do not independently execute a forward
+pass or write files.
+
+**Registration flow:** `register_module(name, cls, adapter)` stores the trusted
+class and optional adapter in process-local dictionaries. `register_adapter`
+associates classes with callbacks. The fitting interpreter searches the class MRO
+for a callback and calls it with `(params, input_tensors)`. The callback returns
+constructor updates, such as `{'in_features': 4}`; the interpreter applies those
+updates and executes PyTorch. Palette schemas are cached after their first lookup
+in that process, while explicit registrations remain in memory for subsequent calls.
+
 ## Run a main example
 
 This library has no standalone CLI. Use the following `main()` smoke example with

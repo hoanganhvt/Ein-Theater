@@ -23,6 +23,27 @@ only the dynamically loaded CLI also adds its own directory for local imports.
 
 ## Save lifecycle
 
+### Inputs and call sequence
+
+`save_model_to_folder(canvas_data, output_dir=None, base_dir=...)` accepts an
+editable canvas dictionary or JSON string. `output_dir` is the parent destination
+directory; `base_dir` resolves referenced child models. The CLI decodes a JSON file,
+stdin, or `--canvas-json`, chooses the base directory, and calls this function.
+
+```mermaid
+flowchart TD
+    A[Canvas plus output and base directories] --> B[gen_code.main or Python API]
+    B --> C[save_model_to_folder: copy, infer, validate]
+    C --> D[Recursively prepare adapted child models]
+    D --> E[canvas_to_json_graph]
+    E --> F[Normalize model and weight references]
+    F --> G[generate_code_from_json]
+    G --> H[build_fx_graph and render source]
+    H --> I[Parse source and append to save plan]
+    I --> J[Root save writes all prepared artifacts]
+    J --> K[Return artifact paths and adapted-model folders]
+```
+
 1. Deep-copy the canvas and infer shapes using PyTorch's `meta` device.
 2. Reject diagnostics on connected nodes. Independent disconnected nodes can
    retain diagnostics without preventing a save.
@@ -40,6 +61,34 @@ Disconnected layers remain constructor attributes but are omitted from `forward`
 Generated source includes an example execution block, not a full test suite.
 Shape metadata is stored on canvas nodes; the renderer does not inject shape comments.
 The generated `device` attribute does not automatically move tensors or parameters.
+
+### How graph nodes become Python source
+
+`generate_code_from_json` accepts a computational graph dictionary/JSON string
+(or a node list), and also detects raw Canvas data for conversion. It reads model
+metadata, resolves the class name, and delegates as follows:
+
+1. `render_imports` builds PyTorch and referenced child-model imports.
+2. `build_fx_graph` maps placeholder IDs to FX values, creates module constructor
+   statements, and connects forward calls using each node's `inputs`. Modules
+   marked `in_forward=False` are initialized without a forward call. Output nodes
+   return one value or a tuple for multiple values.
+3. `graph.python_code(root_module="self")` produces the forward source.
+4. `render_example_inputs` builds sample tensors from placeholder metadata.
+5. `source_renderer` assembles imports, the `nn.Module` class, and its executable
+   example block, then returns the source **string**.
+
+For `Input(shape=4, batch=2) -> Linear(in_features=99, out_features=3)`, saving first
+fits `in_features` to `4`. Conversion produces placeholder/module/output nodes;
+rendering produces a Linear constructor with `in_features=4` and a forward call.
+Saving writes that code and its graph JSON under the sanitized model folder.
+
+**Two distinct outputs:** source-only APIs return Python text without fitting or
+writing files. The save API returns a dictionary containing `status`, `folder`,
+`folderName`, `jsonFile`, `pyFile`, `modelName`, and `adaptedModels` after writing.
+The CLI serializes that dictionary to stdout. Compilation/validation errors raise
+before the write phase. Save-time syntax parsing does not execute the generated
+forward pass; execution belongs to the generated example or regression tests.
 
 ## Run main and execute the generated model
 

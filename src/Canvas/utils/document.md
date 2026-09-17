@@ -27,6 +27,33 @@ same constructors. Built-in fitting rules are registered by
 `auto_shape_fitting.adapters` when the shape interpreter loads. Ordinary saved
 canvas loading does not execute models or require the fitting engine.
 
+## End-to-end runtime flow
+
+There are two primary execution paths. Both start from editable canvas data
+(`nodes`, `edges`, and node `params`), rather than existing Python model source.
+
+```mermaid
+flowchart TD
+    A[Editable canvas] --> B{Requested operation}
+    B --> C[Interactive shape request]
+    C --> D[auto_shape_fitting: infer on meta tensors]
+    D --> E[Return fitted canvas and per-node diagnostics]
+    B --> F[Save request]
+    F --> G[generate code: save coordinator]
+    G --> H[auto_shape_fitting: infer and validate]
+    H --> I[read_canvas: computational graph conversion]
+    I --> J[generate code: FX and source rendering]
+    J --> K[Prepare all artifacts, then write JSON and Python]
+    K --> L[Return saved paths]
+```
+
+`shared` supplies constructor resolution, naming, and ordering to both paths.
+Nested fitting reads child JSON through `read_canvas.saved_canvas` and recursively
+runs the inference engine. It returns adapted child canvases in memory; only saving
+turns them into separate model artifacts. `tests` drives these same paths with
+fixtures and checks their results. Each child document describes its own input
+contract, function call order, branches, output, and error behavior below its module map.
+
 ## Entry points
 
 Each child directory includes an English guide with folder-local commands,
