@@ -1,42 +1,33 @@
 #!/usr/bin/env python3
-"""
-Ein Theater - PyTorch FX Graph Tracing & Code Generation CLI & Core API.
+"""Public API and CLI for saving Canvas models as standalone PyTorch source."""
+from pathlib import Path
+import sys
 
-This module acts as the unified faA ade and CLI entry point for the PyTorch code
-generation engine. Core functionalities are partitioned into:
-  - common.py:     Naming sanitization (fix_model_name) and modules.json lookup.
-  - canvas.py:     Visual canvas graph JSON to FX computational graph compiler.
-  - codegen.py:    Executable PyTorch nn.Module AST code generation and saving.
-"""
+_utils_dir = str(Path(__file__).resolve().parent.parent)
+if _utils_dir not in sys.path:
+    sys.path.insert(0, _utils_dir)
 
 import os
-import sys
 import json
 import argparse
 
-# Ensure this directory is in sys.path for dynamic importlib loading and sub-script execution
-_curr_dir = os.path.dirname(os.path.abspath(__file__))
-if _curr_dir not in sys.path:
-    sys.path.insert(0, _curr_dir)
+# Support direct importlib loading from this directory, whose name contains a space.
+if not __package__:
+    _curr_dir = os.path.dirname(os.path.abspath(__file__))
+    if _curr_dir not in sys.path:
+        sys.path.insert(0, _curr_dir)
 
-# Re-export all public functions, classes, and helpers for 100% backward compatibility
-from common import (
-    find_modules_json_path,
-    load_modules_map,
-    fix_model_name,
-    fix_input_name,
-)
+from shared.common import find_modules_json_path, load_modules_map, fix_model_name, fix_input_name
+from read_canvas.canvas import canvas_to_json_graph
 
-from canvas import (
-    canvas_to_json_graph,
-)
-
-from codegen import (
-    to_relative_path,
-    generate_code_from_json,
-    generate_code_from_canvas,
-    save_model_to_folder,
-)
+if __package__:
+    from .model_paths import to_relative_path
+    from .source_renderer import generate_code_from_json, generate_code_from_canvas
+    from .model_storage import save_model_to_folder
+else:
+    from model_paths import to_relative_path
+    from source_renderer import generate_code_from_json, generate_code_from_canvas
+    from model_storage import save_model_to_folder
 
 __all__ = [
     # Common

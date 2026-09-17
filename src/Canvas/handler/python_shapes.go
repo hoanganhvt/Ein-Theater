@@ -36,7 +36,7 @@ func (w *pythonShapeWorker) analyze(graph GraphData, baseDir string) (GraphData,
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.cmd == nil {
-		path := filepath.Join(filepath.Dir(findGenCodePyPath()), "shape_inference.py")
+		path := filepath.Join(filepath.Dir(findGenCodePyPath()), "..", "auto_shape_fitting", "shape_inference.py")
 		cmd := exec.Command("python", "-u", path, "--worker")
 		cmd.Env = append(os.Environ(), "PYTHONDONTWRITEBYTECODE=1")
 		input, err := cmd.StdinPipe()

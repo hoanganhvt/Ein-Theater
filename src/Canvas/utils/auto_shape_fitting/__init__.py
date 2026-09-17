@@ -1,0 +1,1 @@
+"""Auto shape fitting utilities."""

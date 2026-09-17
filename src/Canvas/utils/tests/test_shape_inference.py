@@ -1,7 +1,6 @@
 import copy
 import importlib.util
 import json
-import os
 from pathlib import Path
 import subprocess
 import sys
@@ -9,11 +8,13 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+from bootstrap import UTILS, GENERATOR
+
 import torch
 from torch import nn
 
-from shape_inference import ShapeEngine, infer_shapes, register_module, validate_for_save
-from codegen import save_model_to_folder
+from auto_shape_fitting.shape_inference import ShapeEngine, infer_shapes, register_module, validate_for_save
+from model_storage import save_model_to_folder
 
 
 def node(nid, kind, **params):
@@ -201,20 +202,21 @@ class IntegratedTests(unittest.TestCase):
     def test_compilation_failure_writes_no_variant_folders(self):
         with tempfile.TemporaryDirectory() as root:
             graph = self.nested(root)
-            from codegen import generate_code_from_json
+            from source_renderer import generate_code_from_json
             def generate(data, **kwargs):
                 if kwargs.get('model_name') == 'parent':
                     raise ValueError('intentional failure')
                 return generate_code_from_json(data, **kwargs)
-            with patch('codegen.generate_code_from_json', generate), self.assertRaisesRegex(ValueError, 'intentional'):
+            with patch('model_storage.generate_code_from_json', generate), self.assertRaisesRegex(ValueError, 'intentional'):
                 save_model_to_folder(graph, root)
             self.assertFalse((Path(root)/'parent').exists())
 
     def test_worker_handles_multiple_requests_and_recovers_after_invalid_json(self):
         graph = chain(source(),node('dense','nn.Linear',out_features=3))
         request = json.dumps({'graph':graph})
-        result = subprocess.run([sys.executable,'-B',str(Path(__file__).with_name('shape_inference.py')),'--worker'],
-                                input=request+'\ninvalid\n'+request+'\n',capture_output=True,text=True,check=True)
+        result = subprocess.run([sys.executable,'-B',str(UTILS / 'auto_shape_fitting' / 'shape_inference.py'),'--worker'],
+                                input=request+'\ninvalid\n'+request+'\n',capture_output=True,text=True,check=True,
+                                cwd=tempfile.gettempdir())
         responses = [json.loads(line) for line in result.stdout.splitlines()]
         self.assertEqual(len(responses),3)
         self.assertIn('error',responses[1])

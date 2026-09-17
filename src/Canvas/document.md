@@ -86,15 +86,12 @@ src/Canvas/
 │   ├── canvas.html         # Standalone Canvas mode HTML template
 │   └── sidebar.html        # Mode sidebar fragment loaded dynamically into #sidebarSlot
 └── utils/                  # Canvas mode computational utilities
-    └── generate code/      # PyTorch FX graph tracing & FX code generation engine
-        ├── document.md     # Code generator architecture & CLI compiler reference
-        ├── __init__.py     # Package initialization
-        ├── canvas.py       # Visual schematic JSON to FX computational graph compiler
-        ├── codegen.py      # FX Python code synthesis & model packaging
-        ├── common.py       # Model name sanitization (fix_model_name) & modules.json lookup
-        ├── gen_code.py     # Façade & CLI compiler (--save-canvas, --canvas-json, --out-dir)
-        ├── shape_inference.py # Persistent JSON-lines shape inference worker
-        └── test_shape_inference.py # Tests for shape adaptation
+    |-- document.md             # Utility architecture and module map
+    |-- generate code/          # gen_code.py, FX/source rendering, artifact saving
+    |-- auto_shape_fitting/     # Worker, DAG execution, adapters, nested fitting
+    |-- read_canvas/            # Canvas parsing, connections, saved-canvas reading
+    |-- shared/                 # Naming, constructor registry, edge ordering
+    `-- tests/                  # Generation, worker, and fitting regression tests
 ```
 
 ---
@@ -213,16 +210,17 @@ Each module definition provides:
 
 A modular Python compiler located in [`src/Canvas/utils/generate code/`](./utils/generate%20code/document.md). Invoked by the Go backend via standard input/output pipes or directly via CLI.
 
-Submodules:
-- `gen_code.py`: Façade CLI compiler supporting `--save-canvas` and `--canvas-json`.
-- `canvas.py`: Performs Kahn's topological sort on visual blocks while preserving spatial coordinates, mapping visual edges to computational flow.
-- `shape_inference.py`: Uses `torch` meta tensors to dynamically infer block output shapes.
-- `codegen.py`: Synthesizes standalone, executable PyTorch `nn.Module` source code with device detection (`cuda`/`cpu`) and self-testing entry points, outputting `<model_name>.json` and `<model_name>.py`.
-- `common.py`: Dynamic lookup for `modules.json` and model identifier sanitization (`fix_model_name`).
+Utilities are grouped by responsibility; see the [complete module map](./utils/document.md).
+
+- `utils/generate code/`: `gen_code.py` exposes the CLI/API; FX builders and renderers generate standalone source, and `model_storage.py` coordinates artifact saving.
+- `utils/read_canvas/`: Parse visual blocks and connections, build computational nodes, and read saved editable canvases.
+- `utils/auto_shape_fitting/`: Run the persistent worker, infer shapes with meta tensors, adapt constructors, and fit nested models.
+- `utils/shared/`: Share identifier rules, palette lookup, constructor registry, and numeric edge ordering.
+- `utils/tests/`: Regression coverage for both pipelines, imports, CLI, and worker requests.
 
 ### Python Shape Adaptation (`shape_inference.py`)
 
-Python worker (`src/Canvas/utils/generate code/shape_inference.py`) that evaluates graph connections interactively. It uses PyTorch's `meta` device to execute layer forward passes on dummy tensors, automatically resolving dimensional shape constraints and returning inferred tensor parameters dynamically without allocating real memory or waiting for the code generator to run.
+Python worker (`src/Canvas/utils/auto_shape_fitting/shape_inference.py`) that evaluates graph connections interactively. It uses PyTorch's `meta` device to execute layer forward passes on dummy tensors, automatically resolving dimensional shape constraints and returning inferred tensor parameters dynamically without allocating real memory or waiting for the code generator to run.
 
 ---
 

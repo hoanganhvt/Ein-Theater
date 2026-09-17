@@ -1,13 +1,8 @@
+"""Shared naming rules and module palette discovery."""
 import os
-import sys
 import json
 import re
 from typing import Optional, Dict, Any
-
-_curr_dir = os.path.dirname(os.path.abspath(__file__))
-if _curr_dir not in sys.path:
-    sys.path.insert(0, _curr_dir)
-
 
 def find_modules_json_path() -> Optional[str]:
     """
@@ -146,4 +141,3 @@ def fix_input_name(name: str, fallback_idx: int = 0) -> str:
         clean = f"{clean}_input"
 
     return clean
-

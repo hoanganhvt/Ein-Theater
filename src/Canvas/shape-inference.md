@@ -1,7 +1,11 @@
 # Python shape adaptation
 
-All tensor inference, constructor adaptation, graph execution, and recursive
-integrated-model analysis live in `utils/generate code/shape_inference.py`.
+The public API and worker entry point live in `utils/auto_shape_fitting/shape_inference.py`.
+Implementation is split across `shape_engine.py` (DAG orchestration),
+`shape_interpreter.py` (meta execution), `adapters.py` (constructor adapters),
+`tensor_specs.py` (input validation), and `integrated_models.py` (recursive adaptation).
+The shared registry lives in `utils/shared/module_registry.py`; saved canvas reading
+lives in `utils/read_canvas/saved_canvas.py`. See the [module reference](utils/document.md).
 Go handles HTTP, snapshots, persistence, and communication with a persistent
 Python worker. There are no layer size formulas or adaptation rules in Go.
 
@@ -40,9 +44,11 @@ depends only on their configured parameters need no new shape rule if PyTorch
 supports their meta execution. Constructor adapters are needed only for
 parameters that must be inferred from incoming tensors.
 
+With `src/Canvas/utils` on the Python import path:
+
 ```python
 from torch import nn
-from shape_inference import register_adapter
+from auto_shape_fitting.shape_inference import register_adapter
 
 @register_adapter(nn.Linear)
 def adapt_linear(params, args):
@@ -95,7 +101,7 @@ written, so compilation failures do not leave partially generated subfolders.
 From `src` with Python and PyTorch installed:
 
 ```powershell
-python -B -m unittest discover -s 'Canvas/utils/generate code' -p test_shape_inference.py -v
+python -B -m unittest discover -s 'src/Canvas/utils/tests' -p 'test_*.py' -v
 go test ./...
 node Canvas/static/js/api.test.mjs
 ```
