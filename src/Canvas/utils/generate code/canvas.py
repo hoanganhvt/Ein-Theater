@@ -55,9 +55,15 @@ def canvas_to_json_graph(canvas_data):
 
     modules_map = load_modules_map()
 
-    nodes = data.get('nodes', [])
-    edges = data.get('edges', [])
-    raw_name = data.get('name', 'Untitled_Model').strip() or 'Untitled_Model'
+    # If the payload is already a generated model with a 'canvas' object, extract the canvas data
+    if 'canvas' in data and isinstance(data['canvas'], dict):
+        canvas_payload = data['canvas']
+    else:
+        canvas_payload = data
+
+    nodes = canvas_payload.get('nodes', [])
+    edges = canvas_payload.get('edges', [])
+    raw_name = data.get('name', canvas_payload.get('name', 'Untitled_Model')).strip() or 'Untitled_Model'
     model_name = fix_model_name(raw_name)
 
     if not nodes:
@@ -144,6 +150,7 @@ def canvas_to_json_graph(canvas_data):
 
             fx_nodes.append({
                 'id': var_name,
+                'canvas_id': str(nid),
                 'op': 'placeholder',
                 'target': var_name,
                 'type': 'input',
@@ -233,6 +240,7 @@ def canvas_to_json_graph(canvas_data):
 
         node_meta[nid] = {
             'target': target,
+            'canvas_id': str(nid),
             'layer_type': actual_type,
             'params': merged_params,
             'codeTemplate': code_template,
@@ -284,6 +292,7 @@ def canvas_to_json_graph(canvas_data):
     def make_module_node(target, meta, inputs, args_str, in_forward=True):
         return {
             'id': target,
+            'canvas_id': meta.get('canvas_id', ''),
             'op': 'call_module',
             'target': target,
             'type': meta.get('layer_type', 'nn.Identity'),
@@ -390,9 +399,9 @@ def canvas_to_json_graph(canvas_data):
             target_v = node_targets.get(v, v)
             meta_v = node_meta.get(v, {})
 
-            is_output = ('output' in v_type_lower or 'output' in v_label_lower or 'return' in v_label_lower)
-            is_explicit_add = ('add' in v_type_lower or 'add' in v_label_lower)
-            is_explicit_concat = ('cat' in v_type_lower or 'concat' in v_label_lower or v_type_lower == 'torch.cat')
+            is_output = (v_type_lower == 'output')
+            is_explicit_add = (v_type_lower == 'add')
+            is_explicit_concat = (v_type_lower in ('cat', 'concat', 'torch.cat'))
 
             if is_output:
                 var_names[v] = feed_sources[0] if feed_sources else primary_input_var
@@ -540,6 +549,10 @@ def canvas_to_json_graph(canvas_data):
         # If there are no edges, do not force any calls into the forward function
         for nid, meta in node_meta.items():
             fx_nodes.append(make_module_node(meta['target'], meta, [], '', in_forward=False))
+
+    print(f"DEBUG topo_order: {topo_order}")
+    print(f"DEBUG valid_edges: {[(e['from'], e['to']) for e in valid_edges]}")
+    print(f"DEBUG fx_nodes: {[n['id'] for n in fx_nodes]}")
 
     return json.dumps({
         'metadata': {

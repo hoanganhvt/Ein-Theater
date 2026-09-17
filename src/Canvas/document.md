@@ -87,12 +87,12 @@ src/Canvas/
 │   └── sidebar.html        # Mode sidebar fragment loaded dynamically into #sidebarSlot
 └── utils/                  # Canvas mode computational utilities
     ├── auto shape size fit/# Planned module for automated tensor dimension propagation
-    └── generate code/      # PyTorch FX graph tracing & AST code generation engine
+    └── generate code/      # PyTorch FX graph tracing & FX code generation engine
         ├── document.md     # Code generator architecture & CLI compiler reference
         ├── __init__.py     # Package initialization
         ├── canvas.py       # Visual schematic JSON to FX computational graph compiler
         ├── classifier.py   # Connection semantics classifier (normal, skip, residual, gated)
-        ├── codegen.py      # AST Python code synthesis & model packaging
+        ├── codegen.py      # FX Python code synthesis & model packaging
         ├── common.py       # Model name sanitization (fix_model_name) & modules.json lookup
         ├── gen_code.py     # Façade & CLI compiler (--save-canvas, --canvas-json, --out-dir)
         └── tracer.py       # PyTorch FX symbolic tracer & parameter extraction
@@ -155,7 +155,7 @@ go run Canvas/canvas.go
    │       Python FX Code Generator (Canvas/utils/generate code) │
    │   canvas_to_json_graph (Topological Sort + Coordinates)     │
    │   classify_connection (Residual, Skip Concat, Gated)        │
-   │   generate_code_from_json (Standalone nn.Module AST Gen)   │
+   │   generate_code_from_json (Standalone nn.Module FX Gen)   │
    │   save_model_to_folder (<name>/<name>.json + <name>.py)     │
    └─────────────────────────────────────────────────────────────┘
 ```
@@ -208,7 +208,7 @@ Each module definition provides:
 - `defaultInSeed`: Boolean indicating if the layer appears in the sidebar Fundamental Blocks palette.
 - `labelTemplate`: String template for canvas block label rendering.
 - `fields`: Array of parameter definitions (`key`, `label`, `type`, `default`, `min`, `max`, `step`).
-- `code`: Python constructor invocation template used during AST code synthesis.
+- `code`: Python constructor invocation template used during FX code synthesis.
 
 ### Python FX Code Generation Engine (`utils/generate code/`)
 
@@ -373,6 +373,6 @@ For deep technical dives into individual subsystems within Canvas, refer to:
 
 - [`handler/document.md`](./handler/document.md) — Detailed Go backend architecture, concurrency model, data structs, and handler implementations.
 - [`static/js/document.md`](./static/js/document.md) — Comprehensive frontend client architecture, Vis.js custom rendering pipeline, PCB circuit line algorithms, and reactive state management.
-- [`utils/generate code/document.md`](./utils/generate%20code/document.md) — PyTorch FX symbolic tracing, connection classification, AST code generation engine, and CLI compiler reference.
+- [`utils/generate code/document.md`](./utils/generate%20code/document.md) — PyTorch FX symbolic tracing, connection classification, FX code generation engine, and CLI compiler reference.
 - [`utils/auto shape size fit/document.md`](./utils/auto%20shape%20size%20fit/document.md) — Automated tensor shape propagation, dimension inference, and skip/residual padding auto-resolution engine.
 - [Root Project Documentation](../../document.md) — High-level architecture, quickstart guide, and global system overview.

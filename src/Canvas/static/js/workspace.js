@@ -503,11 +503,9 @@ export async function saveActiveModel() {
         const folderName = res.folderName || modelName;
         await loadProjects();
 
-        // Refresh canvas graph to show any fitted parameters in visual node cards
         const totalAdjustments = (res.adjustments?.length || 0) + (res.padding_adjustments?.length || 0);
-        if (totalAdjustments > 0) {
-            await loadGraph();
-        }
+        // Refresh canvas graph to show any fitted parameters in visual node cards
+        await loadGraph();
 
         const title = document.getElementById('modelTitle');
         if (title && modelName) {

@@ -1,6 +1,8 @@
 import os
 import sys
 import json
+import torch
+import torch.fx as fx
 
 _curr_dir = os.path.dirname(os.path.abspath(__file__))
 if _curr_dir not in sys.path:
@@ -356,17 +358,17 @@ def save_model_to_folder(canvas_data, output_dir=None, confirm_autofit=False):
     }
 
 
-def generate_code_from_json(json_data, model_name=None, base_dir=None, **kwargs):
+def generate_code_from_json(json_data, model_name=None, base_dir=None, shapes=None, **kwargs):
     """
     Synthesizes standalone executable PyTorch nn.Module Python code
-    from computational graph JSON.
+    from computational graph JSON using torch.fx.Graph.
+    Annotates tensor shapes in forward pass using auto shape size fit results.
     """
     if isinstance(json_data, str):
         data = json.loads(json_data)
     else:
         data = json_data
 
-    # If canvas graph data is passed, convert to FX graph JSON first
     if isinstance(data, dict) and ('edges' in data or (len(data.get('nodes', [])) > 0 and 'op' not in data['nodes'][0])):
         if not model_name and 'name' in data:
             model_name = data['name']
@@ -386,9 +388,6 @@ def generate_code_from_json(json_data, model_name=None, base_dir=None, **kwargs)
     else:
         class_name = fix_model_name(str(model_name))
 
-    modules_map = load_modules_map()
-
-    # Integrated models import
     integrated_imports = []
     seen_integrated = set()
     for node in nodes:
@@ -409,179 +408,147 @@ def generate_code_from_json(json_data, model_name=None, base_dir=None, **kwargs)
                         f"from {sub_name} import {sub_name}"
                     )
 
-    imports = "import torch\nimport torch.nn as nn\nimport operator\n"
+    imports = "import torch\nimport torch.nn as nn\n"
     if integrated_imports:
         imports += "import sys\nimport os\n\n_curr_dir = os.path.dirname(os.path.abspath(__file__))\n\n"
         imports += "\n".join(integrated_imports) + "\n\n"
     else:
         imports += "\n"
 
-    header = f"class {class_name}(nn.Module):\n    def __init__(self, device='{device}'):\n        super().__init__()\n        self.device = device\n"
-
-    init_code = ""
-    forward_code = "    def forward(self, "
-
-    inputs = []
-    input_comments = []
+    graph = fx.Graph()
+    env = {}
+    init_lines = []
+    target_to_canvas = {}
 
     for node in nodes:
-        if node['op'] == 'placeholder':
-            in_id = node['id']
-            inputs.append(in_id)
-            itype = node.get('input_type') or node.get('params', {}).get('input_type', '')
-            shape = node.get('params', {}).get('shape', '')
-            bs = node.get('params', {}).get('batch_size', 1)
-            dtype = node.get('params', {}).get('dtype', '')
-            if itype:
-                shape_desc = f", shape: [{bs}, {', '.join(str(s) for s in shape)}]" if shape else ""
-                dtype_desc = f", dtype: torch.{dtype}" if dtype else ""
-                input_comments.append(f"        # {in_id}: {itype.capitalize()}{shape_desc}{dtype_desc}")
+        op = node['op']
+        nid = node['id']
+        target = node.get('target', nid)
+        target_to_canvas[target] = node.get('canvas_id', '')
 
-    if not inputs:
-        inputs = ['x']
+        if op == 'placeholder':
+            env[nid] = graph.placeholder(target)
+            
+        elif op == 'call_module':
+            inputs = [env[i] for i in node.get('inputs', []) if i in env]
+            env[nid] = graph.call_module(target, args=tuple(inputs))
 
-    forward_code += ", ".join(inputs) + "):\n"
-    if input_comments:
-        forward_code += "\n".join(input_comments) + "\n"
-
-    instantiated_modules = set()
-    forward_lines = []
-
-    for node in nodes:
-        if node['op'] == 'placeholder':
-            continue
-
-        edge_comment = ""
-        if node.get('edge_comments'):
-            edge_comment = "".join([f"        # {c}\n" for c in node['edge_comments']])
-        elif 'edge_index' in node and node['edge_index'] is not None:
-            edge_type = node.get('edge_type', '')
-            if edge_type == 'residual':
-                edge_comment = f"        # Residual Edge #{node['edge_index']}: {node.get('edge_from', '')} -> {node.get('edge_to', '')}\n"
-            elif edge_type == 'skip':
-                edge_comment = f"        # Skip Edge #{node['edge_index']}: {node.get('edge_from', '')} -> {node.get('edge_to', '')}\n"
+            codeTemplate = node.get('codeTemplate', '')
+            params = node.get('params', {})
+            if codeTemplate:
+                try:
+                    instantiation = codeTemplate.format(**params)
+                except KeyError:
+                    instantiation = codeTemplate
+                init_lines.append(f"        self.{target} = {instantiation}")
             else:
-                edge_comment = f"        # Special Edge #{node['edge_index']}: {node.get('edge_from', '')} -> {node.get('edge_to', '')}\n"
+                layer_type = node.get('layer_type', 'nn.Identity')
+                init_lines.append(f"        self.{target} = {layer_type}()")
 
-        if node['op'] == 'call_module':
-            safe_target = node['target'].replace('.', '_')
-            if safe_target not in instantiated_modules:
-                instantiated_modules.add(safe_target)
-                is_sub = node.get('is_integrated') or (isinstance(node.get('params'), dict) and bool(node.get('params', {}).get('model_path')))
-                if is_sub:
-                    sub_name = node.get('model_name') or node.get('type')
-                    p_map = node.get('params', {}) or {}
-                    raw_w = str(node.get('weights_path') or p_map.get('weights_path', '')).strip()
-                    rel_w = to_relative_path(raw_w, base_dir=base_dir) if raw_w else ""
-                    freeze = bool(node.get('freeze_weights', p_map.get('freeze_weights', False)))
-
-                    init_code += f"        # Integrated Model: {sub_name}\n"
-                    init_code += f"        self.{safe_target} = {sub_name}(device=self.device)\n"
-                    init_code += f"        # [Coming Soon] Load weights from checkpoint\n"
-                    init_code += f"        weights_path = r\"{rel_w}\"\n"
-                    init_code += f"        if weights_path:\n"
-                    init_code += f"            # self.{safe_target}.load_state_dict(torch.load(weights_path, map_location=self.device))\n"
-                    init_code += f"            pass\n"
-                    init_code += f"        # [Coming Soon] Freeze model weights\n"
-                    init_code += f"        freeze_weights = {freeze}\n"
-                    init_code += f"        if freeze_weights:\n"
-                    init_code += f"            # for p in self.{safe_target}.parameters():\n"
-                    init_code += f"            #     p.requires_grad = False\n"
-                    init_code += f"            pass\n"
+        elif op == 'call_function':
+            inputs = [env[i] for i in node.get('inputs', []) if i in env]
+            if target == 'cat':
+                env[nid] = graph.call_function(torch.cat, args=(inputs,), kwargs={'dim': 1})
+            elif target == 'add':
+                env[nid] = graph.call_function(torch.add, args=tuple(inputs))
+            elif target == 'mul':
+                env[nid] = graph.call_function(torch.mul, args=tuple(inputs))
+            else:
+                func = getattr(torch, target, getattr(torch.nn.functional, target, None))
+                if func:
+                    env[nid] = graph.call_function(func, args=tuple(inputs))
                 else:
-                    params = dict(node.get('params', {}) or {})
-                    if not params:
-                        mod_def = modules_map.get(node.get('type', ''), {})
-                        if 'fields' in mod_def:
-                            for f in mod_def['fields']:
-                                if 'default' in f:
-                                    params[f['key']] = f['default']
-                    try:
-                        template = node.get('codeTemplate', '')
-                        if template:
-                            instantiation = template.format(**params)
-                        else:
-                            raise ValueError("no template")
-                    except Exception:
-                        args_parts = [f"{k}={repr(v)}" for k, v in params.items() if k != 'customArgs']
-                        if not args_parts and params.get('customArgs'):
-                            args_parts = [params['customArgs']]
-                        instantiation = f"{node.get('type', 'nn.Identity')}({', '.join(args_parts)})"
-                    init_code += f"        self.{safe_target} = {instantiation}\n"
+                    env[nid] = graph.call_function(torch.add, args=tuple(inputs))
 
-            if node.get('in_forward', True) and node.get('args_str'):
-                line = ""
-                if edge_comment:
-                    line += edge_comment
-                line += f"        {node['id']} = self.{safe_target}({node.get('args_str', '')})\n"
-                forward_lines.append(line)
+        elif op == 'accumulate':
+            inputs = [env[i] for i in node.get('inputs', []) if i in env]
+            env[nid] = graph.call_function(torch.add, args=tuple(inputs))
 
-        elif node['op'] == 'assign':
-            if node.get('in_forward', True):
-                line = ""
-                if edge_comment:
-                    line += edge_comment
-                line += f"        {node['id']} = {node.get('args_str', '')}\n"
-                forward_lines.append(line)
+        elif op == 'assign':
+            if node.get('inputs') and node['inputs'][0] in env:
+                env[nid] = env[node['inputs'][0]]
 
-        elif node['op'] == 'accumulate':
-            if node.get('in_forward', True):
-                line = ""
-                if edge_comment:
-                    line += edge_comment
-                line += f"        {node['id']} = {node['id']} + {node.get('args_str', '')}\n"
-                forward_lines.append(line)
+        elif op == 'output':
+            inputs = [env[i] for i in node.get('inputs', []) if i in env]
+            if len(inputs) == 1:
+                graph.output(inputs[0])
+            elif len(inputs) > 1:
+                graph.output(tuple(inputs))
 
-        elif node['op'] == 'call_function':
-            if node.get('in_forward', True):
-                line = ""
-                if edge_comment:
-                    line += edge_comment
-                target = node['target']
-                args_str = node.get('args_str', '')
-                if target in ('add', 'mul', 'sub', 'getitem', 'floordiv', 'truediv', 'pow'):
-                    func = f"operator.{target}"
-                elif target in ('cat', 'stack', 'relu', 'sigmoid', 'tanh', 'softmax', 'flatten', 'matmul', 'arange'):
-                    func = f"torch.{target}"
-                    if target == 'arange':
-                        if args_str:
-                            args_str += ", device=self.device"
-                        else:
-                            args_str = "device=self.device"
-                else:
-                    func = target
-                line += f"        {node['id']} = {func}({args_str})\n"
-                forward_lines.append(line)
-
-        elif node['op'] == 'call_method':
-            if node.get('in_forward', True):
-                line = ""
-                if edge_comment:
-                    line += edge_comment
-                obj = node['inputs'][0]
-                args_str = node.get('args_str', '')
-                if args_str.startswith(obj):
-                    rest = args_str[len(obj):].lstrip(', ')
-                else:
-                    rest = ""
-                line += f"        {node['id']} = {obj}.{node['target']}({rest})\n"
-                forward_lines.append(line)
-
-        elif node['op'] == 'output':
-            outputs_str = ", ".join(node['inputs'])
-            if outputs_str:
-                forward_lines.append(f"        return {outputs_str}\n")
-
-    if forward_lines:
-        forward_code += "".join(forward_lines)
-    else:
-        forward_code += "        pass\n"
-
-    if not init_code:
-        init_code = ""
-    init_code += "        self.to(self.device)\n"
-
-    code = imports + header + init_code + "\n" + forward_code
+    python_code = graph.python_code(root_module="self")
     
-    code += f"\n\n# steve once here\n\n"
-    return code
+    # Annotate forward pass with shapes
+    forward_lines = []
+    for line in python_code.src.splitlines():
+        clean_line = line.strip()
+        if "=" in clean_line and not clean_line.startswith("return"):
+            var_name = clean_line.split("=")[0].strip()
+            canvas_id = target_to_canvas.get(var_name)
+            if canvas_id and shapes and canvas_id in shapes:
+                shape_str = str(shapes[canvas_id])
+                # Add comment before the actual code execution
+                forward_lines.append(f"        # {var_name} shape: {shape_str}")
+        if clean_line:
+            forward_lines.append("    " + line)
+            
+    if not forward_lines:
+        forward_lines.append("        pass")
+
+    indented_forward = "\n".join(forward_lines)
+    init_src = "\n".join(init_lines)
+
+    test_inputs = []
+    test_calls = []
+    for node in nodes:
+        if node['op'] == 'placeholder':
+            params = node.get('params', {})
+            shape = params.get('shape', [64])
+            batch = params.get('batch_size', 1)
+            dtype = params.get('dtype', 'float32')
+            
+            # parse string shapes
+            if isinstance(shape, str):
+                cleaned = shape.strip("()[] ")
+                parts = [p.strip() for p in cleaned.split(",") if p.strip()]
+                shape = [int(p) for p in parts]
+                
+            if isinstance(shape, (list, tuple)):
+                full_shape = [batch] + list(shape)
+            else:
+                full_shape = [batch, shape]
+            
+            if dtype.startswith('int') or dtype == 'long':
+                test_inputs.append(f"    {node['id']} = torch.randint(0, 100, {full_shape})")
+            else:
+                test_inputs.append(f"    {node['id']} = torch.randn({full_shape})")
+            test_calls.append(node['id'])
+    
+    test_inputs_str = "\n".join(test_inputs)
+    test_calls_str = ", ".join(test_calls)
+    
+    full_source = f'''{imports}
+class {class_name}(nn.Module):
+    def __init__(self, device='{device}'):
+        super().__init__()
+        self.device = device
+{init_src}
+
+{indented_forward}
+
+if __name__ == '__main__':
+    print("Testing {class_name}...")
+    model = {class_name}()
+    
+{test_inputs_str}
+    
+    try:
+        output = model({test_calls_str})
+        print("Forward pass successful!")
+        if isinstance(output, torch.Tensor):
+            print("Output shape:", output.shape)
+        elif isinstance(output, tuple):
+            print("Output shapes:", [o.shape for o in output])
+    except Exception as e:
+        print("Forward pass failed:", e)
+'''
+    return full_source

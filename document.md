@@ -168,7 +168,7 @@ Ein Theater/
         │       ├── __init__.py # Package initialization
         │       ├── canvas.py   # Visual schematic JSON to FX computational graph compiler
         │       ├── classifier.py # Connection semantics classifier (normal, skip, residual, gated)
-        │       ├── codegen.py  # AST Python code synthesis & model packaging
+        │       ├── codegen.py  # FX Python code synthesis & model packaging
         │       ├── common.py   # Model identifier sanitization & modules.json lookup
         │       ├── gen_code.py # Core FX tracer, connection classifier, AST code generator & CLI compiler
         │       └── tracer.py   # PyTorch FX symbolic tracer & parameter extraction
@@ -498,5 +498,5 @@ For in-depth developer documentation of internal subsystems, refer to:
 - [`src/Canvas/document.md`](./src/Canvas/document.md) — Comprehensive overview of the Canvas mode subsystem (architecture, execution modes, and component integration).
 - [`src/Canvas/handler/document.md`](./src/Canvas/handler/document.md) — Detailed Go backend architecture, concurrency model, data structs, and handler implementations.
 - [`src/Canvas/static/js/document.md`](./src/Canvas/static/js/document.md) — Comprehensive frontend client architecture, Vis.js custom rendering pipeline, PCB circuit line algorithms, and reactive state management.
-- [`src/Canvas/utils/generate code/document.md`](./src/Canvas/utils/generate%20code/document.md) — PyTorch FX symbolic tracing, connection classification, AST code generation engine, and CLI compiler reference.
+- [`src/Canvas/utils/generate code/document.md`](./src/Canvas/utils/generate%20code/document.md) — PyTorch FX symbolic tracing, connection classification, FX code generation engine, and CLI compiler reference.
 - [`src/Canvas/utils/auto shape size fit/document.md`](./src/Canvas/utils/auto%20shape%20size%20fit/document.md) — Automated tensor shape propagation, dimension inference, and skip/residual padding auto-resolution engine.

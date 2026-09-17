@@ -629,14 +629,16 @@ func LoadModelHandler(w http.ResponseWriter, r *http.Request) {
 	p.edges = make(map[string]Edge)
 
 	for _, n := range graphData.Nodes {
-		if strings.Contains(n.ID, "_") {
-			n.Label = strings.ReplaceAll(n.ID, "_", " ")
-		} else {
-			prefix := layerTypeToPrefix(n.LayerType)
-			if n.ID != "" {
-				n.Label = fmt.Sprintf("%s %s", prefix, n.ID)
+		if n.Label == "" {
+			if strings.Contains(n.ID, "_") {
+				n.Label = strings.ReplaceAll(n.ID, "_", " ")
 			} else {
-				n.Label = prefix
+				prefix := layerTypeToPrefix(n.LayerType)
+				if n.ID != "" {
+					n.Label = fmt.Sprintf("%s %s", prefix, n.ID)
+				} else {
+					n.Label = prefix
+				}
 			}
 		}
 		p.nodes[n.ID] = n
