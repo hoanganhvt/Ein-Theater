@@ -12,17 +12,7 @@ import (
 // DataHandler returns the current project's graph data.
 func DataHandler(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
-	defer mu.Unlock()
 	p := cur()
-	data := GraphData{
-		ProjectID: p.ID,
-		Name:      p.Name,
-		Nodes:     []Node{},
-		Edges:     []Edge{},
-	}
-	for _, n := range p.nodes {
-		data.Nodes = append(data.Nodes, n)
-	}
 	p.reindexEdges()
 	for _, eid := range p.edgeOrder {
 		if e, ok := p.edges[eid]; ok {
@@ -34,9 +24,27 @@ func DataHandler(w http.ResponseWriter, r *http.Request) {
 					p.edges[e.ID] = e
 				}
 			}
-			data.Edges = append(data.Edges, e)
 		}
 	}
+	snapshot := p.graphSnapshot()
+	baseDir := p.baseDir
+	if baseDir == "" {
+		baseDir = workingDir
+	}
+	mu.Unlock()
+	analyzed, err := analyzeGraph(snapshot, baseDir)
+	if err != nil {
+		analyzed = snapshot
+		analyzed.Nodes = append([]Node(nil), snapshot.Nodes...)
+		for i := range analyzed.Nodes {
+			analyzed.Nodes[i].AdaptedModel = nil
+			analyzed.Nodes[i].TensorInfo = &TensorInfo{Message: "Python shape analysis unavailable: " + err.Error()}
+		}
+	}
+	mu.Lock()
+	p.applyAnalysis(snapshot, analyzed)
+	data := p.graphSnapshot()
+	mu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
 }
@@ -152,12 +160,12 @@ func UpdateNodeHandler(w http.ResponseWriter, r *http.Request) {
 	if req.Params != nil {
 		node.Params = req.Params
 	}
-	
+
 	if req.Parent != nil {
-	    node.Parent = *req.Parent
+		node.Parent = *req.Parent
 	}
 	if req.ParentZone != nil {
-	    node.ParentZone = *req.ParentZone
+		node.ParentZone = *req.ParentZone
 	}
 
 	p.nodes[req.ID] = node
@@ -639,9 +647,9 @@ func PasteGraphHandler(w http.ResponseWriter, r *http.Request) {
 				for _, l := range e.Lines {
 					newLines = append(newLines, Line{
 						First: Point{X: l.First.X + req.Dx, Y: l.First.Y + req.Dy},
-						Last:  Point{X: l.Last.X + req.Dx,  Y: l.Last.Y + req.Dy},
-						From:  Point{X: l.From.X + req.Dx,  Y: l.From.Y + req.Dy},
-						To:    Point{X: l.To.X + req.Dx,    Y: l.To.Y + req.Dy},
+						Last:  Point{X: l.Last.X + req.Dx, Y: l.Last.Y + req.Dy},
+						From:  Point{X: l.From.X + req.Dx, Y: l.From.Y + req.Dy},
+						To:    Point{X: l.To.X + req.Dx, Y: l.To.Y + req.Dy},
 					})
 				}
 			} else {

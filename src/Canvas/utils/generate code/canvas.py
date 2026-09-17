@@ -225,9 +225,20 @@ def canvas_to_json_graph(canvas_data):
                     defaults[f['key']] = f['default']
         merged_params = {**defaults, **params}
 
+        constructor_resolved = False
         if is_integrated:
             code_template = f"{sub_name}()"
             actual_type = sub_name
+        elif layer_type.startswith('nn.') and not params.get('customArgs'):
+            from shape_inference import module_class, constructor_kwargs, parameters
+            merged_params = parameters(node)
+            ctor = constructor_kwargs(module_class(layer_type), merged_params)
+            # Use the same constructor arguments as dummy execution, including
+            # inferred fields absent from older palette code templates.
+            arguments = ', '.join(f'{key}={value!r}' for key, value in ctor.items())
+            code_template = f'{layer_type}({arguments})'
+            actual_type = layer_type
+            constructor_resolved = True
         elif not code_template:
             if 'customArgs' in params and params['customArgs']:
                 code_template = f"{layer_type}({params['customArgs']})"
@@ -244,6 +255,7 @@ def canvas_to_json_graph(canvas_data):
             'layer_type': actual_type,
             'params': merged_params,
             'codeTemplate': code_template,
+            'constructorResolved': constructor_resolved,
             'is_integrated': is_integrated,
             'model_name': sub_name,
             'model_path': params.get('model_path', ''),
@@ -276,6 +288,7 @@ def canvas_to_json_graph(canvas_data):
             'args_str': args_str,
             'params': meta.get('params', {}),
             'codeTemplate': meta.get('codeTemplate', ''),
+            'constructorResolved': meta.get('constructorResolved', False),
             'is_integrated': meta.get('is_integrated', False),
             'model_name': meta.get('model_name', ''),
             'model_path': meta.get('model_path', ''),
@@ -362,12 +375,17 @@ def canvas_to_json_graph(canvas_data):
             is_output = (v_type_lower == 'output')
             is_explicit_add = (v_type_lower in ('add', 'torch.add'))
             is_explicit_concat = (v_type_lower in ('cat', 'concat', 'torch.cat'))
+            is_tensor_select = (v_type_lower == 'operator.getitem')
 
             if is_output:
                 var_names[v] = feed_sources[0] if feed_sources else primary_input_var
                 continue
 
-            if is_explicit_concat:
+            if is_tensor_select:
+                var_names[v] = target_v
+                fx_nodes.append({'id': target_v, 'op': 'call_function', 'target': 'getitem',
+                                 'inputs': feed_sources, 'params': meta_v.get('params', {})})
+            elif is_explicit_concat:
                 var_names[v] = target_v
                 sources = feed_sources if feed_sources else [primary_input_var]
                 dim = meta_v.get('params', {}).get('dim', 1)
@@ -402,7 +420,8 @@ def canvas_to_json_graph(canvas_data):
                 # Standard PyTorch nn.Module layer (e.g. nn.Conv2d, nn.Linear, IntegratedModel)
                 var_names[v] = target_v
                 src = feed_sources[0] if feed_sources else primary_input_var
-                entry = make_module_node(target_v, meta_v, [src], src)
+                sources = feed_sources or [src]
+                entry = make_module_node(target_v, meta_v, sources, ', '.join(sources))
                 fx_nodes.append(entry)
 
         # Leaf outputs: nodes with inputs but no outgoing edges

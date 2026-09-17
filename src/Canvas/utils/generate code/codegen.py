@@ -4,6 +4,10 @@ import json
 import torch
 import torch.fx as fx
 import ast
+import copy
+import hashlib
+import re
+import operator
 
 _curr_dir = os.path.dirname(os.path.abspath(__file__))
 if _curr_dir not in sys.path:
@@ -57,6 +61,22 @@ def save_model_to_folder(canvas_data, output_dir=None, **kwargs):
         data = json.loads(canvas_data)
     else:
         data = canvas_data
+    data = copy.deepcopy(data)
+    # Prepare every nested model before writing any files. Failed compilation
+    # must not leave a parent pointing at an incomplete adapted child.
+    plan = kwargs.get('_plan')
+    root_save = plan is None
+    if root_save:
+        plan = []
+        from shape_inference import infer_shapes, validate_for_save
+        data = infer_shapes(data, kwargs.get('base_dir') or output_dir or os.getcwd())
+        validate_for_save(data)
+    depth = kwargs.get('_depth', 0)
+    if depth > 32:
+        raise ValueError('Integrated model nesting exceeds 32 levels')
+    adapted_folders = kwargs.get('_adapted_folders')
+    if adapted_folders is None:
+        adapted_folders = []
 
     raw_name = data.get('name', 'Untitled_Model').strip() or 'Untitled_Model'
     safe_name = fix_model_name(raw_name)
@@ -65,7 +85,24 @@ def save_model_to_folder(canvas_data, output_dir=None, **kwargs):
         output_dir = os.getcwd()
 
     target_folder = os.path.join(output_dir, safe_name)
-    os.makedirs(target_folder, exist_ok=True)
+    for node in data.get('nodes', []):
+        adapted = node.pop('adaptedModel', None)
+        if adapted is None:
+            continue
+        params = node.setdefault('params', {})
+        identity = {'source': params.get('model_path', ''), 'canvas': adapted}
+        digest = hashlib.sha256(json.dumps(identity, sort_keys=True).encode('utf-8')).hexdigest()[:16]
+        base_name = fix_model_name(adapted.get('name') or params.get('model_name') or 'Model')
+        base_name = re.sub(r'(?:_adapted_[0-9a-f]{16})+$', '', base_name)
+        variant_name = f'{base_name}_adapted_{digest}'
+        adapted['name'] = variant_name
+        child = save_model_to_folder(adapted, target_folder, _plan=plan,
+                                     _depth=depth + 1, _adapted_folders=adapted_folders)
+        params['model_name'] = variant_name
+        params['model_path'] = os.path.abspath(child['folder'])
+        params['weights_path'] = ''
+        params['freeze_weights'] = False
+        adapted_folders.append(child['folder'])
 
     # 1. Generate computational graph directly from canvas
     raw_graph_str = canvas_to_json_graph(data)
@@ -103,15 +140,15 @@ def save_model_to_folder(canvas_data, output_dir=None, **kwargs):
     json_file_path = os.path.join(target_folder, f"{safe_name}.json")
     py_file_path = os.path.join(target_folder, f"{safe_name}.py")
 
-    with open(json_file_path, 'w', encoding='utf-8') as f:
-        f.write(final_graph_str)
-
-    clean_ast = ast.parse(py_code)
-    pycode = ast.unparse(clean_ast)
-
-    with open(py_file_path, 'w', encoding='utf-8') as f:
-        f.write(py_code)
-        print("steve done writing cool codes for you!")
+    ast.parse(py_code)
+    plan.append((target_folder, json_file_path, final_graph_str, py_file_path, py_code))
+    if root_save:
+        for folder, json_path, graph_text, py_path, source in plan:
+            os.makedirs(folder, exist_ok=True)
+            with open(json_path, 'w', encoding='utf-8') as f:
+                f.write(graph_text)
+            with open(py_path, 'w', encoding='utf-8') as f:
+                f.write(source)
 
     return {
         'status': 'ok',
@@ -119,7 +156,8 @@ def save_model_to_folder(canvas_data, output_dir=None, **kwargs):
         'folderName': safe_name,
         'jsonFile': json_file_path,
         'pyFile': py_file_path,
-        'modelName': safe_name
+        'modelName': safe_name,
+        'adaptedModels': list(dict.fromkeys(adapted_folders)) if root_save else []
     }
 
 
@@ -197,7 +235,10 @@ def generate_code_from_json(json_data, model_name=None, base_dir=None, **kwargs)
 
             codeTemplate = node.get('codeTemplate', '')
             params = node.get('params', {})
-            if codeTemplate:
+            if node.get('constructorResolved'):
+                instantiation = codeTemplate
+                init_lines.append(f"        self.{target} = {instantiation}")
+            elif codeTemplate:
                 try:
                     instantiation = codeTemplate.format(**params)
                 except KeyError:
@@ -228,6 +269,8 @@ def generate_code_from_json(json_data, model_name=None, base_dir=None, **kwargs)
                     for inp in inputs[1:]:
                         acc = graph.call_function(torch.add, args=(acc, inp))
                     env[nid] = acc
+            elif target == 'getitem':
+                env[nid] = graph.call_function(operator.getitem, args=(inputs[0], node.get('params', {}).get('index', 0)))
             elif target == 'mul':
                 env[nid] = graph.call_function(torch.mul, args=tuple(inputs))
             else:

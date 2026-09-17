@@ -393,24 +393,12 @@ func SaveModelHandler(w http.ResponseWriter, r *http.Request) {
 		p.Name = FixModelName(p.Name)
 	}
 
-	// Prepare graph data
-	nodesList := make([]Node, 0, len(p.nodes))
-	for _, n := range p.nodes {
-		nodesList = append(nodesList, n)
-	}
+	// Python performs fresh graph adaptation and validation before generation.
 	p.reindexEdges()
-	edgesList := make([]Edge, 0, len(p.edgeOrder))
-	for _, eid := range p.edgeOrder {
-		if e, ok := p.edges[eid]; ok {
-			edgesList = append(edgesList, e)
-		}
-	}
-
-	graphPayload := GraphData{
-		ProjectID: p.ID,
-		Name:      p.Name,
-		Nodes:     nodesList,
-		Edges:     edgesList,
+	graphPayload := p.graphSnapshot()
+	baseDir := p.baseDir
+	if baseDir == "" {
+		baseDir = workingDir
 	}
 	mu.Unlock()
 
@@ -440,8 +428,9 @@ func SaveModelHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	genCodePyPath := findGenCodePyPath()
-	cmdArgs := []string{genCodePyPath, "--save-canvas", "-", "--out-dir", cleanTarget}
+	cmdArgs := []string{genCodePyPath, "--save-canvas", "-", "--out-dir", cleanTarget, "--base-dir", baseDir}
 	cmd := exec.Command("python", cmdArgs...)
+	cmd.Env = append(os.Environ(), "PYTHONDONTWRITEBYTECODE=1")
 	cmd.Stdin = strings.NewReader(string(canvasBytes))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -456,11 +445,19 @@ func SaveModelHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status": "ok",
 			"raw":    outStr,
-			"folder": filepath.Join(cleanTarget, p.Name),
+			"folder": filepath.Join(cleanTarget, graphPayload.Name),
 		})
 		return
 	}
 
+	// Only adopt the generated references if the canvas has not changed while
+	// Python was running. Never replace newer edits with an older save snapshot.
+	savedFolder, _ := filepath.Abs(filepath.Join(cleanTarget, graphPayload.Name))
+	if saved, readErr := readModelCanvas(savedFolder); readErr == nil {
+		mu.Lock()
+		p.adoptSavedIntegrations(graphPayload, saved, savedFolder)
+		mu.Unlock()
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
@@ -592,8 +589,12 @@ func LoadModelHandler(w http.ResponseWriter, r *http.Request) {
 
 	p.nodes = make(map[string]Node)
 	p.edges = make(map[string]Edge)
+	p.baseDir, _ = filepath.Abs(cleanFolder)
+	p.nodeOrder = nil
 
 	for _, n := range graphData.Nodes {
+		resolveModelPaths(&n, p.baseDir)
+		p.nodeOrder = append(p.nodeOrder, n.ID)
 		if n.Label == "" {
 			if strings.Contains(n.ID, "_") {
 				n.Label = strings.ReplaceAll(n.ID, "_", " ")
@@ -808,5 +809,3 @@ func InspectModelHandler(w http.ResponseWriter, r *http.Request) {
 		"outputs":    outputs,
 	})
 }
-
-

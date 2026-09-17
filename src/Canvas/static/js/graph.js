@@ -1,6 +1,6 @@
 // ── Vis.js Canvas & Network Graph Core ────────────────────────────
 import { state } from './state.js';
-import { api } from './api.js';
+import { api, tensorSummary, integratedShapeLabel } from './api.js';
 import { LAYER_SCHEMAS, getDefaultParams, formatNodeLabel, getNodeDisplayName } from './schemas.js';
 import { setMode } from './modes.js';
 import { openAddNodeModal, openEditNodeModal } from './modals.js';
@@ -33,7 +33,7 @@ export async function loadGraph() {
             if (isIntegrated) {
                 const modelName = (params && params.model_name) || n.label || 'Integrated Model';
                 const instId = String(n.id || '').includes('_') ? String(n.id).split('_').pop() : '';
-                label = formatICLabel(modelName, params.inputs || [], params.outputs || [], instId);
+                label = integratedShapeLabel(n);
                 displayName = `IC: ${modelName}${instId !== '' ? ' #' + instId : ''}`;
                 nodeVisuals = {
                     shape: 'box',
@@ -55,7 +55,8 @@ export async function loadGraph() {
                 label: label,
                 title: isIntegrated ? `Integrated Model: ${(params && params.model_name) || 'Submodel'}\nPath: ${(params && params.model_path) || ''}` : displayName,
                 layerType: baseType,
-                params: params
+                params: params,
+                title: `${displayName}\n${tensorSummary(n)}`
             };
         });
 
@@ -501,6 +502,7 @@ export async function createBlock(label, posX, posY) {
         const displayName = getNodeDisplayName(newNode);
 
         const nodeObj = {
+            tensorInfo: newNode.tensorInfo,
             id: String(newNode.id),
             label: displayName,
             title: displayName,
@@ -612,6 +614,8 @@ export async function createIntegratedBlock(inspectData, posX, posY) {
         const nodeObj = {
             id: String(newNode.id),
             label: label,
+            tensorInfo: newNode.tensorInfo,
+            adaptedModel: newNode.adaptedModel || null,
             title: `Integrated Model: ${params.model_name}${instId !== '' ? ' (#' + instId + ')' : ''}\nPath: ${params.model_path}`,
             layerType: 'IntegratedModel',
             params: params,

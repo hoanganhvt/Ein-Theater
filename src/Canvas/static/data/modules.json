@@ -1,5 +1,15 @@
 [
   {
+    "type": "operator.getitem",
+    "name": "Select Tensor",
+    "category": "tensor operations",
+    "badge": "select",
+    "badgeClass": "badge-blue",
+    "defaultInSeed": false,
+    "labelTemplate": "Select Tensor ({index})",
+    "fields": [{"key": "index", "label": "Tuple output index", "type": "number", "default": 0, "min": 0, "step": 1}]
+  },
+  {
     "type": "Input",
     "name": "Input",
     "category": "utility",

@@ -26,17 +26,28 @@ type Line struct {
 	To    Point `json:"to"`
 }
 
+// Shape metadata is produced by Python's FX interpreter.
+type TensorInfo struct {
+	Input      []int       `json:"input"`
+	Output     []int       `json:"output"`
+	OutputTree interface{} `json:"outputTree,omitempty"`
+	Auto       []string    `json:"auto"`
+	Message    string      `json:"message"`
+}
+
 type Node struct {
-	ID         string                 `json:"id"`
-	Label      string                 `json:"label"`
-	Shape      string                 `json:"shape,omitempty"`
-	Color      string                 `json:"color,omitempty"`
-	LayerType  string                 `json:"layerType,omitempty"`
-	Params     map[string]interface{} `json:"params,omitempty"`
-	X          float64                `json:"x"`
-	Y          float64                `json:"y"`
-	Parent     string                 `json:"parent,omitempty"`
-	ParentZone string                 `json:"parentZone,omitempty"`
+	AdaptedModel *GraphData             `json:"adaptedModel,omitempty"`
+	TensorInfo   *TensorInfo            `json:"tensorInfo,omitempty"`
+	ID           string                 `json:"id"`
+	Label        string                 `json:"label"`
+	Shape        string                 `json:"shape,omitempty"`
+	Color        string                 `json:"color,omitempty"`
+	LayerType    string                 `json:"layerType,omitempty"`
+	Params       map[string]interface{} `json:"params,omitempty"`
+	X            float64                `json:"x"`
+	Y            float64                `json:"y"`
+	Parent       string                 `json:"parent,omitempty"`
+	ParentZone   string                 `json:"parentZone,omitempty"`
 }
 
 type Edge struct {
@@ -137,6 +148,8 @@ func ComputeEdgeLinesWithMode(from Node, to Node, foldMode string, customFold *f
 
 // Project holds all state for one model canvas.
 type Project struct {
+	baseDir    string
+	nodeOrder  []string
 	ID         string
 	Name       string
 	nodes      map[string]Node

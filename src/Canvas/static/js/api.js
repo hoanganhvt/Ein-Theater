@@ -1,5 +1,35 @@
 // ── Backend API Client ──────────────────────────────────────────
 
+import { state } from './state.js';
+import { getNodeDisplayName } from './schemas.js';
+
+export function tensorSummary(node) {
+    const info = node.tensorInfo;
+    if (!info) return '';
+    if (info.message) return info.message;
+    const lines = [];
+    if (info.input) lines.push(`Input: [${info.input.join(', ')}]`);
+    if (info.output) lines.push(`Output: [${info.output.join(', ')}]`);
+    else if (info.outputTree) lines.push(`Outputs: ${JSON.stringify(info.outputTree)}`);
+    if (info.auto?.length) lines.push(`Automatic: ${info.auto.map(key => key === 'inputs' ? 'input shapes' : `${key}=${node.params[key]}`).join(', ')}`);
+    if (node.adaptedModel) lines.push('Adapted recursively. Save to create the adapted model subfolders.');
+    return lines.join('\n');
+}
+
+export function integratedShapeLabel(node) {
+    const params = node.params || {};
+    const lines = [getNodeDisplayName(node), '────────────────────────'];
+    for (const [key, caption] of [['inputs', 'IN'], ['outputs', 'OUT']]) {
+        for (const port of params[key] || []) {
+            const shape = Array.isArray(port.shape) ? port.shape.join(', ') : String(port.shape || '').replace(/[\[\]]/g, '');
+            lines.push(`${caption}: ${port.name || port.id || key} [${shape}]`);
+        }
+    }
+    if (node.tensorInfo?.message) lines.push('Shape unresolved');
+    else if (node.adaptedModel) lines.push('Adapted · save to create copy');
+    return lines.join('\n');
+}
+
 export const api = {
     // Project management
     async fetchProjects() {
@@ -255,3 +285,33 @@ export const api = {
         return await res.json();
     }
 };
+
+// Refresh derived parameters after semantic edits, without rebuilding the network
+// or disturbing positions, selection, and wire geometry.
+let shapeRefreshVersion = 0;
+for (const method of ['addNode', 'updateNode', 'deleteNode', 'deleteNodes', 'addEdge', 'deleteEdge', 'pasteGraph', 'clearGraph', 'saveModel']) {
+    const mutate = api[method];
+    api[method] = async function (...args) {
+        const dataSet = state.nodesDataSet;
+        const result = await mutate.apply(this, args);
+        const version = ++shapeRefreshVersion;
+        try {
+            const graph = await api.fetchGraphData();
+            if (version !== shapeRefreshVersion || dataSet !== state.nodesDataSet) return result;
+            const byId = new Map(graph.nodes.map(node => [String(node.id), node]));
+            if (dataSet) {
+                dataSet.update(graph.nodes.filter(node => dataSet.get(String(node.id))).map(node => ({
+                    id: String(node.id), params: node.params, tensorInfo: node.tensorInfo, adaptedModel: node.adaptedModel || null,
+                    ...(node.layerType === 'IntegratedModel' ? { label: integratedShapeLabel(node) } : {}),
+                    title: `${getNodeDisplayName(node)}\n${tensorSummary(node)}`
+                })));
+            }
+            if (method === 'pasteGraph') result.nodes = result.nodes.map(node => byId.get(String(node.id)) || node);
+            if (method === 'addNode') return byId.get(String(result.id)) || result;
+        } catch (error) {
+            console.error('Unable to refresh automatic dimensions:', error);
+            alert('Your edit was saved, but automatic dimensions could not refresh. Reload the canvas to retry.');
+        }
+        return result;
+    };
+}

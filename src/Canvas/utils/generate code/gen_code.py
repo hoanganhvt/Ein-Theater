@@ -59,6 +59,7 @@ def main():
     parser.add_argument("--save-canvas", help="Path to JSON file containing canvas graph data to save (use '-' for stdin)")
     parser.add_argument("--canvas-json", help="Direct JSON string of canvas graph data")
     parser.add_argument("--out-dir", help="Target directory where model_name/ folder will be saved", default=None)
+    parser.add_argument("--base-dir", help="Directory used to resolve source model references", default=None)
     args, unknown = parser.parse_known_args()
 
     if args.save_canvas or args.canvas_json:
@@ -71,7 +72,10 @@ def main():
         else:
             canvas_data = json.loads(args.canvas_json)
 
-        res = save_model_to_folder(canvas_data, output_dir=args.out_dir)
+        base_dir = args.base_dir
+        if base_dir is None and args.save_canvas and args.save_canvas != '-':
+            base_dir = os.path.dirname(os.path.abspath(args.save_canvas))
+        res = save_model_to_folder(canvas_data, output_dir=args.out_dir, base_dir=base_dir)
         print(json.dumps(res))
         sys.exit(0)
     else:

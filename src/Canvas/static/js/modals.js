@@ -297,6 +297,7 @@ export async function saveNode() {
             const newNode = await api.addNode(baseType, baseType, posX, posY, defaultParams);
             const displayName = getNodeDisplayName(newNode);
             const nodeObj = {
+                tensorInfo: newNode.tensorInfo,
                 id: String(newNode.id),
                 label: displayName,
                 title: displayName,
@@ -377,6 +378,11 @@ export function openEditNodeModal(nodeId) {
 
         if (isIntegrated) {
             // ponytail: integrated model configuration card with coming soon features
+            const notice = document.createElement('div');
+            notice.style.cssText = 'padding:10px; margin-bottom:12px; background:#eff6ff; color:#1e40af; border-radius:6px; font-size:13px';
+            notice.textContent = node.tensorInfo?.message || (node.adaptedModel
+                ? 'Inputs have been adapted recursively. Saving creates adapted model subfolders inside the parent model folder.'
+                : 'Integrated model dimensions are inferred from its saved canvas.');
             const p = node.params || {};
             const inPorts = (p.inputs || []).map(inp => {
                 const s = inp.shape ? (Array.isArray(inp.shape) ? `[${inp.shape.join(', ')}]` : `[${inp.shape}]`) : '';
@@ -422,7 +428,19 @@ export function openEditNodeModal(nodeId) {
                     </label>
                 </div>
             `;
+            container.prepend(notice);
         } else if (schema) {
+            if (node.tensorInfo) {
+                const notice = document.createElement('div');
+                notice.style.cssText = 'padding:10px; margin-bottom:12px; background:#eff6ff; color:#1e40af; border-radius:6px; font-size:13px; white-space:pre-line';
+                const info = node.tensorInfo;
+                notice.textContent = info.message || [
+                    info.input ? `Input tensor: [${info.input.join(', ')}]` : '',
+                    info.output ? `Output tensor: [${info.output.join(', ')}]` : (info.outputTree ? `Outputs: ${JSON.stringify(info.outputTree)}` : ''),
+                    info.auto?.length ? `Updated automatically from connections: ${info.auto.join(', ')}. These fields are recalculated when you save.` : ''
+                ].filter(Boolean).join('\n');
+                container.appendChild(notice);
+            }
             schema.fields.forEach(f => {
                 const val = params[f.key] !== undefined ? params[f.key] : f.default;
                 if (f.type === 'boolean') {
