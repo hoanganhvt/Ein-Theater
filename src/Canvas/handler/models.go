@@ -6,7 +6,6 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 )
@@ -147,63 +146,17 @@ type Project struct {
 	nextEdgeID int
 }
 
-// IsSpecialEdgeType returns true if the connection type is a special non-sequential connection
-// such as a residual connection or a skip connection.
-func IsSpecialEdgeType(edgeType string) bool {
-	t := strings.ToLower(strings.TrimSpace(edgeType))
-	return t == "residual" || t == "skip" || strings.HasPrefix(t, "residual") || strings.HasPrefix(t, "skip")
-}
-
-// reindexEdges purges deleted edges from p.edgeOrder, groups edges so all special
-// edges (residual, skip...) are placed behind all normal edges in p.edgeOrder,
-// and assigns sequential 0-based indices (0, 1, 2, 3...) strictly to the special connections.
-// Normal feedforward connections remain unindexed (Index == nil).
+// reindexEdges purges deleted edges from p.edgeOrder and ensures all edges have no special indexing.
 func (p *Project) reindexEdges() {
-	var normalEdges []string
-	var specialEdges []string
-
+	var validEdges []string
 	for _, eid := range p.edgeOrder {
 		if e, ok := p.edges[eid]; ok {
-			if IsSpecialEdgeType(e.EdgeType) {
-				specialEdges = append(specialEdges, eid)
-			} else {
-				normalEdges = append(normalEdges, eid)
-			}
+			e.Index = nil
+			p.edges[eid] = e
+			validEdges = append(validEdges, eid)
 		}
 	}
-
-	// Sort special edges: existing indexed edges preserve their 0-based order (0, 1, 2...),
-	// and newly added special edges (Index == nil) are appended at the end.
-	sort.SliceStable(specialEdges, func(i, j int) bool {
-		ei := p.edges[specialEdges[i]]
-		ej := p.edges[specialEdges[j]]
-		if ei.Index != nil && ej.Index != nil {
-			return *ei.Index < *ej.Index
-		}
-		if ei.Index != nil && ej.Index == nil {
-			return true
-		}
-		if ei.Index == nil && ej.Index != nil {
-			return false
-		}
-		return i < j
-	})
-
-	for _, eid := range normalEdges {
-		e := p.edges[eid]
-		e.Index = nil
-		p.edges[eid] = e
-	}
-
-	for idx, eid := range specialEdges {
-		e := p.edges[eid]
-		curIdx := idx
-		e.Index = &curIdx
-		p.edges[eid] = e
-	}
-
-	// Place all special edges behind all normal edges in strict 0, 1, 2... index order
-	p.edgeOrder = append(normalEdges, specialEdges...)
+	p.edgeOrder = validEdges
 }
 
 // ProjectMeta is the lightweight summary returned in list responses.

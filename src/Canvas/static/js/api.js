@@ -187,15 +187,6 @@ export const api = {
         return res;
     },
 
-    async setEdgeType(id, edgeType) {
-        const res = await fetch('/api/setEdgeType', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, edgeType })
-        });
-        if (!res.ok) throw new Error(await res.text() || 'Failed to set connection type');
-        return await res.json();
-    },
 
     async deleteEdge(id) {
         const res = await fetch(`/api/deleteEdge?id=${encodeURIComponent(id)}`, { method: 'POST' });
@@ -233,11 +224,11 @@ export const api = {
         return await res.json();
     },
 
-    async saveModel(projectId = '', dir = '', confirmAutofit = false) {
+    async saveModel(projectId = '', dir = '') {
         const res = await fetch('/api/workspace/save-model', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ projectId, dir, confirmAutofit })
+            body: JSON.stringify({ projectId, dir })
         });
         if (!res.ok) {
             const errText = await res.text();

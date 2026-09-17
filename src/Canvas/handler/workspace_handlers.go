@@ -357,9 +357,8 @@ func SaveModelHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		ProjectID      string `json:"projectId"`
-		Dir            string `json:"dir"`
-		ConfirmAutofit bool   `json:"confirmAutofit"`
+		ProjectID string `json:"projectId"`
+		Dir       string `json:"dir"`
 	}
 	if r.Body != nil {
 		_ = json.NewDecoder(r.Body).Decode(&req)
@@ -442,9 +441,6 @@ func SaveModelHandler(w http.ResponseWriter, r *http.Request) {
 
 	genCodePyPath := findGenCodePyPath()
 	cmdArgs := []string{genCodePyPath, "--save-canvas", "-", "--out-dir", cleanTarget}
-	if req.ConfirmAutofit || r.URL.Query().Get("confirmAutofit") == "true" {
-		cmdArgs = append(cmdArgs, "--confirm-autofit")
-	}
 	cmd := exec.Command("python", cmdArgs...)
 	cmd.Stdin = strings.NewReader(string(canvasBytes))
 	out, err := cmd.CombinedOutput()
@@ -463,37 +459,6 @@ func SaveModelHandler(w http.ResponseWriter, r *http.Request) {
 			"folder": filepath.Join(cleanTarget, p.Name),
 		})
 		return
-	}
-
-	// Synchronize any auto-fitted node parameters into the in-memory project
-	if jsonPath, ok := result["jsonFile"].(string); ok && jsonPath != "" {
-		if jsonBytes, err := os.ReadFile(jsonPath); err == nil {
-			var savedModel struct {
-				Canvas struct {
-					Nodes []Node `json:"nodes"`
-				} `json:"canvas"`
-			}
-			if err := json.Unmarshal(jsonBytes, &savedModel); err == nil && len(savedModel.Canvas.Nodes) > 0 {
-				mu.Lock()
-				if p != nil {
-					for _, sn := range savedModel.Canvas.Nodes {
-						if existing, exists := p.nodes[sn.ID]; exists && sn.Params != nil {
-							if existing.Params == nil {
-								existing.Params = make(map[string]interface{})
-							}
-							for k, v := range sn.Params {
-								existing.Params[k] = v
-							}
-							if sn.Label != "" {
-								existing.Label = sn.Label
-							}
-							p.nodes[sn.ID] = existing
-						}
-					}
-				}
-				mu.Unlock()
-			}
-		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

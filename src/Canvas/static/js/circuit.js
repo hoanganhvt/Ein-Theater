@@ -416,43 +416,20 @@ export function getEdgeAtCanvasPos(canvasPos, tolerance = 14) {
     return null;
 }
 
-let _wireCreationType = 'normal';
-
-export function setWireCreationType(type) {
-    _wireCreationType = type;
-    updateConnectBanner();
-    if (typeof window.showToast === 'function') {
-        const typeLabel = type === 'residual' ? 'Residual (+)' : (type === 'skip' ? 'Skip (Concat)' : 'Normal Flow');
-        window.showToast(`🔗 New Wire Type: ${typeLabel}`);
-    }
-}
-
-/**
- * Updates the connect mode banner message with active bend mode, type buttons, and corner count.
- */
 export function updateConnectBanner() {
     const banner = document.getElementById('modeBanner');
     if (!banner || state.currentMode !== 'connect') return;
 
     const bendLabel = BEND_LABELS[_previewBendMode] || _previewBendMode;
-    const curType = _wireCreationType || 'normal';
-
-    const typeToggleHtml = `
-        <span class="connect-type-toggle">
-            <button class="connect-type-btn ${curType === 'normal' ? 'active' : ''}" onclick="setWireCreationType('normal')" title="Normal Flow (unindexed)">➡️ Normal</button>
-            <button class="connect-type-btn ${curType === 'residual' ? 'active' : ''}" onclick="setWireCreationType('residual')" title="Residual Connection (indexed)">➕ Residual</button>
-            <button class="connect-type-btn ${curType === 'skip' ? 'active' : ''}" onclick="setWireCreationType('skip')" title="Skip Connection (indexed)">⤿ Skip</button>
-        </span>
-    `;
 
     if (_wireStartNode === null) {
-        banner.innerHTML = `<span>🔗 <strong>Add Edge</strong> — Click a block to start wire. [Space] Bend: <strong>${bendLabel}</strong>. Type: ${typeToggleHtml} [Esc] Exit.</span>`;
+        banner.innerHTML = `<span>🔗 <strong>Add Edge</strong> — Click a block to start wire. [Space] Bend: <strong>${bendLabel}</strong>. [Esc] Exit.</span>`;
     } else {
         const nodeData = state.nodesDataSet ? state.nodesDataSet.get(_wireStartNode) : null;
         const nodeName = nodeData ? (nodeData.label || _wireStartNode) : _wireStartNode;
         const cornerCount = _waypointSteps.length;
         const cornerHint = cornerCount > 0 ? ` (${cornerCount} corner${cornerCount > 1 ? 's' : ''} set, [Backspace] undo)` : '';
-        banner.innerHTML = `<span>🔗 Connecting from <strong>${nodeName}</strong> — Click grid for corners, click target block.${cornerHint} [Space] Bend: <strong>${bendLabel}</strong>. Type: ${typeToggleHtml} [Esc] Cancel.</span>`;
+        banner.innerHTML = `<span>🔗 Connecting from <strong>${nodeName}</strong> — Click grid for corners, click target block.${cornerHint} [Space] Bend: <strong>${bendLabel}</strong>. [Esc] Cancel.</span>`;
     }
 }
 
@@ -605,17 +582,16 @@ async function finishWireCreation(targetNodeId) {
             state.edgesDataSet.update(existingEdge);
             await api.updateEdge(existingEdge.id, finalLines, existingEdge.edgeType, bendMode, null);
         } else {
-            const wireType = _wireCreationType || 'normal';
-            const created = await api.addEdge(fromId, toId, finalLines, bendMode, null, wireType);
+            const created = await api.addEdge(fromId, toId, finalLines, bendMode, null, 'normal');
             const newEdge = {
                 id: String(created.id),
                 from: fromId,
                 to: toId,
-                edgeType: created.edgeType || wireType,
+                edgeType: 'normal',
                 lines: (created.lines && created.lines.length > 0) ? created.lines : finalLines,
                 foldMode: bendMode,
                 customFold: null,
-                index: (created.index !== undefined) ? created.index : null,
+                index: null,
                 color: {
                     color:     'rgba(0,0,0,0)',
                     highlight: 'rgba(0,0,0,0)',
@@ -627,18 +603,12 @@ async function finishWireCreation(targetNodeId) {
             };
             state.edgesDataSet.add(newEdge);
 
-            // Re-sync all edge indices from backend
-            try {
-                const graphData = await api.fetchGraphData();
-                if (graphData && graphData.edges) {
-                    state.edgesDataSet.update(graphData.edges);
-                }
-            } catch (_) {}
-
-            const typeLabel = wireType === 'residual' ? 'Residual Connection (+)' : (wireType === 'skip' ? 'Skip Connection (Concat)' : 'Normal Flow');
-            const idxText = (newEdge.index !== null && newEdge.index !== undefined) ? ` #${newEdge.index}` : '';
+            const fromNode = state.nodesDataSet ? state.nodesDataSet.get(fromId) : null;
+            const toNode = state.nodesDataSet ? state.nodesDataSet.get(toId) : null;
+            const fromLabel = fromNode ? (fromNode.label || fromId) : fromId;
+            const toLabel = toNode ? (toNode.label || toId) : toId;
             if (typeof window.showToast === 'function') {
-                window.showToast(`🔗 Connected: ${typeLabel}${idxText}`);
+                window.showToast(`🔗 Connected: ${fromLabel} ➔ ${toLabel}`);
             }
         }
 
@@ -699,134 +669,9 @@ export function getEdgeMidpoint(lines, fraction = 0.40) {
 }
 
 /**
- * Checks whether an edge is a special connection (residual or skip connection).
- */
-export function isSpecialEdge(edge) {
-    if (!edge) return false;
-    const t = String(edge.edgeType || '').trim().toLowerCase();
-    return t === 'residual' || t === 'skip' || t.startsWith('res') || t.startsWith('skip');
-}
-
-/**
- * Returns the sequential 0-based index for a special edge.
- * If edge.index is not yet set by the backend, dynamically computes it
- * based on the edge's position in the special edges list so the badge is never missing.
- */
-export function getOrComputeSpecialEdgeIndex(edge) {
-    if (!edge) return 0;
-    if (edge.index !== undefined && edge.index !== null && !isNaN(edge.index)) {
-        return Number(edge.index);
-    }
-    if (state.edgesDataSet) {
-        const specialEdges = state.edgesDataSet.get().filter(e => isSpecialEdge(e));
-        specialEdges.sort((a, b) => {
-            const aHas = (a.index !== undefined && a.index !== null && !isNaN(a.index));
-            const bHas = (b.index !== undefined && b.index !== null && !isNaN(b.index));
-            if (aHas && bHas) return Number(a.index) - Number(b.index);
-            if (aHas && !bHas) return -1;
-            if (!aHas && bHas) return 1;
-            return String(a.id).localeCompare(String(b.id));
-        });
-        const idx = specialEdges.findIndex(e => String(e.id) === String(edge.id));
-        if (idx !== -1) return idx;
-    }
-    return 0;
-}
-
-/**
- * Computes an optimal on-wire coordinate for placing the edge index badge.
- * Selects the longest straight orthogonal segment so the badge never collides
- * with 90° corners, block boundaries, or the interactive fold handle diamond (at 50% of segment 1).
- */
-export function getEdgeBadgePosition(edge) {
-    if (!edge || !edge.lines || edge.lines.length === 0) return null;
-    const lines = edge.lines;
-
-    const getEnds = (seg) => ({
-        p1: seg.first || seg.from,
-        p2: seg.last || seg.to
-    });
-
-    if (lines.length === 1) {
-        const { p1, p2 } = getEnds(lines[0]);
-        if (!p1 || !p2) return null;
-        return { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2, isHorizontal: p1.y === p2.y };
-    }
-
-    if (lines.length === 2) {
-        // L-bend: Pick the longer segment and center the badge at 50%
-        const s0 = getEnds(lines[0]);
-        const s1 = getEnds(lines[1]);
-        const len0 = s0.p1 && s0.p2 ? Math.hypot(s0.p2.x - s0.p1.x, s0.p2.y - s0.p1.y) : 0;
-        const len1 = s1.p1 && s1.p2 ? Math.hypot(s1.p2.x - s1.p1.x, s1.p2.y - s1.p1.y) : 0;
-        const target = (len0 >= len1) ? s0 : s1;
-        return {
-            x: (target.p1.x + target.p2.x) / 2,
-            y: (target.p1.y + target.p2.y) / 2,
-            isHorizontal: target.p1.y === target.p2.y
-        };
-    }
-
-    // 3 or more segments (e.g. standard Z-bend)
-    let maxLen = -1;
-    let maxIdx = 0;
-    const segInfo = lines.map((seg, idx) => {
-        const ends = getEnds(seg);
-        const len = (ends.p1 && ends.p2) ? Math.hypot(ends.p2.x - ends.p1.x, ends.p2.y - ends.p1.y) : 0;
-        if (len > maxLen) {
-            maxLen = len;
-            maxIdx = idx;
-        }
-        return { ends, len };
-    });
-
-    // If longest segment is segment 1 (middle segment of 3), the fold handle is at 0.50.
-    // Offset badge to 0.28 along that segment so they never collide!
-    let t = 0.5;
-    if (lines.length === 3 && maxIdx === 1) {
-        t = 0.28;
-    }
-
-    const chosen = segInfo[maxIdx];
-    const p1 = chosen.ends.p1;
-    const p2 = chosen.ends.p2;
-    if (!p1 || !p2) return null;
-
-    return {
-        x: p1.x + (p2.x - p1.x) * t,
-        y: p1.y + (p2.y - p1.y) * t,
-        isHorizontal: p1.y === p2.y
-    };
-}
-
-/**
  * Returns rendering styling parameters based on connection type.
  */
 export function getEdgeColors(edge, isSelected) {
-    const rawType = String(edge ? (edge.edgeType || '') : '').trim().toLowerCase();
-    if (rawType === 'residual' || rawType.startsWith('res')) {
-        return {
-            trace: isSelected ? '#d8b4fe' : '#a855f7', // purple
-            fill: isSelected ? '#d8b4fe' : '#a855f7',
-            dot: isSelected ? '#f3e8ff' : '#c084fc',
-            width: isSelected ? 3.5 : 2.5,
-            isSpecial: true,
-            type: 'residual',
-            badgePrefix: 'RES'
-        };
-    }
-    if (rawType === 'skip' || rawType.startsWith('skip')) {
-        return {
-            trace: isSelected ? '#67e8f9' : '#06b6d4', // cyan
-            fill: isSelected ? '#67e8f9' : '#06b6d4',
-            dot: isSelected ? '#cffafe' : '#22d3ee',
-            width: isSelected ? 3.5 : 2.5,
-            isSpecial: true,
-            type: 'skip',
-            badgePrefix: 'SKIP'
-        };
-    }
-    // Normal feedforward connection
     return {
         trace: isSelected ? COLOR_SELECTED : COLOR_TRACE,
         fill: isSelected ? COLOR_SELECTED : COLOR_TRACE,
@@ -838,203 +683,8 @@ export function getEdgeColors(edge, isSelected) {
     };
 }
 
-/**
- * Draws the prominent edge index badge directly on special wire traces (e.g. RES #0, SKIP #1).
- * Features high-contrast solid capsule pill, drop shadow, crisp border, and bold typography.
- */
-function drawEdgeIndexBadge(ctx, x, y, edge, edgeInfo, isSelected, indexVal) {
-    const prefix = edgeInfo.badgePrefix || (edgeInfo.type === 'skip' ? 'SKIP' : 'RES');
-    const idx = (indexVal !== undefined && indexVal !== null) ? indexVal : getOrComputeSpecialEdgeIndex(edge);
-    const text = `${prefix} #${idx}`;
-
-    let borderColor = edgeInfo.trace;
-    let bgColor = '#1e1b4b';
-    let textColor = '#ffffff';
-
-    if (edgeInfo.type === 'residual') {
-        bgColor = isSelected ? '#581c87' : '#6b21a8';
-        borderColor = isSelected ? '#facc15' : '#c084fc';
-        textColor = '#ffffff';
-    } else if (edgeInfo.type === 'skip') {
-        bgColor = isSelected ? '#155e75' : '#0891b2';
-        borderColor = isSelected ? '#facc15' : '#38bdf8';
-        textColor = '#ffffff';
-    }
-
-    ctx.save();
-    ctx.font = 'bold 11px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
-    const textMetrics = ctx.measureText(text);
-    const textW = textMetrics.width;
-    const padX = 9;
-    const h = 22;
-    const w = Math.max(h, textW + padX * 2);
-    const r = h / 2;
-
-    const left = x - w / 2;
-    const top = y - h / 2;
-
-    // Glowing drop shadow for high contrast & standout visibility
-    if (isSelected) {
-        ctx.shadowColor = 'rgba(250, 204, 21, 0.7)';
-        ctx.shadowBlur = 10;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
-    } else {
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-        ctx.shadowBlur = 6;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 2;
-    }
-
-    // Rounded capsule badge body
-    ctx.beginPath();
-    ctx.moveTo(left + r, top);
-    ctx.lineTo(left + w - r, top);
-    ctx.arcTo(left + w, top, left + w, top + h, r);
-    ctx.lineTo(left + w, top + h - r);
-    ctx.arcTo(left + w, top + h, left + w - r, top + h, r);
-    ctx.lineTo(left + r, top + h);
-    ctx.arcTo(left, top + h, left, top + h - r, r);
-    ctx.lineTo(left, top + r);
-    ctx.arcTo(left, top, left + r, top, r);
-    ctx.closePath();
-
-    ctx.fillStyle = bgColor;
-    ctx.fill();
-
-    ctx.lineWidth = isSelected ? 2.5 : 1.8;
-    ctx.strokeStyle = borderColor;
-    ctx.stroke();
-
-    // Reset shadow before drawing crisp text
-    ctx.shadowColor = 'transparent';
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
-
-    ctx.fillStyle = textColor;
-    ctx.fillText(text, x, y + 0.5);
-
-    ctx.restore();
-}
-
-/**
- * Synchronizes contiguous 0-based indices strictly for special connections (residual, skip...).
- * Normal feedforward connections remain unindexed.
- */
 export function updateEdgeIndices() {
-    if (!state.edgesDataSet) return;
-    const edges = state.edgesDataSet.get();
-    if (!edges || edges.length === 0) return;
-
-    // Normal edges first, special edges placed behind
-    const normalEdges = edges.filter(e => !isSpecialEdge(e));
-    const specialEdges = edges.filter(e => isSpecialEdge(e));
-
-    // Sort special edges so existing indices (0, 1, 2...) are preserved,
-    // and new special edges get the next available indices at the end
-    specialEdges.sort((a, b) => {
-        const aHas = (a.index !== undefined && a.index !== null && !isNaN(a.index));
-        const bHas = (b.index !== undefined && b.index !== null && !isNaN(b.index));
-        if (aHas && bHas) return Number(a.index) - Number(b.index);
-        if (aHas && !bHas) return -1;
-        if (!aHas && bHas) return 1;
-        return String(a.id).localeCompare(String(b.id));
-    });
-
-    const updates = [];
-    normalEdges.forEach(e => {
-        if (e.index !== undefined && e.index !== null) {
-            updates.push({ id: e.id, index: null });
-        }
-    });
-
-    specialEdges.forEach((e, idx) => {
-        if (e.index !== idx) {
-            updates.push({ id: e.id, index: idx });
-        }
-    });
-
-    if (updates.length > 0) {
-        state.edgesDataSet.update(updates);
-    }
-}
-
-/**
- * Sets the connection type of an edge (normal, residual, skip) and syncs backend state.
- */
-export async function setSelectedEdgeType(edgeIdOrType, maybeType) {
-    if (!state.network || !state.edgesDataSet) return;
-
-    let edgeId = null;
-    let newType = null;
-
-    if (maybeType !== undefined) {
-        edgeId = String(edgeIdOrType);
-        newType = String(maybeType);
-    } else {
-        newType = String(edgeIdOrType);
-        // Use getActiveEdgeId() so toolbar buttons work even after vis.js fires deselectEdge on mousedown
-        edgeId = getActiveEdgeId();
-    }
-
-    if (!edgeId) return;
-
-    try {
-        const updated = await api.setEdgeType(edgeId, newType);
-        // Refresh graph data to sync all edge indices simultaneously
-        const graphData = await api.fetchGraphData();
-        if (graphData && graphData.edges) {
-            state.edgesDataSet.update(graphData.edges);
-        } else {
-            state.edgesDataSet.update(updated);
-        }
-        state.network.redraw();
-
-        const typeLabel = newType === 'residual' ? 'Residual Connection (+)' : (newType === 'skip' ? 'Skip Connection (Concat)' : 'Normal Flow');
-        const idxText = (updated.index !== undefined && updated.index !== null) ? ` (Indexed: #${updated.index})` : ' (Unindexed)';
-        if (typeof window.showToast === 'function') {
-            window.showToast(`🔀 Connection set to: ${typeLabel}${idxText}`);
-        }
-        updateEdgeUISelection();
-    } catch (err) {
-        console.error('Failed to set edge type:', err);
-        if (typeof window.showToast === 'function') {
-            window.showToast('Failed to set edge type: ' + err.message);
-        }
-    }
-}
-
-/**
- * Cycles the connection type of the currently selected edge:
- * normal -> residual -> skip -> normal.
- */
-export async function cycleSelectedEdgeType(targetEdgeId = null) {
-    if (!state.network || !state.edgesDataSet) return;
-
-    let edgeId = targetEdgeId;
-    if (!edgeId) {
-        edgeId = getActiveEdgeId();
-    }
-    if (!edgeId) return;
-
-    const edge = state.edgesDataSet.get(edgeId);
-    if (!edge) return;
-
-    const currentType = String(edge.edgeType || 'normal').toLowerCase();
-    let nextType = 'residual';
-    if (currentType.includes('res')) {
-        nextType = 'skip';
-    } else if (currentType.includes('skip')) {
-        nextType = 'normal';
-    } else {
-        nextType = 'residual';
-    }
-
-    await setSelectedEdgeType(edgeId, nextType);
+    // All wires are uniform standard connections
 }
 
 /**
@@ -1048,7 +698,6 @@ export function updateEdgeUISelection() {
 
     if (!selectedEdges || selectedEdges.length !== 1) {
         if (hdrToolbar) hdrToolbar.style.display = 'none';
-        // Do NOT clear _lastSelectedEdgeId here — toolbar buttons are clicked after deselectEdge fires
         return;
     }
 
@@ -1059,41 +708,20 @@ export function updateEdgeUISelection() {
         return;
     }
 
-    // Track the currently selected edge so toolbar buttons can still use it even
-    // after vis.js deselects the edge on mousedown outside the canvas element
     _lastSelectedEdgeId = edgeId;
-
-    const rawType = String(edge.edgeType || 'normal').toLowerCase();
-    const isRes = rawType.includes('res');
-    const isSkip = rawType.includes('skip');
-    const isNorm = (!rawType || rawType === 'normal' || rawType === 'data' || (!isRes && !isSkip));
 
     const fromNode = state.nodesDataSet ? state.nodesDataSet.get(String(edge.from)) : null;
     const toNode = state.nodesDataSet ? state.nodesDataSet.get(String(edge.to)) : null;
     const fromLabel = fromNode ? (fromNode.label || edge.from) : edge.from;
     const toLabel = toNode ? (toNode.label || edge.to) : edge.to;
 
-    const typeName = isRes ? 'Residual' : (isSkip ? 'Skip' : 'Normal');
-    const isSpecial = isRes || isSkip;
-    const indexVal = isSpecial ? getOrComputeSpecialEdgeIndex(edge) : null;
-    const idxBadge = (indexVal !== null && indexVal !== undefined) ? ` #${indexVal}` : '';
-
-    // Update Header Toolbar
     if (hdrToolbar) {
         hdrToolbar.style.display = 'flex';
         const titleEl = document.getElementById('headerEdgeTitle');
-        if (titleEl) titleEl.textContent = `Edge (${typeName}${idxBadge}):`;
+        if (titleEl) titleEl.textContent = 'Connection:';
 
         const nodesEl = document.getElementById('headerEdgeNodes');
         if (nodesEl) nodesEl.textContent = `${fromLabel} ➔ ${toLabel}`;
-
-        const btnNorm = document.getElementById('hdrBtnNormal');
-        const btnRes = document.getElementById('hdrBtnResidual');
-        const btnSkip = document.getElementById('hdrBtnSkip');
-
-        if (btnNorm) btnNorm.className = `btn-edge-pill ${isNorm ? 'active active-normal' : ''}`;
-        if (btnRes) btnRes.className = `btn-edge-pill ${isRes ? 'active active-residual' : ''}`;
-        if (btnSkip) btnSkip.className = `btn-edge-pill ${isSkip ? 'active active-skip' : ''}`;
     }
 }
 
@@ -1114,7 +742,6 @@ export function getActiveEdgeId() {
 // ── Edit Edge Modal Operations ───────────────────────────────────
 
 let _currentEditingEdgeId = null;
-let _modalSelectedEdgeType = 'normal';
 
 export function openEditEdgeModal(targetEdgeId = null) {
     if (!state.network || !state.edgesDataSet) return;
@@ -1132,8 +759,6 @@ export function openEditEdgeModal(targetEdgeId = null) {
         if (!edge) return;
 
         _currentEditingEdgeId = String(edge.id || edgeId);
-        const curType = String(edge.edgeType || 'normal').toLowerCase();
-        _modalSelectedEdgeType = curType.includes('res') ? 'residual' : (curType.includes('skip') ? 'skip' : 'normal');
 
         const fromNode = state.nodesDataSet ? (state.nodesDataSet.get(String(edge.from)) || state.nodesDataSet.get(edge.from)) : null;
         const toNode = state.nodesDataSet ? (state.nodesDataSet.get(String(edge.to)) || state.nodesDataSet.get(edge.to)) : null;
@@ -1142,12 +767,8 @@ export function openEditEdgeModal(targetEdgeId = null) {
 
         const fromEl = document.getElementById('editEdgeFromLabel');
         const toEl = document.getElementById('editEdgeToLabel');
-        const badgeEl = document.getElementById('editEdgeTypeBadge');
         if (fromEl) fromEl.textContent = fromLabel;
         if (toEl) toEl.textContent = toLabel;
-        if (badgeEl) badgeEl.textContent = _modalSelectedEdgeType.toUpperCase();
-
-        selectModalEdgeType(_modalSelectedEdgeType);
 
         const foldSelect = document.getElementById('editEdgeFoldSelect');
         if (foldSelect) {
@@ -1184,35 +805,12 @@ export function closeEditEdgeModal() {
     _currentEditingEdgeId = null;
 }
 
-export function selectModalEdgeType(type) {
-    _modalSelectedEdgeType = type;
-    const cardNorm = document.getElementById('cardNormal');
-    const cardRes = document.getElementById('cardResidual');
-    const cardSkip = document.getElementById('cardSkip');
-
-    const radioNorm = document.getElementById('radioNormal');
-    const radioRes = document.getElementById('radioResidual');
-    const radioSkip = document.getElementById('radioSkip');
-
-    if (cardNorm) cardNorm.classList.toggle('selected', type === 'normal');
-    if (cardRes) cardRes.classList.toggle('selected', type === 'residual');
-    if (cardSkip) cardSkip.classList.toggle('selected', type === 'skip');
-
-    if (radioNorm) radioNorm.checked = (type === 'normal');
-    if (radioRes) radioRes.checked = (type === 'residual');
-    if (radioSkip) radioSkip.checked = (type === 'skip');
-
-    const badgeEl = document.getElementById('editEdgeTypeBadge');
-    if (badgeEl) badgeEl.textContent = type.toUpperCase();
-}
-
 export async function saveEditEdgeModal() {
     if (!_currentEditingEdgeId) {
         closeEditEdgeModal();
         return;
     }
     const edgeId = _currentEditingEdgeId;
-    const newType = _modalSelectedEdgeType;
     const foldSelect = document.getElementById('editEdgeFoldSelect');
     const newFoldMode = foldSelect ? foldSelect.value : 'horizontal';
 
@@ -1226,12 +824,12 @@ export async function saveEditEdgeModal() {
                 edge.lines = computeEdgeLines(fromPos, toPos, newFoldMode, edge.customFold);
             }
             state.edgesDataSet.update(edge);
-            await api.updateEdge(edgeId, edge.lines, newType, newFoldMode, edge.customFold);
+            await api.updateEdge(edgeId, edge.lines, 'normal', newFoldMode, edge.customFold);
         }
 
-        await setSelectedEdgeType(edgeId, newType);
         closeEditEdgeModal();
         updateEdgeUISelection();
+        if (state.network) state.network.redraw();
     } catch (err) {
         console.error('Failed to save edge:', err);
         if (typeof window.showToast === 'function') {
@@ -1273,19 +871,7 @@ export async function deleteEdgeById(edgeId) {
     }
 }
 
-export async function handleSidebarConnectionType(edgeType) {
-    const selectedEdges = state.network ? state.network.getSelectedEdges() : [];
-    if (selectedEdges && selectedEdges.length > 0) {
-        // Apply directly to currently selected edge!
-        await setSelectedEdgeType(selectedEdges[0], edgeType);
-        updateEdgeUISelection();
-    } else {
-        // No edge selected -> enter Connect Mode with this connection type pre-selected!
-        setWireCreationType(edgeType);
-        const { setMode } = await import('./modes.js');
-        setMode('connect');
-    }
-}
+
 
 // ── Drawing Functions ─────────────────────────────────────────────
 
@@ -1486,14 +1072,7 @@ function drawEdgeDecorations(ctx) {
             }
         }
 
-        // ONLY draw edge index badge for special connections (residual, skip...)
-        if (edgeInfo.isSpecial) {
-            const badgePos = getEdgeBadgePosition(edge) || getEdgeMidpoint(lines, 0.40);
-            if (badgePos) {
-                const indexVal = getOrComputeSpecialEdgeIndex(edge);
-                drawEdgeIndexBadge(ctx, badgePos.x, badgePos.y, edge, edgeInfo, isSelected, indexVal);
-            }
-        }
+
 
         ctx.restore();
     });

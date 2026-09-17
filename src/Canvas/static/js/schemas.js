@@ -5,6 +5,28 @@
 // Internal default definitions used before or in case JSON fetch fails
 const FALLBACK_MODULES = [
     {
+        type: 'torch.add',
+        name: 'torch.add',
+        category: 'tensor operations',
+        badge: 'add',
+        badgeClass: 'badge-purple',
+        defaultInSeed: true,
+        labelTemplate: 'add',
+        fields: []
+    },
+    {
+        type: 'torch.cat',
+        name: 'torch.cat',
+        category: 'tensor operations',
+        badge: 'cat',
+        badgeClass: 'badge-blue',
+        defaultInSeed: true,
+        labelTemplate: 'cat (dim={dim})',
+        fields: [
+            { key: 'dim', label: 'Concatenation Dimension', type: 'number', default: 1, min: 0, max: 4, step: 1 }
+        ]
+    },
+    {
         type: 'nn.Linear',
         name: 'nn.Linear',
         category: 'dense',

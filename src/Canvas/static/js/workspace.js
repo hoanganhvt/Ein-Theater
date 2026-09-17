@@ -481,30 +481,13 @@ export async function saveActiveModel() {
     }
 
     try {
-        let res = await api.saveModel(state.currentProjectId || '', state.workingDir, false);
-
-        if (res.status === 'needs_confirmation') {
-            const warnMsg = res.warning || `Integrated model '${res.model_name}' shape mismatch.`;
-            const count = (res.mismatches && res.mismatches.length) || 1;
-            const targetText = count > 1 ? `${count} integrated models (${res.model_name})` : `'${res.model_name}'`;
-            const confirmed = confirm(
-                `⚠️ Integrated Model Shape Mismatch Warning:\n\n${warnMsg}\n\nDo you want to confirm autofitting the input and all internal nodes of ${targetText} to match?`
-            );
-            if (!confirmed) {
-                showToast('⚠️ Save cancelled: integrated model shape mismatch not confirmed.');
-                return;
-            }
-            res = await api.saveModel(state.currentProjectId || '', state.workingDir, true);
-        }
+        const res = await api.saveModel(state.currentProjectId || '', state.workingDir);
 
         await loadWorkspaceFiles(state.workingDir);
 
         const modelName = res.modelName || 'Model';
         const folderName = res.folderName || modelName;
         await loadProjects();
-
-        const totalAdjustments = (res.adjustments?.length || 0) + (res.padding_adjustments?.length || 0);
-        // Refresh canvas graph to show any fitted parameters in visual node cards
         await loadGraph();
 
         const title = document.getElementById('modelTitle');
@@ -513,15 +496,7 @@ export async function saveActiveModel() {
             document.title = modelName + ' – Neural Network Builder';
         }
 
-        let msg = `✅ Saved '${modelName}' into '${folderName}/' (${folderName}.json, ${folderName}.py)`;
-        if (totalAdjustments > 0) {
-            msg += ` — ${totalAdjustments} layer shape${totalAdjustments > 1 ? 's' : ''} auto-fitted`;
-            console.log('[Auto Shape Fit] Adjustments:', res.adjustments, res.padding_adjustments);
-        }
-        if (res.warnings && res.warnings.length > 0) {
-            msg += ` (⚠️ ${res.warnings.length} warning${res.warnings.length > 1 ? 's' : ''})`;
-            console.warn('[Auto Shape Fit] Warnings:', res.warnings);
-        }
+        const msg = `✅ Saved '${modelName}' into '${folderName}/' (${folderName}.json, ${folderName}.py)`;
         showToast(msg);
     } catch (err) {
         console.error('Save model error:', err);

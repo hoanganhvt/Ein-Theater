@@ -3,7 +3,7 @@ import { state } from './state.js';
 import { api } from './api.js';
 import { setMode } from './modes.js';
 import { closeAllModals } from './modals.js';
-import { getEdgeAtCanvasPos, cycleSelectedEdgeType, setSelectedEdgeType } from './circuit.js';
+import { getEdgeAtCanvasPos } from './circuit.js';
 import { hasClipboardData, getClipboardNodeCount, updateClipboardUI } from './clipboard.js';
 
 export function setupContextMenu() {
@@ -55,7 +55,6 @@ export function setupContextMenu() {
         const cmDelete = document.getElementById('cmDelete');
         const cmDeleteText = document.getElementById('cmDeleteText');
         const cmInvertFold = document.getElementById('cmInvertFold');
-        const cmEdgeTypeParent = document.getElementById('cmEdgeTypeParent');
 
         if (cmInvertFold) {
             if (edgeCount === 1 || clickedEdge) {
@@ -64,26 +63,6 @@ export function setupContextMenu() {
                 cmInvertFold.style.display = 'none';
             }
         }
-
-        if (cmEdgeTypeParent) {
-            if (edgeCount === 1 || clickedEdge) {
-                cmEdgeTypeParent.style.display = 'flex';
-                const edgeId = (clickedEdge || currentSelectedEdges[0]);
-                const edge = state.edgesDataSet ? state.edgesDataSet.get(edgeId) : null;
-                const rawType = String(edge ? (edge.edgeType || 'normal') : 'normal').toLowerCase();
-
-                const checkNormal = document.getElementById('cmCheckEdgeNormal');
-                const checkResidual = document.getElementById('cmCheckEdgeResidual');
-                const checkSkip = document.getElementById('cmCheckEdgeSkip');
-
-                if (checkNormal) checkNormal.textContent = (!rawType || rawType === 'normal' || rawType === 'data') ? '✓' : '';
-                if (checkResidual) checkResidual.textContent = rawType.includes('res') ? '✓' : '';
-                if (checkSkip) checkSkip.textContent = rawType.includes('skip') ? '✓' : '';
-            } else {
-                cmEdgeTypeParent.style.display = 'none';
-            }
-        }
-
         if (cmEdit) {
             cmEdit.style.display = 'flex';
             const isSingleEdge = (count === 0 && (edgeCount === 1 || clickedEdge));
@@ -204,15 +183,7 @@ export function setupContextMenu() {
             if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
             deleteSelectionFromContextMenu();
         }
-        if (e.key === 't' || e.key === 'T') {
-            const tag = document.activeElement ? document.activeElement.tagName : '';
-            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-            const selEdges = state.network ? state.network.getSelectedEdges() : [];
-            if (selEdges && selEdges.length > 0) {
-                e.preventDefault();
-                cycleSelectedEdgeType();
-            }
-        }
+
     });
 }
 

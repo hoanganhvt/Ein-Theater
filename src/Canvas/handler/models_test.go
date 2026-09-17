@@ -192,9 +192,9 @@ func TestMoveNodesAndEdgesHandler(t *testing.T) {
 	mu.Unlock()
 }
 
-func TestEdgeIndexingAndOrdering(t *testing.T) {
+func TestEdgeCreationAndOrdering(t *testing.T) {
 	mu.Lock()
-	p := makeProject("Test_Edge_Indexing")
+	p := makeProject("Test_Edge_Creation")
 	projects[p.ID] = p
 	currentProjectID = p.ID
 	// Add 4 test nodes
@@ -204,80 +204,59 @@ func TestEdgeIndexingAndOrdering(t *testing.T) {
 	p.nodes["n3"] = Node{ID: "n3", Label: "linear", X: 300, Y: 0}
 	mu.Unlock()
 
-	// 1. Add normal edge 0: n0 -> n1
+	// 1. Add edge 0: n0 -> n1
 	req0 := httptest.NewRequest(http.MethodPost, "/api/addEdge?from=n0&to=n1", nil)
 	w0 := httptest.NewRecorder()
 	AddEdgeHandler(w0, req0)
 	var e0 Edge
 	json.NewDecoder(w0.Body).Decode(&e0)
 	if e0.Index != nil {
-		t.Errorf("expected normal edge index to be nil, got %v", *e0.Index)
+		t.Errorf("expected edge index to be nil, got %v", *e0.Index)
+	}
+	if e0.EdgeType != "normal" {
+		t.Errorf("expected edge type to be normal, got %s", e0.EdgeType)
 	}
 
-	// 2. Add normal edge 1: n1 -> n2
+	// 2. Add edge 1: n1 -> n2
 	req1 := httptest.NewRequest(http.MethodPost, "/api/addEdge?from=n1&to=n2", nil)
 	w1 := httptest.NewRecorder()
 	AddEdgeHandler(w1, req1)
 	var e1 Edge
 	json.NewDecoder(w1.Body).Decode(&e1)
 	if e1.Index != nil {
-		t.Errorf("expected normal edge index to be nil, got %v", *e1.Index)
+		t.Errorf("expected edge index to be nil, got %v", *e1.Index)
 	}
 
-	// 3. Add special residual edge 2: n0 -> n3
-	req2 := httptest.NewRequest(http.MethodPost, "/api/addEdge?from=n0&to=n3&type=residual", nil)
+	// 3. Add edge 2: n0 -> n3
+	req2 := httptest.NewRequest(http.MethodPost, "/api/addEdge?from=n0&to=n3", nil)
 	w2 := httptest.NewRecorder()
 	AddEdgeHandler(w2, req2)
 	var e2 Edge
 	json.NewDecoder(w2.Body).Decode(&e2)
-	if e2.Index == nil || *e2.Index != 0 {
-		t.Errorf("expected residual edge index to be 0, got %v", e2.Index)
+	if e2.Index != nil {
+		t.Errorf("expected edge index to be nil, got %v", e2.Index)
 	}
 
-	// 4. Add special skip edge 3: n1 -> n3
-	req3 := httptest.NewRequest(http.MethodPost, "/api/addEdge?from=n1&to=n3&type=skip", nil)
-	w3 := httptest.NewRecorder()
-	AddEdgeHandler(w3, req3)
-	var e3 Edge
-	json.NewDecoder(w3.Body).Decode(&e3)
-	if e3.Index == nil || *e3.Index != 1 {
-		t.Errorf("expected skip edge index to be 1, got %v", e3.Index)
-	}
+	// 4. Delete e1 and verify remaining edges
+	reqDel := httptest.NewRequest(http.MethodPost, "/api/deleteEdge?id="+e1.ID, nil)
+	wDel := httptest.NewRecorder()
+	DeleteEdgeHandler(wDel, reqDel)
 
-	// 5. Test SetEdgeTypeHandler: switch e2 to normal
-	reqSwitch := httptest.NewRequest(http.MethodPost, "/api/setEdgeType?id="+e2.ID+"&type=normal", nil)
-	wSwitch := httptest.NewRecorder()
-	SetEdgeTypeHandler(wSwitch, reqSwitch)
-	var e2Switched Edge
-	json.NewDecoder(wSwitch.Body).Decode(&e2Switched)
-	if e2Switched.Index != nil {
-		t.Errorf("expected switched edge to have nil index, got %v", *e2Switched.Index)
-	}
-
-	// Verify e3 re-indexed to 0 as the only remaining special edge,
-	// and verify that all special edges are placed behind all normal edges.
 	reqData := httptest.NewRequest(http.MethodGet, "/api/data", nil)
 	wData := httptest.NewRecorder()
 	DataHandler(wData, reqData)
 	var graphData GraphData
 	json.NewDecoder(wData.Body).Decode(&graphData)
 
-	seenSpecial := false
+	if len(graphData.Edges) != 2 {
+		t.Fatalf("expected 2 edges remaining, got %d", len(graphData.Edges))
+	}
 	for _, ed := range graphData.Edges {
-		if IsSpecialEdgeType(ed.EdgeType) {
-			seenSpecial = true
-			if ed.ID == e3.ID {
-				if ed.Index == nil || *ed.Index != 0 {
-					t.Errorf("expected e3 to be reindexed to 0, got %v", ed.Index)
-				}
-			}
-		} else {
-			if seenSpecial {
-				t.Errorf("found normal edge %s after special edge; all special edges must be placed behind all normal edges", ed.ID)
-			}
-			if ed.Index != nil {
-				t.Errorf("expected normal edge %s to have nil index, got %v", ed.ID, *ed.Index)
-			}
+		if ed.Index != nil {
+			t.Errorf("expected edge %s to have nil index, got %v", ed.ID, *ed.Index)
+		}
+		if ed.EdgeType != "normal" {
+			t.Errorf("expected edge %s to have normal type, got %s", ed.ID, ed.EdgeType)
 		}
 	}
 }

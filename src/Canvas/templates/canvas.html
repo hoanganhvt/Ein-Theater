@@ -79,18 +79,6 @@
             <div id="headerEdgeToolbar" class="header-edge-toolbar" style="display:none;" onmousedown="event.preventDefault()">
                 <span class="header-edge-title" id="headerEdgeTitle">Edge:</span>
                 <span class="header-edge-nodes" id="headerEdgeNodes"></span>
-                <div class="header-edge-pills">
-                    <button class="btn-edge-pill" id="hdrBtnNormal" onclick="setSelectedEdgeType('normal')" title="Set connection to Normal Flow (unindexed)">
-                        <span class="pill-dot dot-normal"></span> Normal
-                    </button>
-                    <button class="btn-edge-pill" id="hdrBtnResidual" onclick="setSelectedEdgeType('residual')" title="Set connection to Residual (+) (indexed)">
-                        <span class="pill-dot dot-residual"></span> Residual (+)
-                    </button>
-                    <button class="btn-edge-pill" id="hdrBtnSkip" onclick="setSelectedEdgeType('skip')" title="Set connection to Skip (Concat) (indexed)">
-                        <span class="pill-dot dot-skip"></span> Skip (Concat)
-                    </button>
-                </div>
-                <div class="toolbar-divider-sm"></div>
                 <div class="header-edge-actions">
                     <button class="btn-edge-pill" onclick="cycleSelectedEdgeFold()" title="Cycle bend mode (Space)">⤹ Fold</button>
                     <button class="btn-edge-pill" onclick="openEditEdgeModal()" title="Edit connection details">✏️ Details</button>
@@ -152,29 +140,6 @@
             <span class="cm-icon">⤹</span>
             <span class="cm-text">Cycle Bend Mode</span>
             <span class="cm-shortcut">Space</span>
-        </div>
-        <div class="context-menu-item has-submenu" id="cmEdgeTypeParent" style="display:none;">
-            <span class="cm-icon">🔀</span>
-            <span class="cm-text">Connection Type</span>
-            <span class="cm-shortcut">T</span>
-            <span class="cm-arrow">▶</span>
-            <div class="context-submenu" id="cmEdgeTypeSubmenu">
-                <div class="context-menu-item" onclick="setSelectedEdgeType('normal'); hideContextMenu();">
-                    <span class="cm-icon">➡️</span>
-                    <span class="cm-text">Normal Flow</span>
-                    <span class="cm-check" id="cmCheckEdgeNormal"></span>
-                </div>
-                <div class="context-menu-item" onclick="setSelectedEdgeType('residual'); hideContextMenu();">
-                    <span class="cm-icon">➕</span>
-                    <span class="cm-text">Residual Connection</span>
-                    <span class="cm-check" id="cmCheckEdgeResidual"></span>
-                </div>
-                <div class="context-menu-item" onclick="setSelectedEdgeType('skip'); hideContextMenu();">
-                    <span class="cm-icon">⤴️</span>
-                    <span class="cm-text">Skip Connection</span>
-                    <span class="cm-check" id="cmCheckEdgeSkip"></span>
-                </div>
-            </div>
         </div>
 
         <div class="context-menu-item" id="cmEdit" onclick="openEditNodeFromContext(); hideContextMenu();">
@@ -305,7 +270,6 @@
     <div id="editEdgeModal">
         <div class="modal-header">
             <h3>Edit Connection</h3>
-            <span class="modal-layer-badge" id="editEdgeTypeBadge">Normal Flow</span>
             <button class="modal-close-btn" onclick="closeEditEdgeModal()" title="Close">✕</button>
         </div>
         <div class="edit-edge-body">
@@ -315,52 +279,7 @@
                 <span id="editEdgeToLabel">To Block</span>
             </div>
 
-            <label class="section-label">1. Choose Connection Type</label>
-            <div class="edge-type-cards">
-                <div class="edge-card" id="cardNormal" onclick="selectModalEdgeType('normal')">
-                    <div class="edge-card-radio">
-                        <input type="radio" name="modalEdgeRadio" id="radioNormal" value="normal" checked>
-                    </div>
-                    <div class="edge-card-content">
-                        <div class="edge-card-header">
-                            <span class="pill-dot dot-normal"></span>
-                            <strong>Normal Flow</strong>
-                            <span class="edge-card-tag tag-normal">Default</span>
-                        </div>
-                        <p>Standard sequential feedforward connection. Unindexed, clean green trace without badge.</p>
-                    </div>
-                </div>
-
-                <div class="edge-card" id="cardResidual" onclick="selectModalEdgeType('residual')">
-                    <div class="edge-card-radio">
-                        <input type="radio" name="modalEdgeRadio" id="radioResidual" value="residual">
-                    </div>
-                    <div class="edge-card-content">
-                        <div class="edge-card-header">
-                            <span class="pill-dot dot-residual"></span>
-                            <strong>Residual Connection</strong>
-                            <span class="edge-card-tag tag-residual">Additive (+)</span>
-                        </div>
-                        <p>Additive bypass shortcut (ResNet). Purple trace with <strong>RES &lt;index&gt;</strong> badge, ordered behind normal edges.</p>
-                    </div>
-                </div>
-
-                <div class="edge-card" id="cardSkip" onclick="selectModalEdgeType('skip')">
-                    <div class="edge-card-radio">
-                        <input type="radio" name="modalEdgeRadio" id="radioSkip" value="skip">
-                    </div>
-                    <div class="edge-card-content">
-                        <div class="edge-card-header">
-                            <span class="pill-dot dot-skip"></span>
-                            <strong>Skip Connection</strong>
-                            <span class="edge-card-tag tag-skip">Concat (U-Net)</span>
-                        </div>
-                        <p>Concatenation bypass (U-Net / DenseNet). Cyan trace with <strong>SKIP &lt;index&gt;</strong> badge, ordered behind normal edges.</p>
-                    </div>
-                </div>
-            </div>
-
-            <label class="section-label" style="margin-top: 14px;">2. Wire Routing Style</label>
+            <label class="section-label" style="margin-top: 14px;">Wire Routing Style</label>
             <div class="edge-routing-row">
                 <select id="editEdgeFoldSelect">
                     <option value="horizontal">Horizontal Z-Bend (Default)</option>

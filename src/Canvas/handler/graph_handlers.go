@@ -371,9 +371,7 @@ func AddEdgeHandler(w http.ResponseWriter, r *http.Request) {
 				tn := p.nodes[to]
 				e.Lines = ComputeEdgeLinesWithMode(fn, tn, foldMode, customFold)
 			}
-			if edgeType != "" {
-				e.EdgeType = edgeType
-			}
+			e.EdgeType = "normal"
 			if foldMode != "" {
 				e.FoldMode = foldMode
 			}
@@ -401,7 +399,7 @@ func AddEdgeHandler(w http.ResponseWriter, r *http.Request) {
 		From:       from,
 		To:         to,
 		Lines:      lines,
-		EdgeType:   edgeType,
+		EdgeType:   "normal",
 		FoldMode:   foldMode,
 		CustomFold: customFold,
 	}
@@ -453,77 +451,13 @@ func UpdateEdgeHandler(w http.ResponseWriter, r *http.Request) {
 	if req.Lines != nil {
 		edge.Lines = req.Lines
 	}
-	if req.EdgeType != "" {
-		if req.EdgeType == "normal" || req.EdgeType == "data" {
-			edge.EdgeType = "normal"
-		} else {
-			edge.EdgeType = req.EdgeType
-		}
-	}
+	edge.EdgeType = "normal"
 	if req.FoldMode != "" {
 		edge.FoldMode = req.FoldMode
 	}
 	if req.CustomFold != nil {
 		edge.CustomFold = req.CustomFold
 	}
-	p.edges[req.ID] = edge
-	p.reindexEdges()
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(p.edges[req.ID])
-}
-
-// SetEdgeTypeHandler updates the connection type of an edge (normal, residual, skip)
-// and dynamically reindexes only the special connections.
-func SetEdgeTypeHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var req struct {
-		ID       string `json:"id"`
-		EdgeType string `json:"edgeType"`
-	}
-	if r.Body != nil {
-		_ = json.NewDecoder(r.Body).Decode(&req)
-	}
-	if req.ID == "" {
-		req.ID = r.URL.Query().Get("id")
-	}
-	if req.EdgeType == "" {
-		req.EdgeType = r.URL.Query().Get("type")
-		if req.EdgeType == "" {
-			req.EdgeType = r.URL.Query().Get("edgeType")
-		}
-	}
-
-	if req.ID == "" {
-		http.Error(w, "missing edge id", http.StatusBadRequest)
-		return
-	}
-
-	mu.Lock()
-	defer mu.Unlock()
-	p := cur()
-
-	edge, ok := p.edges[req.ID]
-	if !ok {
-		http.Error(w, "edge not found", http.StatusNotFound)
-		return
-	}
-
-	t := strings.ToLower(strings.TrimSpace(req.EdgeType))
-	if t == "normal" || t == "data" || t == "" {
-		edge.EdgeType = "normal"
-	} else if strings.HasPrefix(t, "res") {
-		edge.EdgeType = "residual"
-	} else if strings.HasPrefix(t, "skip") {
-		edge.EdgeType = "skip"
-	} else {
-		edge.EdgeType = t
-	}
-
 	p.edges[req.ID] = edge
 	p.reindexEdges()
 
