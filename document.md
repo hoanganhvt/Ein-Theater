@@ -4,8 +4,8 @@ This is the project-wide runtime guide. It follows execution from the browser to
 Go, through Python, and back to the UI or saved model files. Folder documents
 contain detailed component inputs/outputs, endpoint contracts and focused tests.
 
-Ein Theater is a visual PyTorch model editor. The implemented server mode is
-Canvas; the Data, Train and Code registrations in `src/main.go` are placeholders.
+Ein Theater is a visual PyTorch model editor. Canvas is the only implemented mode. The studio registry also declares Data, Code,
+Train and Debug as planned entries, without executable handlers.
 The current application edits graphs, analyzes tensor shapes and generates model
 code. Starting the server does not start model training.
 
@@ -15,7 +15,7 @@ code. Starting the server does not start model training.
 flowchart TD
     User[User actions] --> UI[Browser: native JavaScript modules]
     UI --> API[Frontend API wrappers]
-    API --> HTTP[Go HTTP handlers]
+    API --> HTTP[Studio router and mode HTTP handlers]
     HTTP --> Graph[Go graph utilities and in-memory Store]
     HTTP --> Files[Workspace and model IO utilities]
     HTTP --> Bridge[Go Python bridge]
@@ -32,8 +32,10 @@ flowchart TD
 
 | Layer / entry | Input | Output and ownership |
 | --- | --- | --- |
-| `src/main.go`, `src/Canvas/canvas.go` | Launch directory and optional `PORT` | HTTP server and route registrations; default port 8080. |
-| `src/templates`, `src/Canvas/templates` | Static HTML shells and include fragments | Composed pages; Go resolves includes before sending HTML. |
+| `src/main.go`, `src/Canvas/canvas.go` | Mode definitions, launch directory and optional `PORT` | Independent studio router/server; default port 8080. |
+| `src/studio` | Mode registry and requests | Global index/sidebar dispatch, mode catalog, namespaced API/assets and shared page responses. |
+| `src/Canvas/mode` | Canvas handlers/resources | Canvas registration descriptor; no global route ownership. |
+| `src/Canvas/templates` | Canvas document shells and fragments | Canvas owns both its studio-home variant and standalone page. `src/templates` is reserved for genuinely shared templates. |
 | `src/static`, `src/Canvas/static` | Browser asset requests | Shared/Canvas CSS and native ES modules, served without a bundler. |
 | `Canvas/static/app.js` and `js/application` | DOM readiness and user events | Application initialization and feature bindings. |
 | `Canvas/static/js/api` | Feature commands and query data | HTTP calls, decoded results and scheduled shape refreshes. |
@@ -47,6 +49,27 @@ flowchart TD
 | `Canvas/utils/shared` | Module identifiers, names and graph connections | Shared constructor resolution, naming and deterministic edge ordering for Python. |
 
 Paths beginning with `Canvas/` above are relative to `src/`.
+
+### Expansion boundary
+
+The studio imports no mode implementation. Entry points compose mode definitions;
+Canvas exports one through Canvas/mode.Definition. Global index dispatch selects
+the configured default mode, rather than searching for Canvas files. Mode callbacks
+own their page/sidebar content, relative API routes and asset filesystem.
+
+- Shared Go resource utilities live in src/utils/{paths,templates,assets}.
+- Mode APIs use /api/<id>/*; assets use /static/<id>/*; pages use /<id>.
+- Canvas retains flat legacy URLs for existing clients. In particular,
+  /api/data is the Canvas graph endpoint, while /api/data/* belongs to future Data mode.
+- GET /api/modes supplies the shared navigation module. Planned entries are
+  disabled; registering a real implementation enables navigation automatically.
+- A mode owns its complete page and JavaScript lifecycle. Switching modes navigates
+  to another page, not merely to another sidebar inside the Canvas editor.
+
+To add Data, Code, Train or Debug, implement its mode definition and replace its
+planned entry in main.go. Do not add feature routes to Canvas or studio. See the
+[mode contract and implementation checklist](src/studio/document.md), including
+input/output contracts, example registration and isolation tests.
 
 ### Where state lives
 
@@ -64,14 +87,16 @@ Paths beginning with `Canvas/` above are relative to `src/`.
 
 ## 2. Startup: process to first canvas
 
-1. Run `go run .` in `src`. `main.go` calls `handler.RegisterRoutes`, then
-   `http.ListenAndServe`. Standalone mode starts in `src/Canvas`, where `canvas.go`
-   calls `RegisterRoutesWithRoot(mux, CanvasHandler)`.
-2. `handler/routes.go` mounts pages, sidebar, static assets and Canvas APIs.
-   `utils/assets.ResolveStaticFS` combines global and Canvas static directories.
-3. The browser requests `/`. Studio mode uses `IndexHandler`; standalone mode uses
-   `CanvasHandler`. `utils/templates` finds the shell and recursively expands
-   include fragments. A missing or cyclic include fails before partial HTML is sent.
+1. Run go run . in src. The composition root passes Canvas's definition
+   and the four planned mode entries to studio.NewHandler, then starts the server.
+   Standalone Canvas registers just Canvas with Standalone:true.
+2. Studio registers index, mode catalog, sidebar dispatch, shared static files and
+   each available mode's page/API/asset namespace. Canvas APIs come from its private
+   registrar. Global assets and legacy Canvas assets are explicitly composed.
+3. At /, studio.IndexHandler selects the default mode's Home (studio) or Page
+   (standalone). Canvas Home composes Canvas/templates/studio.html; Canvas Page
+   composes Canvas/templates/canvas.html. Shared composition rejects missing or
+   cyclic includes before sending partial content.
 4. The browser loads `/static/app.js`. It imports application event handlers and
    runs `initApp` immediately or after `DOMContentLoaded`.
 5. `js/application/bootstrap.js` initializes schemas and dropdowns. If a sidebar
@@ -235,8 +260,8 @@ Read in execution order rather than reading every file in a folder:
 
 | Question | Start here | Detailed guide |
 | --- | --- | --- |
-| How does the server start? | `src/main.go`, `src/Canvas/canvas.go`, `handler/routes.go` | [Source map](src/document.md) |
-| How is the first page rendered? | `handler/index_handler.go`, `template_handler.go`, `utils/templates` | [Templates](src/Canvas/utils/templates/document.md) |
+| How does the server start? | `src/main.go`, `src/studio/routes.go`, `src/Canvas/mode/mode.go` | [Source map](src/document.md) |
+| How is the first page rendered? | `src/studio/routes.go`, `src/studio/render.go`, `Canvas/handler/page_handlers.go` | [Templates](src/utils/templates/document.md) |
 | How does browser initialization work? | `static/app.js`, `js/application/bootstrap.js` | [Frontend architecture](src/Canvas/static/js/document.md) |
 | Where does an edit go? | `js/api.js`, `js/api/*`, matching handler, `utils/graph/*` | [HTTP contracts](src/Canvas/handler/document.md), [graph operations](src/Canvas/utils/graph/document.md) |
 | Why is analysis asynchronous? | `js/api/shapeRefresh.js`, `handler/graph_handlers.go`, `utils/python/shapes.go` | [Frontend API](src/Canvas/static/js/api/document.md), [Go bridge](src/Canvas/utils/python/document.md) |
@@ -285,6 +310,7 @@ explicitly skips without Python/PyTorch; a skip does not validate inference.
 From the repository root:
 
 ```powershell
+node src/static/studio/navigation.test.mjs
 node src/Canvas/static/js/api.test.mjs
 node src/Canvas/static/js/ui.test.mjs
 node src/Canvas/static/js/performance.test.mjs
@@ -311,3 +337,9 @@ for fixtures, individual cases and prerequisites.
 For failures, follow the boundary: browser request/response → handler validation →
 Go task result → Python stderr/diagnostics → generated files. Folder guides provide
 component-level input/output contracts and focused test commands.
+
+## Navigation performance
+
+For measured opening/switching bottlenecks, selective legacy-caption repair,
+UTF-8 subprocess settings and reproduction commands, see
+[Canvas performance](src/Canvas/performance.md).

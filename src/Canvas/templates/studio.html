@@ -9,16 +9,17 @@
     <link rel="stylesheet" href="/static/style.css?v=5">
     <link rel="stylesheet" href="/static/canvas.css?v=5">
 </head>
-<body>
+<body data-studio-mode="canvas">
     <div id="modalOverlay" onclick="closeAllModals()"></div>
 
-    <!-- include: index/header.html -->
-    <!-- include: index/workspace.html -->
-    <!-- include: index/context-menu.html -->
-    <!-- include: index/folder-browser.html -->
-    <!-- include: index/add-node.html -->
-    <!-- include: index/edit-node.html -->
-    <!-- include: index/edit-edge.html -->
+    <!-- include: studio/header.html -->
+    <!-- include: studio/workspace.html -->
+    <!-- include: studio/context-menu.html -->
+    <!-- include: studio/folder-browser.html -->
+    <!-- include: studio/add-node.html -->
+    <!-- include: studio/edit-node.html -->
+    <!-- include: studio/edit-edge.html -->
     <script type="module" src="/static/app.js?v=9"></script>
+    <script type="module" src="/static/studio/navigation.js"></script>
 </body>
 </html>

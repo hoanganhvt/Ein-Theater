@@ -3,7 +3,6 @@ package python
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -21,7 +20,7 @@ func GenerateModel(graphPayload graph.GraphData, cleanTarget, baseDir string) (m
 	genCodePyPath := FindGenCodePyPath()
 	cmdArgs := []string{genCodePyPath, "--save-canvas", "-", "--out-dir", cleanTarget, "--base-dir", baseDir}
 	cmd := exec.Command("python", cmdArgs...)
-	cmd.Env = append(os.Environ(), "PYTHONDONTWRITEBYTECODE=1")
+	cmd.Env = processEnvironment()
 	cmd.Stdin = strings.NewReader(string(canvasBytes))
 	out, err := cmd.CombinedOutput()
 	if err != nil {

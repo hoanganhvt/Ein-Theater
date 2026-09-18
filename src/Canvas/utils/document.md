@@ -1,5 +1,7 @@
 # Canvas utilities
 
+Shared template, resource-path and asset helpers live in [src/utils](../../utils/document.md). Application routing lives in [studio](../../studio/document.md).
+
 ## Go task categories
 
 HTTP adapters live in [handler](../handler/document.md). Go utility packages do not
@@ -11,8 +13,6 @@ filesystem and Python work run outside that lock.
 | --- | --- |
 | [graph](graph/document.md) | Graph commands and snapshots → project mutations, geometry and reconciled metadata. |
 | [naming](naming/document.md) | Model/layer strings → valid names and node-ID prefixes. |
-| [templates](templates/document.md) | Template paths → composed HTML bytes or errors. |
-| [assets](assets/document.md) | Launch directory / asset names → static filesystem and files. |
 | [workspace](workspace/document.md) | Directory inputs → listings, created folders or native selection. |
 | [modelio](modelio/document.md) | Saved model folder → decoded canvas or port metadata. |
 | [python](python/document.md) | Detached canvas → Python shape analysis or generated model artifacts. |

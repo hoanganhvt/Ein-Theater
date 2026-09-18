@@ -33,8 +33,7 @@ export async function createProject() {
     if (name === null) return;
     try {
         await api.createProject(name.trim() || 'Untitled Model');
-        await loadProjects();
-        await loadGraph();
+        await Promise.all([loadProjects(), loadGraph()]);
     } catch (e) {
         console.error('Failed to create project:', e);
     }
@@ -43,8 +42,7 @@ export async function createProject() {
 export async function switchProject(id) {
     try {
         await api.switchProject(id);
-        await loadProjects();
-        await loadGraph();
+        await Promise.all([loadProjects(), loadGraph({ projectId: id })]);
     } catch (e) {
         console.error('Failed to switch project:', e);
         alert(e.message);
@@ -56,8 +54,7 @@ export async function deleteProject(event, id) {
     if (!confirm('Delete this model? This cannot be undone.')) return;
     try {
         await api.deleteProject(id);
-        await loadProjects();
-        await loadGraph();
+        await Promise.all([loadProjects(), loadGraph()]);
     } catch (e) {
         console.error('Failed to delete project:', e);
         alert(e.message);

@@ -54,20 +54,9 @@ func Load(folderPath string) (graph.GraphData, error) {
 		return graph.GraphData{}, fault.Internal("Failed to read model json: " + err.Error())
 	}
 
-	var rawWrapper map[string]json.RawMessage
-	if err := json.Unmarshal(jsonBytes, &rawWrapper); err != nil {
+	graphData, err := DecodeCanvas(jsonBytes)
+	if err != nil {
 		return graph.GraphData{}, fault.Invalid("Failed to parse model JSON: " + err.Error())
-	}
-
-	var graphData graph.GraphData
-	if canvasRaw, ok := rawWrapper["canvas"]; ok {
-		if err := json.Unmarshal(canvasRaw, &graphData); err != nil {
-			return graph.GraphData{}, fault.Invalid("Failed to parse canvas graph data: " + err.Error())
-		}
-	} else {
-		if err := json.Unmarshal(jsonBytes, &graphData); err != nil {
-			return graph.GraphData{}, fault.Invalid("Failed to parse graph data: " + err.Error())
-		}
 	}
 
 	if graphData.Name == "" {

@@ -2,7 +2,7 @@
 
 ## Scope and original-file analysis
 
-The UI consists of the studio and standalone page templates, the dynamic Canvas sidebar, browser JavaScript, shared CSS and the browser schema registry. Go graph handlers and Python generation/shape inference remain backend concerns; the only backend UI integration change is static template composition. The table records every original UI source and its new ownership. Small state and data files are deliberately retained because they already have one responsibility.
+The UI consists of the studio and standalone page templates, the dynamic Canvas sidebar, browser JavaScript, shared CSS and the browser schema registry. Go graph handlers and Python generation/shape inference remain backend concerns; global routing and navigation belong to the studio layer, while Canvas supplies mode callbacks and owns its templates. The table records every original UI source and its new ownership. Small state and data files are deliberately retained because they already have one responsibility.
 
 | Original file (relative to this folder) | Previous responsibilities | New location | Refactor decision |
 | --- | --- | --- | --- |
@@ -26,7 +26,7 @@ The UI consists of the studio and standalone page templates, the dynamic Canvas 
 | [data/modules.json](data/modules.json) | Browser-served layer schema registry | [data/modules.json](data/modules.json) | Retained as data; feature code consumes registry.js. |
 | [../../static/style.css](../../static/style.css) | Global UI styling | [../../static/styles/](../../static/styles/document.md) | Sixteen ordered component stylesheets. |
 | [canvas.css](canvas.css) | Duplicated shared styles and one Canvas interaction difference | [canvas-styles/](canvas-styles/document.md) | Only Canvas-specific banner interaction remains; shared rules live in global styles. |
-| [../../templates/index.html](../../templates/index.html) | Studio document shell and all UI markup | [../../templates/index/](../../templates/index/document.md) | Seven named partials composed server-side. |
+| [Former studio index](../templates/studio.html) | Studio document shell and all UI markup | [Canvas studio fragments](../templates/studio/document.md) | Seven named partials composed server-side. |
 | [../templates/canvas.html](../templates/canvas.html) | Standalone Canvas document and UI markup | [../templates/canvas/](../templates/canvas/document.md) | Seven named partials preserving standalone differences. |
 | [../templates/sidebar.html](../templates/sidebar.html) | Workspace, projects and palette markup | [../templates/sidebar/](../templates/sidebar/document.md) | Three partials returned as one sidebar response. |
 

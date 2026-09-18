@@ -9,12 +9,12 @@ and encode responses. Task algorithms and data ownership live in
 
 | File / component | Input | Output / responsibility |
 | --- | --- | --- |
-| routes.go: RegisterRoutes | A fresh http.ServeMux | Registers all API/static/page routes with IndexHandler at root; no return. |
-| routes.go: RegisterRoutesWithRoot | Mux and optional root HandlerFunc | Same registrations with custom root (or no root when nil). Registers JS MIME type and no-cache static serving. |
+| routes.go: RegisterRoutes | A fresh http.ServeMux | Mounts only legacy Canvas APIs; no global pages/assets/sidebar dispatch. Used by Canvas API tests. |
+| routes.go: RegisterAPI | Private mode mux | Registers relative paths, such as /data and /addNode, for studio to mount under /api/canvas/. |
 | state.go: store | graph.NewStore() | Shared in-memory application store, initially one empty active project. |
 | state.go: analyzeGraph | Snapshot and base directory | Analysis result/error; defaults to python.AnalyzeGraph. Private test seam; never change concurrently with requests. |
 | types.go and request aliases | graph/workspace utility types | Retain handler type names and JSON field contracts without duplicate definitions. |
-| template_handler.go: serveTemplate | ResponseWriter, request, template path | GET/HEAD HTML response; 405 for other methods, 500 on composition failure. HEAD has no body. |
+| Shared rendering | Mode-owned template path | src/studio.ServeTemplate performs GET/HEAD validation, composition and response writes. |
 | error_handler.go: writeError | ResponseWriter and task error | Plain-text 400 for fault.Invalid, otherwise 500. Endpoint-specific graph errors are mapped by their handlers. |
 
 Every public handler takes (http.ResponseWriter, *http.Request) and returns no Go
@@ -23,14 +23,17 @@ existing handler does not enforce an HTTP method; this refactor does not add new
 method restrictions. Successful responses are 200. Validation errors are normally
 plain text unless a JSON error result is explicitly listed.
 
-## Page handlers (index_handler.go)
+## Canvas page handlers (page_handlers.go)
 
-| Handler / route | Input | Output |
+| Handler | Input | Output |
 | --- | --- | --- |
-| IndexHandler: / | GET/HEAD, exact root path | Composed index.html, falling back to canvas.html; other paths return 404. |
-| CanvasHandler: /canvas | GET/HEAD | Composed canvas.html with no-cache headers. |
-| SidebarHandler: /api/sidebar or /api/sidebar/{mode} | mode query or trailing path, default canvas | Sidebar HTML; canvas fallback extracts the sidebar from canvas.html. Unknown/missing template returns 404. Ordinary template responses enforce GET/HEAD; the legacy extraction fallback writes directly. |
-| Inline /index route | GET/HEAD | Composed index.html. |
+| HomeHandler | GET/HEAD selected by studio for its default Canvas home | Composed Canvas/templates/studio.html. |
+| CanvasHandler | GET/HEAD at /canvas or standalone root | Composed Canvas/templates/canvas.html. |
+| SidebarHandler | GET/HEAD after studio has selected Canvas | Canvas sidebar fragment, with extraction fallback from canvas.html. No other mode handling. |
+
+Global IndexHandler, catalog, sidebar dispatch and assets belong to [studio](../../studio/document.md).
+Canvas's [mode adapter](../mode/document.md) supplies these callbacks. All APIs below
+are also available at /api/canvas/*; their listed flat URLs remain compatibility aliases.
 
 ## Project handlers (project_handlers.go)
 
@@ -116,7 +119,7 @@ Focused major-feature checks (from src):
 ```powershell
 go test ./Canvas/handler -run 'TestPasteGraphHandler|TestMoveNodesAndEdgesHandler|TestEdgeCreationAndOrdering|TestEdgeBendingAndFoldModes' -v
 go test ./Canvas/handler -run 'TestSnapshotDoesNotWaitForShapeWorker|TestBackgroundAnalysisPreservesConcurrentDrag' -v
-go test ./Canvas/handler -run 'TestUIRoutesComposeFragments|TestTemplateIncludeFailuresAreAtomic' -v
+go test ./Canvas/mode -v
 go test ./Canvas/handler -run TestWorkspaceModelRoundTrip -v
 go test ./Canvas/utils/python -v
 ```

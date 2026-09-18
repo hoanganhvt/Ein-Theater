@@ -4,11 +4,13 @@ The [global code-flow guide](../document.md) is the project-wide architecture
 reference. It explains startup, state ownership, graph editing, asynchronous shape
 analysis, Python generation, save/load, concurrency and end-to-end tests.
 
+See [studio registration and expansion](studio/document.md) for adding Data, Code, Train and Debug. Shared Go resources live in [utils](utils/document.md); Canvas exports its [mode adapter](Canvas/mode/document.md).
+
 ## Read the source in runtime order
 
 ```mermaid
 flowchart TD
-    Main[main.go or Canvas/canvas.go] --> Routes[Canvas/handler/routes.go]
+    Main[main.go or Canvas/canvas.go] --> Routes[studio.NewHandler and mode definitions]
     Routes --> Page[Templates and static assets]
     Page --> App[Canvas/static/app.js]
     App --> Init[js/application/bootstrap.js]
@@ -25,7 +27,7 @@ flowchart TD
 | --- | --- | --- |
 | `main.go` | Environment and launch directory | Studio server with Canvas routes. |
 | `Canvas/canvas.go` | Environment and launch directory | Standalone Canvas server. |
-| [templates](templates/document.md) | Shell and partial files | Studio HTML composed by Go. |
+| [templates](templates/document.md) | Future shared shell resources | Mode-owned editor HTML stays with its mode. |
 | [static](static/document.md) | Asset requests | Shared styles. |
 | [Canvas templates](Canvas/templates/document.md) | Canvas/sidebar fragments | Canvas page and UI mount points. |
 | [Canvas frontend](Canvas/static/js/document.md) | User events and graph responses | Rendered canvas, API mutations and metadata refresh. |

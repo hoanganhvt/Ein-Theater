@@ -5,7 +5,14 @@ import { loadSidebar } from './loading.js';
  */
 export async function switchMode(mode) {
     if (mode !== 'canvas') {
-        alert(`Mode "${mode.toUpperCase()}" is under development and coming soon!`);
+        const response = await fetch('/api/modes');
+        if (!response.ok) throw new Error(`Unable to load modes (HTTP ${response.status})`);
+        const target = (await response.json()).find(item => item.id === mode);
+        if (target?.available) {
+            window.location.assign(target.url);
+        } else {
+            alert(`Mode "${mode.toUpperCase()}" is under development and coming soon!`);
+        }
         return;
     }
 

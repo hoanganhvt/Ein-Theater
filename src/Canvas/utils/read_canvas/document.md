@@ -130,3 +130,16 @@ python -B -m unittest discover -s ../tests -p test_codegen.py -v
 
 These tests exercise parsing through source generation, including disconnected
 layers and the save CLI. See [utility architecture](../document.md).
+
+## Legacy nested-model captions
+
+`saved_canvas.repair_legacy_labels(canvas)` repairs inflated, encoding-corrupted
+IntegratedModel captions in place, including adapted children. read_canvas invokes
+it after file decoding. It returns no value and changes no parameters or source
+files. See [performance](../../performance.md). From the repository root run:
+
+```powershell
+python -B -m unittest discover -s src/Canvas/utils/tests -p test_saved_canvas_labels.py -v
+```
+
+This regression needs Python but not PyTorch.

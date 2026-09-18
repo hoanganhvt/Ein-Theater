@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-`loading.js` fetches the sidebar HTML endpoint, mounts the composed fragment and initializes workspace, projects and palette. It tracks the active sidebar mode and emits `sidebar:loaded`. `navigation.js` updates mode tabs and delegates loading; unimplemented modes retain the existing informational alert. The server composes sidebar partials before returning them, so the client does not fetch each partial separately.
+`loading.js` fetches the sidebar HTML endpoint, mounts the composed fragment and initializes workspace, projects and palette. It tracks the active sidebar mode and emits `sidebar:loaded`. `navigation.js` is the legacy Canvas navigation callback: Canvas reloads its sidebar; another available mode is resolved through `/api/modes` and receives full-page navigation. Planned modes show an informational alert. The main menu is owned by [shared studio navigation](../../../../static/studio/document.md). The server composes sidebar partials before returning them, so the client does not fetch each partial separately.
 
 ## File-by-file ownership
 

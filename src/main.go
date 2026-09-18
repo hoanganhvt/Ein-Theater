@@ -5,21 +5,26 @@ import (
 	"net/http"
 	"os"
 
-	"web-app/Canvas/handler"
+	canvas "web-app/Canvas/mode"
+	"web-app/studio"
 )
 
 func main() {
 	fmt.Println("Starting Ein Theater Studio...")
 
-	mux := http.DefaultServeMux
-
-	// Register Canvas Mode routes & static assets
-	handler.RegisterRoutes(mux)
-
-	// Future mode registrations:
-	// data.RegisterRoutes(mux)
-	// train.RegisterRoutes(mux)
-	// code.RegisterRoutes(mux)
+	mux, err := studio.NewHandler(studio.Config{
+		DefaultMode: "canvas",
+		Modes: []studio.Mode{
+			canvas.Definition(),
+			{ID: "data", Name: "Data"},
+			{ID: "code", Name: "Code"},
+			{ID: "train", Name: "Train"},
+			{ID: "debug", Name: "Debug"},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -30,7 +35,7 @@ func main() {
 	fmt.Println("Default Mode: Canvas (http://localhost:" + port + ")")
 	fmt.Println("Press Ctrl+C to stop.")
 
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
+	if err := http.ListenAndServe(":"+port, mux); err != nil {
 		fmt.Println("Error starting server:", err)
 	}
 }

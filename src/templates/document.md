@@ -1,25 +1,20 @@
-# HTML template entry points
+﻿# Shared template location
 
-## Responsibility and rendering
+This folder is reserved for genuinely mode-independent document fragments or
+shells. Application routing lives in [studio](../studio/document.md).
 
-These files provide static UI markup. The Go template renderer composes include comments before responding; JavaScript then binds behavior through the existing element IDs and global handler bridge. Includes are relative to the containing file and can be nested. All fragments are read before a successful response is sent. Do not load a partial as a standalone page.
+The former index page was a Canvas editor, including node/edge dialogs and Canvas
+JavaScript. It now belongs to [Canvas/templates/studio.html](../Canvas/templates/studio.html)
+and its [studio fragments](../Canvas/templates/studio/document.md).
+The global index handler selects the default mode's Home/Page callback; it does
+not read a Canvas file itself or require a universal Canvas-shaped document.
 
-## Files and DOM ownership
+Input: future trusted shared HTML fragments. Output: composed HTML when explicitly
+used by a mode or studio renderer. There are currently no shared HTML files here.
+Keep this resource directory in the source layout: shared path discovery identifies
+the source root using `go.mod` and this folder.
 
-### [index.html](./index.html)
-
-Document shell or sidebar entry point; delegates component markup to named partials.
-
-Owned element IDs: `modalOverlay`.
-
-Composition order: [index/header.html](./index/header.html), [index/workspace.html](./index/workspace.html), [index/context-menu.html](./index/context-menu.html), [index/folder-browser.html](./index/folder-browser.html), [index/add-node.html](./index/add-node.html), [index/edit-node.html](./index/edit-node.html), [index/edit-edge.html](./index/edit-edge.html).
-
-## Component folders
-
-- [index](./index/document.md)
-
-## Editing contract
-
-Preserve unique element IDs: the JavaScript modules query them directly. Preserve the root overlay and sidebar mount; dialogs coordinate overlay visibility and the sidebar loader inserts the composed sidebar response. Inline handlers must be registered in `src/Canvas/static/js/application/handlers.js`. The studio and standalone page variants have intentional differences; check both when changing shared behavior. The studio's two pre-existing missing connection-type callbacks are documented in the UI source audit.
-
-Run `node src/Canvas/static/js/ui.test.mjs` from the repository root for handler contracts and `go test ./...` from `src` for composition, route and asset checks. The pages must render without unresolved include comments.
+New Data, Code, Train and Debug pages should live under their own mode directories,
+with mode-local scripts/assets. Use shared templates only for shared markup.
+Run `go test ./studio ./Canvas/mode -v` from `src` to verify application dispatch
+and current page composition. See the studio guide for full extension tests.

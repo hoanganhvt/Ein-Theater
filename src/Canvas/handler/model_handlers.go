@@ -2,10 +2,12 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 	"web-app/Canvas/utils/modelio"
 	"web-app/Canvas/utils/naming"
 	"web-app/Canvas/utils/python"
@@ -139,17 +141,21 @@ func LoadModelHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	started := time.Now()
 	graphData, err := modelio.Load(folderPath)
 	if err != nil {
 		writeError(w, err)
 		return
 	}
 	cleanFolder := filepath.Clean(folderPath)
+	decodeMS := float64(time.Since(started).Microseconds()) / 1000
+	importStarted := time.Now()
 
 	store.Mu.Lock()
 	defer store.Mu.Unlock()
 
 	p := store.ImportGraph(graphData, cleanFolder)
+	w.Header().Set("Server-Timing", fmt.Sprintf("read_decode;dur=%.3f, import;dur=%.3f", decodeMS, float64(time.Since(importStarted).Microseconds())/1000))
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{

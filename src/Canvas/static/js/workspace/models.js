@@ -26,8 +26,7 @@ export async function saveActiveModel() {
 
         const modelName = res.modelName || 'Model';
         const folderName = res.folderName || modelName;
-        await loadProjects();
-        await loadGraph();
+        await Promise.all([loadProjects(), loadGraph()]);
 
         const title = document.getElementById('modelTitle');
         if (title && modelName) {
@@ -51,8 +50,7 @@ export async function saveActiveModel() {
 export async function loadModelFromFolder(folderPath) {
     try {
         const res = await api.loadModel(folderPath);
-        await loadProjects();
-        await loadGraph();
+        await Promise.all([loadProjects(), loadGraph({ projectId: res.projectId })]);
         fitView();
         closeSelectFolderModal();
         showToast(`⚡ Model "${res.modelName || 'Model'}" loaded onto canvas (${res.nodeCount || 0} blocks)`);

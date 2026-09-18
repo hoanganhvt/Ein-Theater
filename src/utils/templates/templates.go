@@ -10,28 +10,6 @@ import (
 	"strings"
 )
 
-// FindTemplatePath dynamically locates an HTML template file across candidate paths.
-func FindTemplatePath(rel string) string {
-	candidates := []string{
-		filepath.Join("templates", rel),
-		filepath.Join("src", "templates", rel),
-		filepath.Join("..", "templates", rel),
-		filepath.Join("Canvas", "templates", rel),
-		filepath.Join("src", "Canvas", "templates", rel),
-		filepath.Join("..", "Canvas", "templates", rel),
-	}
-	for _, c := range candidates {
-		if _, err := os.Stat(c); err == nil {
-			abs, err := filepath.Abs(c)
-			if err == nil {
-				return abs
-			}
-			return c
-		}
-	}
-	return filepath.Join("Canvas", "templates", rel)
-}
-
 // Includes are trusted, static HTML fragments, resolved relative to their owner.
 // Compose before writing a response so missing fragments cannot send partial pages.
 var templateInclude = regexp.MustCompile(`<!-- include: ([a-zA-Z0-9_./-]+) -->`)

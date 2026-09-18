@@ -82,3 +82,10 @@ import and snapshot isolation. Snapshot requests must return while analysis is
 blocked. Dragging must preserve valid analysis; parameter changes must reject stale
 analysis. These tests require no Python. Do not parallelize tests that replace the
 handler's package-level store or analysis function.
+
+## Legacy caption repair
+
+`labels.go`: `RepairLegacyLabels(*GraphData)` repairs only oversized,
+encoding-corrupted IntegratedModel captions, recursively including adapted graphs.
+It returns nothing and preserves parameters, topology and ordinary labels. Saved
+model decoding calls it before snapshots. See [performance](../../performance.md).

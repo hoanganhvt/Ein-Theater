@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="/static/style.css?v=5">
     <link rel="stylesheet" href="/static/canvas.css?v=5">
 </head>
-<body>
+<body data-studio-mode="canvas">
     <div id="modalOverlay" onclick="closeAllModals()"></div>
 
     <!-- include: canvas/header.html -->
@@ -20,5 +20,6 @@
     <!-- include: canvas/edit-node.html -->
     <!-- include: canvas/edit-edge.html -->
     <script type="module" src="/static/app.js?v=9"></script>
+    <script type="module" src="/static/studio/navigation.js"></script>
 </body>
 </html>

@@ -41,7 +41,7 @@ func (w *pythonShapeWorker) analyze(graph graphdata.GraphData, baseDir string) (
 	if w.cmd == nil {
 		path := filepath.Join(filepath.Dir(FindGenCodePyPath()), "..", "auto_shape_fitting", "shape_inference.py")
 		cmd := exec.Command("python", "-u", path, "--worker")
-		cmd.Env = append(os.Environ(), "PYTHONDONTWRITEBYTECODE=1")
+		cmd.Env = processEnvironment()
 		input, err := cmd.StdinPipe()
 		if err != nil {
 			return graphdata.GraphData{}, err

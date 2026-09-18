@@ -1,3 +1,5 @@
+Canvas registers a mode through [Canvas/mode](mode/document.md); global routing belongs to [studio](../studio/document.md).
+
 # Canvas Mode Subsystem Documentation (`src/Canvas`)
 
 > **The Neural Architecture Design Studio of Ein Theater**
@@ -54,11 +56,11 @@ src/Canvas/
 ├── handler/                # Go HTTP handlers, state models & routing
 │   ├── document.md         # Detailed Go handler reference & architecture
 │   ├── graph_handlers.go   # CRUD operations for nodes, edges, batch move/delete & clear
-│   ├── index_handler.go    # Template rendering, sidebar loader endpoint & path resolvers
+│   ├── page_handlers.go    # Canvas pages and Canvas-only sidebar content
 │   ├── types.go        # Aliases for graph/workspace utility types
 │   ├── models_test.go      # Unit & integration tests for state models & endpoints
 │   ├── project_handlers.go # Multi-model project lifecycle, switching & renaming
-│   ├── routes.go           # Central route registration (RegisterRoutes, RegisterRoutesWithRoot) & multiDirFS
+│   ├── routes.go           # Canvas relative API registrar and explicit legacy routes
 │   └── workspace_handlers.go # Working directory navigation, native picker & model save/load
 ├── static/                 # Canvas mode static assets
 │   ├── app.js              # Canvas frontend orchestration entry point & keybindings
@@ -102,7 +104,7 @@ The Canvas subsystem can be executed in two distinct modes:
 
 ### 1. Integrated Studio Mode (`src/main.go`)
 
-In Studio Mode, the Go backend orchestrates multiple future modes (`Canvas`, `Data`, `Train`, `Code`):
+In Studio Mode, the Go backend orchestrates multiple future modes (`Canvas`, `Data`, `Code`, `Train`, `Debug`):
 
 ```bash
 cd src
@@ -110,10 +112,10 @@ go run main.go
 ```
 
 - Server binds to `http://localhost:8080` (or `$PORT`).
-- Default route (`/`) serves `src/templates/index.html` via `handler.RegisterRoutes(mux)`.
-- `index.html` displays the unified top navigation bar with mode switcher tabs (`Canvas`, `Data`, `Train`, `Code`).
+- Default route (`/`) serves `src/Canvas/templates/studio.html` via `studio.NewHandler(config)`.
+- `index.html` displays the unified top navigation bar with mode switcher tabs (`Canvas`, `Data`, `Code`, `Train`, `Debug`).
 - The Canvas sidebar is dynamically fetched from `/api/sidebar?mode=canvas` and mounted into `#sidebarSlot` by `sidebarLoader.js`.
-- Both global assets (`src/static/style.css`) and canvas assets (`src/Canvas/static/canvas.css`) are served concurrently via `resolveStaticFS()`.
+- Studio explicitly combines global assets and legacy Canvas fallbacks, and separately mounts Canvas assets under `/static/canvas/`.
 
 ### 2. Standalone Canvas Mode (`src/Canvas/canvas.go`)
 
@@ -125,7 +127,7 @@ go run Canvas/canvas.go
 ```
 
 - Server binds to `http://localhost:8080` (or `$PORT`).
-- Default route (`/`) directly serves `src/Canvas/templates/canvas.html` via `handler.RegisterRoutesWithRoot(mux, handler.CanvasHandler)`.
+- Default route (`/`) directly serves `src/Canvas/templates/canvas.html` via `studio.NewHandler` with `Standalone:true`.
 - Ideal for rapid frontend/backend iteration focused exclusively on neural network schematic editing.
 
 ---
@@ -170,8 +172,8 @@ Key handler responsibilities:
 - **`project_handlers.go`**: Manages concurrent model tabs (`/api/projects`), creation, deletion, and active project switching.
 - **`workspace_handlers.go`**: Adapts workspace requests to `utils/workspace` for browsing, folder creation and native selection.
 - **`model_handlers.go`**: Coordinates model save/load/inspect through `utils/modelio`, `utils/python` and `utils/graph`, preserving snapshot reconciliation.
-- **`index_handler.go`, `template_handler.go`**: Serve page/sidebar responses using `utils/templates` for discovery and fragment composition.
-- **`routes.go`**: Registers all endpoints on `*http.ServeMux`; `utils/assets.ResolveStaticFS` supplies the combined static filesystem.
+- **`page_handlers.go`**: Serve page/sidebar responses using `src/utils/templates` for discovery and fragment composition.
+- **`routes.go`**: Registers all endpoints on `*http.ServeMux`; the studio router mounts Canvas APIs and explicitly composes its static filesystem.
 
 ### Frontend Client Architecture (`static/`)
 
@@ -227,7 +229,7 @@ Python worker (`src/Canvas/utils/auto_shape_fitting/shape_inference.py`) that ev
 
 ## REST API Reference
 
-All Canvas routes registered on the server multiplexer by `handler.RegisterRoutes` and `handler.RegisterRoutesWithRoot`:
+Canvas registers relative APIs through `handler.RegisterAPI`. Studio mounts them at `/api/canvas/*`; `handler.RegisterRoutes` also registers the explicit legacy aliases listed below:
 
 | Endpoint | Method | Payload / Query | Description |
 | :--- | :---: | :--- | :--- |
@@ -376,4 +378,4 @@ For deep technical dives into individual subsystems within Canvas, refer to:
 
 ## UI feature refactor
 
-See the [UI source audit and architecture](static/document.md) for the per-file analysis, feature ownership, new folder documentation and validation commands. HTML entry handlers now use `handler/template_handler.go` and `utils/templates` to compose named static partials before sending the response. JavaScript keeps its original public entry paths while implementations live in feature folders. Shared CSS has one source of truth with a small Canvas override.
+See the [UI source audit and architecture](static/document.md) for the per-file analysis, feature ownership, new folder documentation and validation commands. HTML entry handlers now use `src/studio/render.go` and `src/utils/templates` to compose named static partials before sending the response. JavaScript keeps its original public entry paths while implementations live in feature folders. Shared CSS has one source of truth with a small Canvas override.

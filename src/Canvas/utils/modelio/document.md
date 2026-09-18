@@ -32,3 +32,10 @@ For an end-to-end check, save a small Input → Linear graph using the applicati
 then load the produced folder. Expect the same nodes, params and edges, a valid
 active project, and model inspection reporting its input. Saving requires the
 Python prerequisites described in [the bridge guide](../python/document.md).
+
+## Efficient model decoding
+
+`DecodeCanvas([]byte)` returns GraphData/error from wrapped or legacy JSON in one
+pass. Load and ReadModelCanvas share it and invoke graph.RepairLegacyLabels before
+returning. Source files are never rewritten. See [navigation performance](../../performance.md)
+for measured timings, input/output contracts and benchmark/test commands.

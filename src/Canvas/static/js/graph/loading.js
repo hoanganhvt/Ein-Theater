@@ -9,10 +9,10 @@ import { setupNodeDragging } from './dragging.js';
 import { setupGraphSelection } from './selection.js';
 let loadVersion = 0;
 
-export async function loadGraph() {
+export async function loadGraph({ projectId = null } = {}) {
     const version = ++loadVersion;
     try {
-        const data = await api.fetchGraphData({ analyze: false });
+        const data = await api.fetchGraphData({ analyze: false, projectId });
         if (version !== loadVersion) return;
         const container = document.getElementById('mynetwork');
         if (!container) return;

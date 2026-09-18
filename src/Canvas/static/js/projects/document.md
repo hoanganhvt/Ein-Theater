@@ -37,3 +37,10 @@ node src/Canvas/static/js/ui.test.mjs
 ```
 
 The UI checks cover module linking, existing inline handler contracts, four bend modes, endpoint movement, zoom-aware box selection, wire cancellation and rigid group dragging. Use the browser to verify the affected gesture or dialog as well. See the [frontend architecture](../document.md) for startup, state ownership and known pre-existing limitations.
+
+## Navigation latency
+
+After a successful mutation, project-list and graph fetches run concurrently.
+Switch requests pin loadGraph to the selected ID. Opening a folder pins it to the
+project ID returned by the load API. See [performance diagnosis](../../../performance.md)
+for the inflated-caption bottleneck, measurements and regression commands.

@@ -5,15 +5,19 @@ import (
 	"net/http"
 	"os"
 
-	"web-app/Canvas/handler"
+	canvas "web-app/Canvas/mode"
+	"web-app/studio"
 )
 
 func main() {
 	fmt.Println("Starting Ein Theater [Canvas Mode]...")
 
-	mux := http.NewServeMux()
-	// Standalone Canvas mode: serves canvas.html at root
-	handler.RegisterRoutesWithRoot(mux, handler.CanvasHandler)
+	mux, err := studio.NewHandler(studio.Config{
+		Modes: []studio.Mode{canvas.Definition()}, DefaultMode: "canvas", Standalone: true,
+	})
+	if err != nil {
+		panic(err)
+	}
 
 	port := os.Getenv("PORT")
 	if port == "" {

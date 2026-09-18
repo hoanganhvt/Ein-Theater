@@ -59,3 +59,11 @@ is running: newer semantic edits must survive result reconciliation.
 See [generation examples](../generate%20code/document.md) and
 [shape inference examples](../auto_shape_fitting/document.md) for concrete canvas
 fixtures and direct Python CLI tests.
+
+## JSON pipe encoding
+
+`environment.go`: `processEnvironment()` returns the inherited environment with
+PYTHONDONTWRITEBYTECODE=1, PYTHONUTF8=1 and PYTHONIOENCODING=utf-8. Both subprocess
+paths use it to prevent locale-based Unicode corruption on Windows pipes.
+The worker integration test checks captions across repeated analysis; the environment
+test checks inherited overrides without Python. See [performance](../../performance.md).

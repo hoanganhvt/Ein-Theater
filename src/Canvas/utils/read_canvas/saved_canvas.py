@@ -13,6 +13,21 @@ def read_canvas(folder):
     if not canvas.get('nodes') or any(not n.get('layerType') for n in canvas['nodes']):
         raise ValueError('Integrated model requires an editable saved canvas with layer types')
     canvas.setdefault('name', fix_model_name(folder.name))
+    repair_legacy_labels(canvas)
     return canvas
+
+
+def repair_legacy_labels(canvas):
+    """Repair inflated legacy IC captions in memory without changing model semantics."""
+    for node in canvas.get('nodes', []):
+        label = node.get('label', '')
+        if (node.get('layerType') == 'IntegratedModel'
+                and isinstance(label, str) and len(label) > 4096
+                and label.startswith('\u00c3')):
+            name = (node.get('params') or {}).get('model_name') or 'Integrated Model'
+            node['label'] = f"IC: {name} #{node.get('id', '')}"
+        adapted = node.get('adaptedModel')
+        if isinstance(adapted, dict):
+            repair_legacy_labels(adapted)
 
 

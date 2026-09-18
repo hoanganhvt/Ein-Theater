@@ -5,7 +5,7 @@ let activeSidebarMode = null;
 
 /**
  * Dynamically loads and injects the mode-specific sidebar into the DOM.
- * @param {string} mode - 'canvas' | 'data' | 'train' | 'code'
+ * @param {string} mode - Registered studio mode ID (Canvas initializes local hooks).
  * @returns {Promise<boolean>}
  */
 export async function loadSidebar(mode = 'canvas') {

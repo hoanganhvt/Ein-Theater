@@ -6,6 +6,7 @@ import { runtime } from './circuit/runtime.js';
 import { setupPaletteDragAndDrop } from './palette/dragging.js';
 import { loadGraph } from './graph/loading.js';
 import { api as applicationApi } from './api.js';
+import { switchProject } from './projects/list.js';
 
 const deferred = () => {
     let resolve;
@@ -116,4 +117,22 @@ globalThis.vis = {
 await loadGraph();
 assert.ok(requestedAnalysis);
 assert.equal(state.currentProjectId, 'loaded');
+
+// A slow sidebar list must not delay loading the selected graph.
+const projectList = deferred();
+let graphFetched = false;
+applicationApi.switchProject = async id => { assert.equal(id, 'selected'); };
+applicationApi.fetchProjects = () => projectList.promise;
+applicationApi.fetchGraphData = async options => {
+    assert.equal(options.projectId, 'selected', 'pin the snapshot to the selected project');
+    graphFetched = true;
+    return { projectId: 'selected', nodes: [], edges: [] };
+};
+state.network.destroy = () => {};
+const switching = switchProject('selected');
+await delay(0);
+assert.ok(graphFetched, 'graph request waited for the sidebar request');
+assert.equal(state.currentProjectId, 'selected');
+projectList.resolve({ current: 'selected', projects: [] });
+await switching;
 console.log('Nonblocking graph load/mutations, coalescing, stale-response guards and palette binding checks passed.');
