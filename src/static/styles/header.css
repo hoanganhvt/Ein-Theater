@@ -1,0 +1,77 @@
+/* ── Header ─────────────────────────────────────────────── */
+.header {
+    background-color: #ffffff;
+    padding: 11px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e0e0e0;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    z-index: 10;
+    flex-shrink: 0;
+}
+.model-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    min-width: 0;
+}
+#modelTitle {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    color: #1a202c;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 300px;
+}
+#modelTitleInput {
+    font-size: 17px;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    color: #1a202c;
+    border: none;
+    border-bottom: 2px solid #007acc;
+    outline: none;
+    background: transparent;
+    padding: 0 2px;
+    width: 240px;
+    display: none;
+}
+.toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
+}
+.btn {
+    background-color: #ffffff;
+    color: #333333;
+    border: 1px solid #ced4da;
+    padding: 6px 13px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+.btn:hover { background-color: #f8f9fa; border-color: #adb5bd; }
+.btn-primary { background-color: #007acc; border-color: #007acc; color: #fff; }
+.btn-primary:hover { background-color: #0090e8; border-color: #0090e8; }
+.btn-clear { background-color: #e03131; border-color: #c92a2a; color: #fff; }
+.btn-clear:hover { background-color: #c92a2a; border-color: #b02525; }
+.btn.active { background-color: #e8f4fc; border-color: #007acc; color: #007acc; font-weight: 700; }
+.btn:disabled, .btn.disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+.btn:disabled:hover, .btn.disabled:hover {
+    background-color: #ffffff;
+    border-color: #ced4da;
+}
+

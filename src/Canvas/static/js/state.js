@@ -1,7 +1,8 @@
 // ── Application State Container ──────────────────────────────────
-// Holds shared reactive state across components
+// Holds shared application references and transient UI state (a plain object).
 
 export const state = {
+    currentProjectId: null,
     network: null,
     nodesDataSet: null,
     edgesDataSet: null,

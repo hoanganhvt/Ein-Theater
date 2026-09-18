@@ -1,0 +1,77 @@
+# Shared component styles
+
+## Ownership and cascade
+
+These files replace the former global monolithic stylesheet. `../style.css` imports them in their original order, preserving specificity and overrides. Both page variants load this entry before Canvas-specific overrides.
+
+## File-by-file responsibilities
+
+### [base.css](./base.css)
+
+Owns base presentation. Selectors: `html, body`, `body`.
+
+### [canvas.css](./canvas.css)
+
+Owns canvas presentation. Selectors: `.canvas-container`, `#mynetwork`, `#mynetwork.drag-over`, `.selection-box`, `.mode-banner`.
+
+### [connections.css](./connections.css)
+
+Owns connections presentation. Selectors: `.header-edge-toolbar`, `.header-edge-title`, `.header-edge-nodes`, `.header-edge-pills`, `.header-edge-actions`, `.btn-edge-pill`, `.btn-edge-pill:hover`, `.btn-edge-pill.active`, `.btn-edge-pill.active-normal`, `.btn-edge-pill.active-residual`, `.btn-edge-pill.active-skip`, `.btn-edge-pill-danger:hover`, `.toolbar-divider-sm`, `.pill-dot`, `.dot-normal`, `.dot-residual`, `.dot-skip`, `.floating-edge-bar`, `from`, `to`, `.floating-edge-drag`, `.floating-edge-info`, `.floating-edge-name`, `.floating-edge-nodes`, `.floating-edge-divider`, `.floating-edge-types`, `.floating-type-btn`, `.floating-type-btn:hover`, `.floating-type-btn.active-normal`, `.floating-type-btn.active-residual`, `.floating-type-btn.active-skip`, `.floating-edge-actions`, `.btn-edge-act`, `.btn-edge-act:hover`, `.btn-edge-act-danger:hover`, `.connections-section`, `.connections-list`, `.connection-item`, `.connection-item:hover`, `.connection-tag-icon`, `#editEdgeModal`, `.edge-nodes-banner`, `.edge-nodes-arrow`, `.section-label`, `.edge-type-cards`, `.edge-card`, `.edge-card:hover`, `.edge-card.selected`, `.edge-card-radio`, `.edge-card-content`, `.edge-card-header`, `.edge-card-content p`, `.edge-card-tag`, `.tag-normal`, `.tag-residual`, `.tag-skip`, `.edge-routing-row select`, `.edge-routing-row select:focus`, `.connect-type-toggle`, `.connect-type-btn`, `.connect-type-btn:hover`, `.connect-type-btn.active`.
+
+### [context-menu.css](./context-menu.css)
+
+Owns context menu presentation. Selectors: `.context-menu`, `.context-menu-item`, `.context-menu-item:hover`, `.context-menu-item.danger`, `.context-menu-item.danger:hover`, `.context-menu-item.disabled`, `.context-menu-item .cm-icon`, `.context-menu-item .cm-text`, `.context-menu-item .cm-shortcut`, `.context-menu-item .cm-check`, `.context-menu-separator`, `.context-menu-item.has-submenu`, `.context-menu-item .cm-arrow`, `.context-submenu`, `.context-submenu.open-left`, `.context-menu-item.has-submenu:hover > .context-submenu`.
+
+### [file-menu.css](./file-menu.css)
+
+Owns file menu presentation. Selectors: `.header-left`, `.header-divider`, `.menu-dropdown`, `.menu-btn`, `.menu-btn:hover, .menu-btn.active`, `.menu-dropdown-content`, `.menu-dropdown-content.open`, `from`, `to`, `.menu-item`, `.menu-item:hover:not(.disabled)`, `.menu-item.disabled`, `.menu-icon`, `.menu-text`, `.menu-badge`, `.menu-separator`, `.menu-item-info`, `.menu-info-label`, `.menu-info-val`.
+
+### [folder-browser.css](./folder-browser.css)
+
+Owns folder browser presentation. Selectors: `#selectFolderModal`, `from`, `to`, `.modal-close-btn`, `.modal-close-btn:hover`, `.folder-modal-body`, `.folder-path-bar`, `.folder-path-bar input`, `.folder-path-bar input:focus`, `.folder-drives-bar`, `.folder-hint`, `.drive-chip`, `.drive-chip:hover`, `.drive-chip.active`, `.folder-browser-list`, `.folder-browser-row`, `.folder-browser-row:hover`, `.folder-browser-row.selected`, `.folder-browser-row.is-folder`, `.folder-browser-row.is-file`, `.folder-browser-row.is-file:hover`, `.folder-browser-row.parent-row`, `.fb-icon`, `.fb-name`, `.fb-actions`, `.fb-select-btn`, `.fb-select-btn:hover`, `.fb-open-btn`, `.fb-open-btn:hover`, `.folder-browser-row.is-model-folder`, `.folder-browser-row.is-model-folder:hover`, `.model-tag`, `.fb-load-btn`, `.fb-load-btn:hover`, `.folder-browser-files-header`, `.folder-browser-empty, .folder-browser-loading, .folder-browser-error`, `.folder-browser-error`, `.modal-footer-spacer`, `.btn-system-browse`, `.btn-system-browse:hover`.
+
+### [header.css](./header.css)
+
+Owns header presentation. Selectors: `.header`, `.model-title-wrap`, `#modelTitle`, `#modelTitleInput`, `.toolbar`, `.btn`, `.btn:hover`, `.btn-primary`, `.btn-primary:hover`, `.btn-clear`, `.btn-clear:hover`, `.btn.active`, `.btn:disabled, .btn.disabled`, `.btn:disabled:hover, .btn.disabled:hover`.
+
+### [modals.css](./modals.css)
+
+Owns modals presentation. Selectors: `#modalOverlay`, `#nodeModal`, `#nodeModal h3`, `#nodeModal label`, `#nodeModal select, #nodeModal input`, `#nodeModal select:focus, #nodeModal input:focus`, `.node-modal-search-wrap`, `.node-modal-search-wrap input`, `.node-modal-row`, `.node-modal-col`, `.node-modal-col select`, `.node-preview-card`, `.node-preview-header`, `.node-preview-category`, `.node-preview-label`, `.node-preview-code`, `.modal-footer`, `#editLayerModal`, `.modal-header`, `.modal-header h3`, `.modal-layer-badge`, `.param-group`, `.param-group label`, `.param-group label .param-hint`, `.param-group input, .param-group select`, `.param-group input:focus, .param-group select:focus`, `.param-checkbox-group`, `.param-checkbox-group input[type="checkbox"]`, `.param-checkbox-group label`.
+
+### [modes.css](./modes.css)
+
+Owns modes presentation. Selectors: `.mode-group`, `.mode-group .mode-btn`, `.mode-group .mode-btn:hover`, `.mode-group .mode-btn.active`, `.mode-tabs`, `.mode-tab`, `.mode-tab:hover:not(.disabled)`, `.mode-tab.active`, `.mode-tab.disabled`, `.mode-tab-icon`, `.mode-tab-badge`.
+
+### [notifications.css](./notifications.css)
+
+Owns notifications presentation. Selectors: `.app-toast`, `.app-toast.show`.
+
+### [palette.css](./palette.css)
+
+Owns palette presentation. Selectors: `.palette-list`, `.palette-item`, `.palette-item:hover`, `.palette-item.dragging`, `.palette-badge`, `.badge-blue`, `.badge-green`, `.badge-orange`, `.badge-purple`, `.badge-red`, `.badge-gray`, `.palette-name`, `.drag-handle`, `.custom-palette-item`, `.custom-palette-item:hover`.
+
+### [save-button.css](./save-button.css)
+
+Owns save button presentation. Selectors: `.btn-save`, `.btn-save:hover`, `.btn-save:disabled`.
+
+### [sidebar.css](./sidebar.css)
+
+Owns sidebar presentation. Selectors: `.sidebar`, `.sidebar-section`, `.models-section`, `.palette-section`, `.sidebar-header`, `.sidebar-header h3`, `.palette-hint`, `.btn-new-model`, `.btn-new-model:hover`, `.project-list`, `.palette-list::-webkit-scrollbar`, `.palette-list::-webkit-scrollbar-thumb`, `.project-item`, `.project-item:hover`, `.project-item.active`, `.project-item .project-icon`, `.project-item.active .project-icon`, `.project-item .project-name`, `.project-item.active .project-name`, `.project-item .btn-delete-project`, `.project-item:hover .btn-delete-project`, `.project-item .btn-delete-project:hover`.
+
+### [vis-overrides.css](./vis-overrides.css)
+
+Owns vis overrides presentation. Selectors: `div.vis-network div.vis-close`.
+
+### [workspace-tree.css](./workspace-tree.css)
+
+Owns workspace tree presentation. Selectors: `.workspace-section`, `.btn-change-folder`, `.btn-change-folder:hover`, `.workspace-card`, `.workspace-card:hover`, `.workspace-card-icon`, `.workspace-card-info`, `.workspace-card-name`, `.workspace-card-path`, `.workspace-file-list`, `.workspace-file-item`, `.workspace-file-item:hover`, `.workspace-file-item.is-folder`, `.workspace-file-item.is-model-folder`, `.workspace-file-item.is-model-folder:hover`, `.model-badge`, `.workspace-empty-hint`.
+
+### [workspace.css](./workspace.css)
+
+Owns workspace presentation. Selectors: `.workspace`, `.sidebar-slot`.
+
+## Maintenance
+
+Add a rule to its component owner and check the import order before increasing specificity. Keep shared styles in the global folder and Canvas-only differences in the override folder. Relative URLs resolve from the component stylesheet, not from the HTML page. Use the existing unique `/static/styles/` and `/static/canvas-styles/` prefixes because the server merges two static roots.
+
+Verify both `/` and `/canvas`: header, sidebar, selection box, context menu and all dialogs must retain their layout. The connect banner must accept pointer input. No CSS build step or framework is required.

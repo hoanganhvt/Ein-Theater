@@ -1,0 +1,13 @@
+/* ── Workspace ───────────────────────────────────────────── */
+.workspace {
+    display: flex;
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* ── Dynamic Sidebar Slot (Managed by SidebarLoader) ─────── */
+.sidebar-slot {
+    display: contents;
+}
+

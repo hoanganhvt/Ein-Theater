@@ -43,7 +43,7 @@ func IndexHandler(w http.ResponseWriter, r *http.Request) {
 	if _, err := os.Stat(tpl); err != nil {
 		tpl = FindTemplatePath("canvas.html")
 	}
-	http.ServeFile(w, r, tpl)
+	serveTemplate(w, r, tpl)
 }
 
 // CanvasHandler serves the Canvas mode HTML template (canvas.html).
@@ -51,7 +51,7 @@ func CanvasHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Expires", "0")
-	http.ServeFile(w, r, FindTemplatePath("canvas.html"))
+	serveTemplate(w, r, FindTemplatePath("canvas.html"))
 }
 
 // SidebarHandler serves mode-specific sidebar HTML fragments for the custom sidebar loader.
@@ -100,11 +100,11 @@ func SidebarHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-	http.ServeFile(w, r, tplPath)
+	serveTemplate(w, r, tplPath)
 }
 
 func extractSidebarFromHTML(path string) (string, error) {
-	data, err := os.ReadFile(path)
+	data, err := composeTemplate(path, make(map[string]bool))
 	if err != nil {
 		return "", err
 	}

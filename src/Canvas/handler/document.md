@@ -189,3 +189,14 @@ Provides shared route registration and dynamic path resolvers used by both `canv
 - [Frontend JavaScript Documentation](../static/js/document.md) — Client-side ES6 architecture and Vis.js/Canvas rendering pipeline.
 - [PyTorch Code Generation Engine](../utils/generate%20code/document.md) — FX code builder, FX graph tracing, and code generation reference.
 - [Python Shape Adaptation](../shape-inference.md) — Python shape adaptation and meta tensor execution.
+
+
+## UI feature refactor
+
+See the [UI source audit and architecture](../static/document.md) for the per-file analysis, feature ownership, new folder documentation and validation commands. HTML entry handlers now use `template_renderer.go` to compose named static partials before sending the response. JavaScript keeps its original public entry paths while implementations live in feature folders. Shared CSS has one source of truth with a small Canvas override.
+
+## Graph response latency
+
+`GET /api/data?analyze=false` returns a graph snapshot without entering the Python worker. The default request retains synchronous shape analysis for existing clients. The optional `projectId` pins either request to a specific project. `Server-Timing` reports snapshot duration and, when requested, analysis duration for inspection in browser network tools.
+
+Shape-result validation ignores node coordinates and wire routing changes, while still rejecting semantic parameter or topology changes. Applying analysis only updates parameters/tensor metadata and preserves current layout. `graph_latency_test.go` verifies that snapshots return even while the worker mutex is held and that a concurrent drag does not discard valid inference.

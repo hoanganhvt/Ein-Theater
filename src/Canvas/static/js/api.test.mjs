@@ -14,6 +14,7 @@ globalThis.fetch = async (url, options) => {
     return { ok: true, json: async () => ({ nodes }), text: async () => '' };
 };
 await api.updateNode({ id: 'input_0', params: { shape_preset: '1, 28, 28' } });
+await api.refreshShapes();
 assert.equal(calls[0].url, '/api/updateNode');
 assert.equal(calls[1].url, '/api/data');
 assert.equal(local.get('linear_0').params.in_features, 1568);
@@ -21,6 +22,7 @@ assert.equal(local.get('linear_0').x, 150);
 assert.match(local.get('linear_0').title, /in_features=1568/);
 nodes[0].tensorInfo = { input: null, output: null, auto: null, message: 'Connect an Input block to infer dimensions.' };
 await api.deleteEdge('e0');
+await api.refreshShapes();
 assert.equal(local.get('linear_0').tensorInfo.output, null);
 assert.match(tensorSummary(local.get('linear_0')), /Connect an Input/);
 
@@ -28,11 +30,13 @@ const integrated = { id: 'model_0', layerType: 'IntegratedModel', params: { mode
 local.set(integrated.id, { ...integrated, x: 200 });
 nodes = [integrated];
 await api.addEdge('input_0', integrated.id);
+await api.refreshShapes();
 assert.match(local.get(integrated.id).label, /IN: x \[2, 8\]/);
 assert.match(integratedShapeLabel(integrated), /save to create copy/);
 assert.match(tensorSummary(integrated), /Adapted recursively/);
 delete integrated.adaptedModel;
 await api.deleteEdge('e0');
+await api.refreshShapes();
 assert.equal(local.get(integrated.id).adaptedModel, null);
 
 // A response from a previous canvas must never update a newly selected project.
@@ -42,5 +46,6 @@ globalThis.fetch = async (url) => {
     return { ok: true, json: async () => ({ nodes }) };
 };
 await api.updateNode({ id: 'input_0' });
+await api.refreshShapes();
 assert.notEqual(state.nodesDataSet, original);
 console.log('API dimension refresh checks passed.');

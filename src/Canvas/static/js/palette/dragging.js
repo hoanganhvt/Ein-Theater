@@ -1,0 +1,119 @@
+import { state } from '../state.js';
+import { createBlock, createIntegratedBlock } from '../graph.js';
+import { setMode } from '../modes.js';
+import { api } from '../api.js';
+import { showToast } from '../workspace.js';
+let canvasListenersInitialized = false;
+const boundPaletteItems = new WeakSet();
+
+export function setupPaletteDragAndDrop() {
+    const paletteItems = document.querySelectorAll('.palette-item[draggable="true"]');
+    const canvasContainer = document.getElementById('mynetwork');
+    if (!canvasContainer) return;
+
+    paletteItems.forEach(item => {
+        if (boundPaletteItems.has(item)) return;
+        boundPaletteItems.add(item);
+        item.addEventListener('dragstart', (e) => {
+            const blockType = item.getAttribute('data-type');
+            e.dataTransfer.setData('text/plain', blockType);
+            e.dataTransfer.effectAllowed = 'copy';
+            item.classList.add('dragging');
+        });
+
+        item.addEventListener('dragend', () => {
+            item.classList.remove('dragging');
+        });
+
+        // Click to add at center as a quick alternative to drag & drop
+        item.addEventListener('click', async () => {
+            const blockType = item.getAttribute('data-type');
+            if (state.network) {
+                const v = state.network.getViewPosition();
+                const posX = Math.round(v.x + (Math.random() * 80 - 40));
+                const posY = Math.round(v.y + (Math.random() * 80 - 40));
+                const nodeObj = await createBlock(blockType, posX, posY);
+                if (nodeObj && nodeObj.id) {
+                    setMode('move');
+                    state.network.selectNodes([String(nodeObj.id)]);
+                    state.network.redraw();
+                }
+            }
+        });
+    });
+
+    if (canvasListenersInitialized) return;
+    canvasListenersInitialized = true;
+
+    canvasContainer.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        canvasContainer.classList.add('drag-over');
+    });
+
+    canvasContainer.addEventListener('dragleave', (e) => {
+        if (!canvasContainer.contains(e.relatedTarget)) {
+            canvasContainer.classList.remove('drag-over');
+        }
+    });
+
+    canvasContainer.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        canvasContainer.classList.remove('drag-over');
+
+        const rawData = e.dataTransfer.getData('text/plain');
+        if (!rawData || !state.network) return;
+
+        // Convert DOM coordinates to Vis.js canvas coordinates
+        const rect = canvasContainer.getBoundingClientRect();
+        const domPos = {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        };
+        const canvasPos = state.network.DOMtoCanvas(domPos);
+
+        const posX = Math.round(canvasPos.x);
+        const posY = Math.round(canvasPos.y);
+
+        // ponytail: check if dropped payload is a registered model folder from workspace sidebar
+        let modelFolderData = null;
+        try {
+            const parsed = JSON.parse(rawData);
+            if (parsed && parsed.type === 'model_folder') {
+                modelFolderData = parsed;
+            }
+        } catch (_) {}
+
+        if (modelFolderData) {
+            try {
+                const inspect = await api.inspectModel(modelFolderData.path);
+                if (!inspect || !inspect.isModel) {
+                    showToast('⚠️ Dropped folder is not a valid registered model (.json and .py required).');
+                    return;
+                }
+                if (!inspect.hasInputs) {
+                    showToast(`⚠️ Cannot integrate '${inspect.modelName}': Model folder has no Input blocks.`);
+                    return;
+                }
+                const nodeObj = await createIntegratedBlock(inspect, posX, posY);
+                if (nodeObj && nodeObj.id) {
+                    setMode('move');
+                    state.network.selectNodes([String(nodeObj.id)]);
+                    state.network.redraw();
+                    showToast(`⚡ Integrated model '${inspect.modelName}' added to canvas`);
+                }
+            } catch (err) {
+                console.error('Failed to integrate model folder:', err);
+                showToast('Failed to integrate model: ' + err.message);
+            }
+            return;
+        }
+
+        const nodeObj = await createBlock(rawData, posX, posY);
+        if (nodeObj && nodeObj.id) {
+            setMode('move');
+            state.network.selectNodes([String(nodeObj.id)]);
+            state.network.redraw();
+        }
+    });
+}

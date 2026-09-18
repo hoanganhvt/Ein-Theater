@@ -1,0 +1,112 @@
+/* Sidebar Working Directory Section */
+.workspace-section {
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 12px;
+}
+.btn-change-folder {
+    background: transparent;
+    border: none;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background 0.15s;
+}
+.btn-change-folder:hover {
+    background-color: #e2e8f0;
+}
+.workspace-card {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: 6px;
+}
+.workspace-card:hover {
+    border-color: #007acc;
+    background-color: #f8fafc;
+}
+.workspace-card-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+.workspace-card-info {
+    min-width: 0;
+    flex: 1;
+}
+.workspace-card-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.workspace-card-path {
+    font-size: 11px;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.workspace-file-list {
+    max-height: 140px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+.workspace-file-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #475569;
+    cursor: pointer;
+    transition: background 0.12s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.workspace-file-item:hover {
+    background-color: #e2e8f0;
+    color: #1e293b;
+}
+.workspace-file-item.is-folder {
+    font-weight: 500;
+}
+.workspace-file-item.is-model-folder {
+    font-weight: 600;
+    color: #0369a1;
+    background-color: #f0f9ff;
+    border-radius: 4px;
+}
+.workspace-file-item.is-model-folder:hover {
+    background-color: #e0f2fe;
+    color: #0284c7;
+}
+.model-badge {
+    margin-left: auto;
+    background-color: #0284c7;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.workspace-empty-hint {
+    font-size: 11px;
+    color: #94a3b8;
+    font-style: italic;
+    padding: 6px 8px;
+}
+

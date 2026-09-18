@@ -371,3 +371,8 @@ For deep technical dives into individual subsystems within Canvas, refer to:
 - [`utils/generate code/document.md`](./utils/generate%20code/document.md) — PyTorch FX symbolic tracing, connection classification, FX code generation engine, and CLI compiler reference.
 - [`utils/auto shape size fit/document.md`](./utils/auto%20shape%20size%20fit/document.md) — Automated tensor shape propagation, dimension inference, and skip/residual padding auto-resolution engine.
 - [Root Project Documentation](../../document.md) — High-level architecture, quickstart guide, and global system overview.
+
+
+## UI feature refactor
+
+See the [UI source audit and architecture](static/document.md) for the per-file analysis, feature ownership, new folder documentation and validation commands. HTML entry handlers now use `template_renderer.go` to compose named static partials before sending the response. JavaScript keeps its original public entry paths while implementations live in feature folders. Shared CSS has one source of truth with a small Canvas override.

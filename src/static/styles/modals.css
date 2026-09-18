@@ -1,0 +1,222 @@
+/* ── Modals ──────────────────────────────────────────────── */
+#modalOverlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.35);
+    z-index: 999;
+    backdrop-filter: blur(2px);
+}
+#nodeModal {
+    display: none;
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: #ffffff;
+    padding: 22px 24px;
+    border-radius: 10px;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.14);
+    z-index: 1000;
+    width: 440px;
+    max-width: 92vw;
+    border: 1px solid #e0e0e0;
+}
+#nodeModal h3 {
+    margin: 0;
+    color: #1a202c;
+    font-weight: 600;
+    font-size: 16px;
+}
+#nodeModal label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #555;
+    margin-bottom: 4px;
+    display: block;
+}
+#nodeModal select, #nodeModal input {
+    width: 100%;
+    padding: 9px 10px;
+    margin-bottom: 12px;
+    box-sizing: border-box;
+    background-color: #fff;
+    border: 1px solid #ced4da;
+    color: #333;
+    border-radius: 6px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    transition: border-color 0.15s;
+}
+#nodeModal select:focus, #nodeModal input:focus {
+    outline: none;
+    border-color: #007acc;
+    box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.12);
+}
+.node-modal-search-wrap {
+    margin-bottom: 14px;
+}
+.node-modal-search-wrap input {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 13px;
+    box-sizing: border-box;
+    background-color: #f8fafc;
+    margin-bottom: 0;
+}
+.node-modal-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 6px;
+}
+.node-modal-col {
+    flex: 1;
+    min-width: 0;
+}
+.node-modal-col select {
+    margin-bottom: 8px;
+}
+.node-preview-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-top: 4px;
+    margin-bottom: 14px;
+}
+.node-preview-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.node-preview-category {
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.node-preview-label {
+    font-family: monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+    white-space: pre-line;
+    line-height: 1.4;
+    margin-bottom: 6px;
+}
+.node-preview-code {
+    font-family: monospace;
+    font-size: 11px;
+    color: #0284c7;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: #e0f2fe;
+    padding: 3px 7px;
+    border-radius: 4px;
+}
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+#editLayerModal {
+    display: none;
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: #ffffff;
+    padding: 22px 24px;
+    border-radius: 10px;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.14);
+    z-index: 1000;
+    width: 350px;
+    max-width: 90vw;
+    border: 1px solid #e0e0e0;
+}
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #edf2f7;
+}
+.modal-header h3 {
+    margin: 0;
+    color: #1a202c;
+    font-weight: 600;
+    font-size: 16px;
+}
+.modal-layer-badge {
+    font-size: 11px;
+    font-weight: 700;
+    color: #007acc;
+    background-color: #ebf8ff;
+    padding: 3px 8px;
+    border-radius: 12px;
+    border: 1px solid #bee3f8;
+    font-family: monospace;
+}
+.param-group {
+    margin-bottom: 12px;
+}
+.param-group label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #4a5568;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.param-group label .param-hint {
+    font-size: 11px;
+    color: #a0aec0;
+    font-weight: 400;
+}
+.param-group input, .param-group select {
+    width: 100%;
+    padding: 8px 10px;
+    box-sizing: border-box;
+    background-color: #fff;
+    border: 1px solid #ced4da;
+    color: #333;
+    border-radius: 5px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    transition: border-color 0.15s;
+}
+.param-group input:focus, .param-group select:focus {
+    outline: none;
+    border-color: #007acc;
+}
+.param-checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 4px 0;
+}
+.param-checkbox-group input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    margin: 0;
+    accent-color: #007acc;
+}
+.param-checkbox-group label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #4a5568;
+    cursor: pointer;
+    margin: 0;
+    user-select: none;
+}
+

@@ -7,12 +7,23 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // DataHandler returns the current project's graph data.
 func DataHandler(w http.ResponseWriter, r *http.Request) {
+	started := time.Now()
 	mu.Lock()
 	p := cur()
+	if id := r.URL.Query().Get("projectId"); id != "" {
+		var ok bool
+		p, ok = projects[id]
+		if !ok {
+			mu.Unlock()
+			http.Error(w, "project not found", http.StatusNotFound)
+			return
+		}
+	}
 	p.reindexEdges()
 	for _, eid := range p.edgeOrder {
 		if e, ok := p.edges[eid]; ok {
@@ -32,6 +43,14 @@ func DataHandler(w http.ResponseWriter, r *http.Request) {
 		baseDir = workingDir
 	}
 	mu.Unlock()
+	snapshotMS := float64(time.Since(started).Microseconds()) / 1000
+	if r.URL.Query().Get("analyze") == "false" {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Server-Timing", fmt.Sprintf("snapshot;dur=%.3f", snapshotMS))
+		json.NewEncoder(w).Encode(snapshot)
+		return
+	}
+	analysisStarted := time.Now()
 	analyzed, err := analyzeGraph(snapshot, baseDir)
 	if err != nil {
 		analyzed = snapshot
@@ -46,6 +65,7 @@ func DataHandler(w http.ResponseWriter, r *http.Request) {
 	data := p.graphSnapshot()
 	mu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Server-Timing", fmt.Sprintf("snapshot;dur=%.3f, analysis;dur=%.3f", snapshotMS, float64(time.Since(analysisStarted).Microseconds())/1000))
 	json.NewEncoder(w).Encode(data)
 }
 

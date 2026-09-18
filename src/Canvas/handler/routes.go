@@ -86,7 +86,7 @@ func RegisterRoutesWithRoot(mux *http.ServeMux, rootHandler http.HandlerFunc) {
 	}
 	mux.HandleFunc("/canvas", CanvasHandler)
 	mux.HandleFunc("/index", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, FindTemplatePath("index.html"))
+		serveTemplate(w, r, FindTemplatePath("index.html"))
 	})
 
 	// Mode Sidebar Loader endpoint

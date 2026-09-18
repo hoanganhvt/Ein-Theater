@@ -489,3 +489,8 @@ For in-depth developer documentation of internal subsystems, refer to:
 - [`src/Canvas/static/js/document.md`](./src/Canvas/static/js/document.md) — Comprehensive frontend client architecture, Vis.js custom rendering pipeline, PCB circuit line algorithms, and reactive state management.
 - [`src/Canvas/utils/generate code/document.md`](./src/Canvas/utils/generate%20code/document.md) — PyTorch FX symbolic tracing, connection classification, FX code generation engine, and CLI compiler reference.
 - [`src/Canvas/shape-inference.md`](./src/Canvas/shape-inference.md) — Python shape adaptation and meta tensor execution.
+
+
+## UI feature refactor
+
+See the [UI source audit and architecture](src/Canvas/static/document.md) for the per-file analysis, feature ownership, new folder documentation and validation commands. HTML entry handlers now use `template_renderer.go` to compose named static partials before sending the response. JavaScript keeps its original public entry paths while implementations live in feature folders. Shared CSS has one source of truth with a small Canvas override.

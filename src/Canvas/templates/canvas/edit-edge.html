@@ -1,0 +1,31 @@
+    <!-- ── Edit Edge Modal ─────────────────────────────────────────── -->
+    <div id="editEdgeModal">
+        <div class="modal-header">
+            <h3>Edit Connection</h3>
+            <button class="modal-close-btn" onclick="closeEditEdgeModal()" title="Close">✕</button>
+        </div>
+        <div class="edit-edge-body">
+            <div class="edge-nodes-banner" id="editEdgeNodesBanner">
+                <span id="editEdgeFromLabel">From Block</span>
+                <span class="edge-nodes-arrow">➔</span>
+                <span id="editEdgeToLabel">To Block</span>
+            </div>
+
+            <label class="section-label" style="margin-top: 14px;">Wire Routing Style</label>
+            <div class="edge-routing-row">
+                <select id="editEdgeFoldSelect">
+                    <option value="horizontal">Horizontal Z-Bend (Default)</option>
+                    <option value="vertical">Vertical Z-Bend</option>
+                    <option value="l-horizontal">L-Bend (Horizontal first)</option>
+                    <option value="l-vertical">L-Bend (Vertical first)</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-danger" onclick="deleteEdgeFromModal()">Delete Connection</button>
+            <div class="modal-footer-spacer"></div>
+            <button class="btn" onclick="closeEditEdgeModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveEditEdgeModal()">Save Changes</button>
+        </div>
+    </div>
+

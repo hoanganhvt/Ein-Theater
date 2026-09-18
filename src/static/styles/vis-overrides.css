@@ -1,0 +1,7 @@
+/* ── Hide built-in vis edit button and manipulation toolbar ─ */
+div.vis-network div.vis-edit-mode,
+div.vis-network div.vis-manipulation,
+div.vis-network div.vis-close {
+    display: none !important;
+}
+

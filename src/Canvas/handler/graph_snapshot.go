@@ -60,9 +60,27 @@ func (p *Project) graphSnapshot() GraphData {
 }
 
 func (p *Project) matchesSnapshot(snapshot GraphData) bool {
-	before, _ := json.Marshal(snapshot)
-	current, _ := json.Marshal(p.graphSnapshot())
+	before, _ := json.Marshal(shapeInputs(snapshot))
+	current, _ := json.Marshal(shapeInputs(p.graphSnapshot()))
 	return string(before) == string(current)
+}
+
+// Position and wire-route edits do not change tensor semantics. Inference now
+// runs while the user moves blocks; do not discard its result just for a drag.
+// applyAnalysis writes only metadata, so the current layout remains untouched.
+func shapeInputs(graph GraphData) GraphData {
+	graph.Nodes = append([]Node(nil), graph.Nodes...)
+	graph.Edges = append([]Edge(nil), graph.Edges...)
+	for i := range graph.Nodes {
+		graph.Nodes[i].X = 0
+		graph.Nodes[i].Y = 0
+	}
+	for i := range graph.Edges {
+		graph.Edges[i].Lines = nil
+		graph.Edges[i].FoldMode = ""
+		graph.Edges[i].CustomFold = nil
+	}
+	return graph
 }
 
 func (p *Project) applyAnalysis(snapshot, analyzed GraphData) bool {

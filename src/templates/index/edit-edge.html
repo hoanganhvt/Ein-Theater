@@ -1,0 +1,77 @@
+    <!-- ── Edit Edge Modal ─────────────────────────────────────────── -->
+    <div id="editEdgeModal">
+        <div class="modal-header">
+            <h3>Edit Connection</h3>
+            <span class="modal-layer-badge" id="editEdgeTypeBadge">Normal Flow</span>
+            <button class="modal-close-btn" onclick="closeEditEdgeModal()" title="Close">✕</button>
+        </div>
+        <div class="edit-edge-body">
+            <div class="edge-nodes-banner" id="editEdgeNodesBanner">
+                <span id="editEdgeFromLabel">From Block</span>
+                <span class="edge-nodes-arrow">➔</span>
+                <span id="editEdgeToLabel">To Block</span>
+            </div>
+
+            <label class="section-label">1. Choose Connection Type</label>
+            <div class="edge-type-cards">
+                <div class="edge-card" id="cardNormal" onclick="selectModalEdgeType('normal')">
+                    <div class="edge-card-radio">
+                        <input type="radio" name="modalEdgeRadio" id="radioNormal" value="normal" checked>
+                    </div>
+                    <div class="edge-card-content">
+                        <div class="edge-card-header">
+                            <span class="pill-dot dot-normal"></span>
+                            <strong>Normal Flow</strong>
+                            <span class="edge-card-tag tag-normal">Default</span>
+                        </div>
+                        <p>Standard sequential feedforward connection. Unindexed, clean green trace without badge.</p>
+                    </div>
+                </div>
+
+                <div class="edge-card" id="cardResidual" onclick="selectModalEdgeType('residual')">
+                    <div class="edge-card-radio">
+                        <input type="radio" name="modalEdgeRadio" id="radioResidual" value="residual">
+                    </div>
+                    <div class="edge-card-content">
+                        <div class="edge-card-header">
+                            <span class="pill-dot dot-residual"></span>
+                            <strong>Residual Connection</strong>
+                            <span class="edge-card-tag tag-residual">Additive (+)</span>
+                        </div>
+                        <p>Additive bypass shortcut (ResNet). Purple trace with <strong>RES &lt;index&gt;</strong> badge, ordered behind normal edges.</p>
+                    </div>
+                </div>
+
+                <div class="edge-card" id="cardSkip" onclick="selectModalEdgeType('skip')">
+                    <div class="edge-card-radio">
+                        <input type="radio" name="modalEdgeRadio" id="radioSkip" value="skip">
+                    </div>
+                    <div class="edge-card-content">
+                        <div class="edge-card-header">
+                            <span class="pill-dot dot-skip"></span>
+                            <strong>Skip Connection</strong>
+                            <span class="edge-card-tag tag-skip">Concat (U-Net)</span>
+                        </div>
+                        <p>Concatenation bypass (U-Net / DenseNet). Cyan trace with <strong>SKIP &lt;index&gt;</strong> badge, ordered behind normal edges.</p>
+                    </div>
+                </div>
+            </div>
+
+            <label class="section-label" style="margin-top: 14px;">2. Wire Routing Style</label>
+            <div class="edge-routing-row">
+                <select id="editEdgeFoldSelect">
+                    <option value="horizontal">Horizontal Z-Bend (Default)</option>
+                    <option value="vertical">Vertical Z-Bend</option>
+                    <option value="l-horizontal">L-Bend (Horizontal first)</option>
+                    <option value="l-vertical">L-Bend (Vertical first)</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-danger" onclick="deleteEdgeFromModal()">Delete Connection</button>
+            <div class="modal-footer-spacer"></div>
+            <button class="btn" onclick="closeEditEdgeModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveEditEdgeModal()">Save Changes</button>
+        </div>
+    </div>
+

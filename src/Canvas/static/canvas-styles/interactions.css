@@ -1,0 +1,4 @@
+/* The connect banner contains interactive connection-type controls. */
+.mode-banner {
+    pointer-events: auto;
+}

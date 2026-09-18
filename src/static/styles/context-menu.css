@@ -1,0 +1,96 @@
+/* ── Context Menu ────────────────────────────────────────── */
+.context-menu {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    padding: 6px 0;
+    min-width: 190px;
+    font-family: 'Inter', sans-serif;
+}
+.context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    font-size: 13px;
+    color: #2d3748;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.12s;
+}
+.context-menu-item:hover {
+    background-color: #f7fafc;
+}
+.context-menu-item.danger {
+    color: #e53e3e;
+}
+.context-menu-item.danger:hover {
+    background-color: #fff5f5;
+}
+.context-menu-item.disabled {
+    opacity: 0.45;
+    cursor: default;
+    pointer-events: none;
+}
+.context-menu-item .cm-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+}
+.context-menu-item .cm-text {
+    flex: 1;
+    font-weight: 500;
+}
+.context-menu-item .cm-shortcut {
+    font-size: 11px;
+    color: #a0aec0;
+    font-weight: 600;
+    background-color: #edf2f7;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+.context-menu-item .cm-check {
+    margin-left: auto;
+    font-size: 13px;
+    font-weight: 700;
+    color: #007acc;
+}
+.context-menu-separator {
+    height: 1px;
+    background-color: #edf2f7;
+    margin: 4px 0;
+}
+
+/* ── Context Submenu ─────────────────────────────────────── */
+.context-menu-item.has-submenu {
+    position: relative;
+}
+.context-menu-item .cm-arrow {
+    font-size: 10px;
+    color: #a0aec0;
+    margin-left: auto;
+}
+.context-submenu {
+    display: none;
+    position: absolute;
+    left: 100%;
+    top: -6px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+    padding: 6px 0;
+    min-width: 165px;
+    z-index: 2010;
+}
+.context-submenu.open-left {
+    left: auto;
+    right: 100%;
+}
+.context-menu-item.has-submenu:hover > .context-submenu {
+    display: block;
+}
+

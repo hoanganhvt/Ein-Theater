@@ -1,0 +1,24 @@
+/* App Toast Notification */
+.app-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #0f172a;
+    color: #f8fafc;
+    border: 1px solid #334155;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+    z-index: 99999;
+    opacity: 0;
+    transform: translateY(12px);
+    transition: all 0.2s ease-out;
+    pointer-events: none;
+}
+.app-toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
