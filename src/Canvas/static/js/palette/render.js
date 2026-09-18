@@ -26,7 +26,7 @@ export function renderPalette() {
     html += `
         <div class="palette-item custom-palette-item" onclick="openAddNodeModal()" title="Browse all 150+ PyTorch modules or create custom block">
             <span class="palette-badge badge-gray">+</span>
-            <span class="palette-name">+ More / Custom...</span>
+            <span class="palette-name">Browse all blocks...</span>
         </div>`;
 
     paletteList.innerHTML = html;

@@ -90,7 +90,7 @@ export async function browseTo(dirPath) {
                 parentRow.className = 'folder-browser-row parent-row';
                 parentRow.title = 'Navigate up to parent directory';
                 parentRow.innerHTML = `
-                    <span class="fb-icon">⬆️</span>
+                    <span class="fb-icon" aria-hidden="true">&#183;</span>
                     <span class="fb-name">.. (Go Up)</span>
                 `;
                 parentRow.onclick = () => {
@@ -110,18 +110,18 @@ export async function browseTo(dirPath) {
                 folders.forEach(f => {
                     const row = document.createElement('div');
                     row.className = 'folder-browser-row is-folder' + (f.isModel ? ' is-model-folder' : '');
-                    row.title = f.isModel 
-                        ? `Model "${f.name}": Click to load onto canvas` 
+                    row.title = f.isModel
+                        ? `Model "${f.name}": Click to load onto canvas`
                         : `Click to select "${f.name}", or double-click to open`;
 
-                    const icon = f.isModel ? '🧠' : '📁';
+
                     const tagHtml = f.isModel ? `<span class="model-tag">Model</span>` : '';
-                    const loadBtnHtml = f.isModel 
-                        ? `<button class="fb-load-btn" title="Load this model directly onto canvas">⚡ Load Model</button>` 
+                    const loadBtnHtml = f.isModel
+                        ? `<button class="fb-load-btn" title="Load this model directly onto canvas">Load model</button>`
                         : '';
 
                     row.innerHTML = `
-                        <span class="fb-icon">${icon}</span>
+                        <span class="fb-icon" aria-hidden="true">&#183;</span>
                         <span class="fb-name">${esc(f.name)} ${tagHtml}</span>
                         <div class="fb-actions">
                             ${loadBtnHtml}
@@ -152,7 +152,7 @@ export async function browseTo(dirPath) {
                         browseTo(f.path);
                     };
 
-                    // "⚡ Load Model" button: loads model directly
+                    // " Load Model" button: loads model directly
                     const loadBtn = row.querySelector('.fb-load-btn');
                     if (loadBtn) {
                         loadBtn.onclick = async (e) => {
@@ -196,7 +196,7 @@ export async function browseTo(dirPath) {
                     const row = document.createElement('div');
                     row.className = 'folder-browser-row is-file';
                     row.innerHTML = `
-                        <span class="fb-icon">📄</span>
+                        <span class="fb-icon" aria-hidden="true">&#183;</span>
                         <span class="fb-name">${esc(f.name)}</span>
                     `;
                     listContainer.appendChild(row);

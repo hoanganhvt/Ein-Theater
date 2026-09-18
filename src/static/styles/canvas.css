@@ -13,19 +13,19 @@
     flex: 1 1 0;
     min-width: 0;
     min-height: 0;
-    background-color: #f8f9fa;
+    background-color: var(--surface-muted);
     outline: none;
     transition: background-color 0.2s, outline 0.2s;
 }
 #mynetwork.drag-over {
-    background-color: #f0f7ff !important;
-    outline: 2px dashed #007acc !important;
+    background-color: var(--surface) !important;
+    outline: 2px dashed var(--accent) !important;
     outline-offset: -2px;
 }
 .selection-box {
     position: absolute;
-    border: 1.5px dashed #007acc;
-    background-color: rgba(0, 122, 204, 0.14);
+    border: 1px solid var(--accent);
+    background-color: rgba(170, 187, 216, 0.12);
     pointer-events: none;
     z-index: 100;
     display: none;
@@ -37,15 +37,14 @@
     top: 14px;
     left: 50%;
     transform: translateX(-50%);
-    background: #007acc;
-    color: #ffffff;
+    background: var(--surface);
+    color: var(--text);
     font-size: 13px;
     font-weight: 500;
     padding: 7px 18px;
-    border-radius: 20px;
-    box-shadow: 0 4px 14px rgba(0, 122, 204, 0.35);
+    border-radius: 5px;
+    box-shadow: 0 2px 8px rgba(24, 34, 48, .12);
     z-index: 150;
     pointer-events: none;
     white-space: nowrap;
 }
-

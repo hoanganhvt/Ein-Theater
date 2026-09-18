@@ -1,81 +1,8 @@
-/* ── Mode Segmented Control ──────────────────────────────── */
-.mode-group {
-    display: flex;
-    background-color: #f1f3f5;
-    padding: 3px;
-    border-radius: 8px;
-    gap: 2px;
-    border: 1px solid #ced4da;
-}
-.mode-group .mode-btn {
-    border: none;
-    background: transparent;
-    padding: 6px 12px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #495057;
-    border-radius: 6px;
-    transition: all 0.15s ease;
-}
-.mode-group .mode-btn:hover {
-    background-color: #e9ecef;
-    color: #212529;
-}
-.mode-group .mode-btn.active {
-    background-color: #ffffff;
-    color: #007acc;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-    font-weight: 700;
-}
-
-/* ── Application Mode Switcher Tabs ──────────────────────── */
-.mode-tabs {
-    display: flex;
-    align-items: center;
-    background-color: #f1f3f5;
-    border-radius: 8px;
-    padding: 3px;
-    gap: 3px;
-    border: 1px solid #e2e8f0;
-}
-.mode-tab {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 12px;
-    border-radius: 6px;
-    border: none;
-    background: transparent;
-    font-size: 13px;
-    font-weight: 600;
-    color: #64748b;
-    cursor: pointer;
-    font-family: 'Inter', sans-serif;
-    transition: all 0.15s ease;
-}
-.mode-tab:hover:not(.disabled) {
-    background-color: #e2e8f0;
-    color: #1e293b;
-}
-.mode-tab.active {
-    background-color: #ffffff;
-    color: #0284c7;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-.mode-tab.disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-}
-.mode-tab-icon {
-    font-size: 14px;
-}
-.mode-tab-badge {
-    font-size: 10px;
-    text-transform: uppercase;
-    background: #e2e8f0;
-    color: #64748b;
-    padding: 1px 5px;
-    border-radius: 4px;
-    font-weight: 700;
-}
-
+.mode-tabs { display: flex; align-items: stretch; gap: 20px; max-width: 100%; overflow-x: auto; }
+.mode-tab { background: transparent; border: none; border-bottom: 1px solid transparent; color: var(--muted); padding: 0 8px; min-height: 39px; font-size: 11px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.mode-tab:hover:not(:disabled) { color: var(--text); }
+.mode-tab.active { color: #edf0f5; border-bottom-color: #aabbd8; }
+.mode-tab:disabled, .mode-tab.disabled { color: #737b87; cursor: not-allowed; }
+.mode-group { display: flex; gap: 3px; padding: 3px; border: 1px solid var(--border); border-radius: 4px; }
+.mode-group .mode-btn { border: none; background: transparent; color: var(--muted); }
+.mode-group .mode-btn.active { background: var(--hover); color: var(--text); }

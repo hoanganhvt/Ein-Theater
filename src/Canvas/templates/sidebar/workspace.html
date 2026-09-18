@@ -1,14 +1,14 @@
-    <!-- Working Directory Section -->
+    <!-- Workspace Section -->
     <div class="sidebar-section workspace-section">
         <div class="sidebar-header">
-            <h3>Working Directory</h3>
+            <h3>Workspace</h3>
             <div style="display: flex; gap: 4px;">
-                <button class="btn-change-folder" onclick="promptCreateFolderSidebar()" title="Create new folder in working directory">➕</button>
-                <button class="btn-change-folder" onclick="openSelectFolderModal()" title="Select folder">📂</button>
+                <button class="btn-change-folder" onclick="promptCreateFolderSidebar()" title="Create new folder in working directory">+</button>
+                <button class="btn-change-folder" onclick="openSelectFolderModal()" title="Select folder">Browse</button>
             </div>
         </div>
         <div class="workspace-card" onclick="openSelectFolderModal()" title="Click to change working directory">
-            <div class="workspace-card-icon">📁</div>
+            <div class="workspace-card-icon">/</div>
             <div class="workspace-card-info">
                 <div class="workspace-card-name" id="sidebarWorkingDirName">None</div>
                 <div class="workspace-card-path" id="sidebarWorkingDirPath">No folder selected</div>

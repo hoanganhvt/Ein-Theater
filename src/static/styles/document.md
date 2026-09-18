@@ -2,7 +2,7 @@
 
 ## Ownership and cascade
 
-These files replace the former global monolithic stylesheet. `../style.css` imports them in their original order, preserving specificity and overrides. Both page variants load this entry before Canvas-specific overrides.
+These files replace the former global monolithic stylesheet. `../style.css` imports them in component order; later feature files may refine shared controls. Both page variants load this entry before Canvas-specific overrides.
 
 ## File-by-file responsibilities
 
@@ -75,3 +75,22 @@ Owns workspace presentation. Selectors: `.workspace`, `.sidebar-slot`.
 Add a rule to its component owner and check the import order before increasing specificity. Keep shared styles in the global folder and Canvas-only differences in the override folder. Relative URLs resolve from the component stylesheet, not from the HTML page. Use the existing unique `/static/styles/` and `/static/canvas-styles/` prefixes because the server merges two static roots.
 
 Verify both `/` and `/canvas`: header, sidebar, selection box, context menu and all dialogs must retain their layout. The connect banner must accept pointer input. No CSS build step or framework is required.
+
+## Studio visual system
+
+Input: semantic page markup, mode descriptors from the studio registry, and existing Canvas interaction state. Output: a fully dark editor shell with compact application navigation, a model command bar, and a charcoal workspace. No API payloads or model data are changed by these styles.
+
+- `base.css` defines surface, border, text, muted text, and accent tokens; keyboard focus and reduced-motion preferences apply globally.
+- `header.css` renders mode navigation and model actions separately. No brand banner or decorative workspace caption is rendered. Toolbars wrap when space is limited.
+- `modes.css` styles registry-provided mode buttons. Planned modes remain disabled; the active mode has an underline and `aria-current`.
+- `sidebar.css`, `workspace-tree.css`, and `palette.css` render workspace files, open models, and draggable blocks with consistent spacing. Rows use hover and selection states instead of individual cards. Monospaced category text retains classification without colored badges.
+- `save-button.css` uses a restrained light fill for Save. Clear remains a secondary action with a destructive hover state.
+- `canvas.css` supplies the dark editor surface. The zoom-aware dot grid is rendered by Canvas circuit drawing code, not a second CSS grid.
+
+### Manual visual and interaction checks
+
+Run `go run .` inside `src`, then inspect both `/` and `/canvas` at 1440px, 1024px, and 640px viewport widths. Confirm a single mode navigation bar, readable project title, dark File dropdown, dark right-click menu and nested submenu, and wrapping edge controls without clipping. Use Tab to verify visible button focus. Open Insert block, expand both category and layer selectors, and test search and custom-layer entry. Check dark native select popups and preview text. Open the folder browser and both edit dialogs; check input and footer visibility. Create a disposable model, drag a block, select an edge, rename the model, switch models, and use Fit View. Verify planned modes stay disabled. Save only into a disposable folder. Enable reduced motion in browser emulation and confirm decorative transitions stop.
+
+Automated regression checks from the repository root: `node src/static/studio/navigation.test.mjs`, `node src/Canvas/static/js/ui.test.mjs`, and `node src/Canvas/static/js/performance.test.mjs`. These cover navigation and interaction contracts; they do not replace screenshot review.
+
+The root sets `color-scheme: dark` so native form controls and select popups match the application. Canvas drawing has its own colors in `Canvas/static/js/circuit/constants.js` and graph node options; CSS alone cannot theme the drawing surface. Dynamic integrated-model details consume CSS variables, and category selectors use text labels without emoji.

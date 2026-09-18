@@ -1,27 +1,22 @@
     <!-- ── Context Menu ────────────────────────────────────────────── -->
     <div id="contextMenu" class="context-menu">
         <div class="context-menu-item has-submenu" id="cmModeParent">
-            <span class="cm-icon">⚡</span>
             <span class="cm-text">Actions</span>
-            <span class="cm-arrow">▶</span>
+            <span class="cm-arrow" aria-hidden="true"></span>
             <div class="context-submenu" id="cmSubmenu">
                 <div class="context-menu-item" onclick="setMode('select'); hideContextMenu();">
-                    <span class="cm-icon">⬚</span>
                     <span class="cm-text">Select</span>
                     <span class="cm-check" id="cmCheckSelect"></span>
                 </div>
                 <div class="context-menu-item" onclick="setMode('add'); hideContextMenu();">
-                    <span class="cm-icon">➕</span>
-                    <span class="cm-text">Add Node</span>
+                    <span class="cm-text">Insert block</span>
                     <span class="cm-check" id="cmCheckAdd"></span>
                 </div>
                 <div class="context-menu-item" onclick="setMode('connect'); hideContextMenu();">
-                    <span class="cm-icon">🔗</span>
-                    <span class="cm-text">Add Edge</span>
+                    <span class="cm-text">Connect blocks</span>
                     <span class="cm-check" id="cmCheckConnect"></span>
                 </div>
                 <div class="context-menu-item" onclick="setMode('move'); hideContextMenu();">
-                    <span class="cm-icon">🖐</span>
                     <span class="cm-text">Move</span>
                     <span class="cm-check" id="cmCheckMove">✓</span>
                 </div>
@@ -29,37 +24,30 @@
         </div>
         <div class="context-menu-separator"></div>
         <div class="context-menu-item" id="cmInvertFold" onclick="cycleSelectedEdgeFold(); hideContextMenu();" style="display:none;">
-            <span class="cm-icon">⤹</span>
             <span class="cm-text">Cycle Bend Mode</span>
             <span class="cm-shortcut">Space</span>
         </div>
 
         <div class="context-menu-item" id="cmEdit" onclick="openEditNodeFromContext(); hideContextMenu();">
-            <span class="cm-icon">✏️</span>
             <span class="cm-text" id="cmEditText">Edit</span>
         </div>
         <div class="context-menu-item" id="cmCopy" onclick="copySelection(); hideContextMenu();">
-            <span class="cm-icon">📋</span>
             <span class="cm-text" id="cmCopyText">Copy</span>
             <span class="cm-shortcut">Ctrl+C</span>
         </div>
         <div class="context-menu-item" id="cmPaste" onclick="pasteClipboardAtContext(); hideContextMenu();">
-            <span class="cm-icon">📥</span>
             <span class="cm-text" id="cmPasteText">Paste</span>
             <span class="cm-shortcut">Ctrl+V</span>
         </div>
         <div class="context-menu-item danger" id="cmDelete" onclick="deleteSelectionFromContextMenu()">
-            <span class="cm-icon">🗑️</span>
             <span class="cm-text" id="cmDeleteText">Delete</span>
             <span class="cm-shortcut">Del</span>
         </div>
         <div class="context-menu-separator"></div>
         <div class="context-menu-item" onclick="openAddNodeAtContext(); hideContextMenu();">
-            <span class="cm-icon">➕</span>
-            <span class="cm-text">Add Node Here...</span>
+            <span class="cm-text">Insert block here...</span>
         </div>
         <div class="context-menu-item" onclick="fitView(); hideContextMenu();">
-            <span class="cm-icon">⤢</span>
             <span class="cm-text">Fit View</span>
         </div>
     </div>

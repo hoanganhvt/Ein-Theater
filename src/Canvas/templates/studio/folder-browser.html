@@ -6,17 +6,17 @@
         </div>
         <div class="folder-modal-body">
             <div class="folder-path-bar">
-                <button class="btn btn-icon" onclick="browseParentFolder()" title="Go up one folder level">⬆️ Up</button>
+                <button class="btn btn-icon" onclick="browseParentFolder()" title="Go up one folder level"> Up</button>
                 <input type="text" id="folderPathInput" placeholder="Enter folder path and press Enter..."
                        onkeydown="if(event.key==='Enter')applyTypedPath();" />
                 <button class="btn" onclick="applyTypedPath()">Go</button>
-                <button class="btn btn-icon" onclick="promptCreateFolderModal()" title="Create a new folder in this directory">➕ New Folder</button>
+                <button class="btn btn-icon" onclick="promptCreateFolderModal()" title="Create a new folder in this directory"> New Folder</button>
             </div>
             <div class="folder-drives-bar" id="folderDrivesBar">
                 <!-- Drive chips rendered by JS -->
             </div>
             <div class="folder-hint">
-                💡 Click a folder to browse into it. Use <strong>✓ Select</strong> to choose a folder, or use <strong>Select This Folder</strong> below to pick the current directory.
+                 Click a folder to browse into it. Use <strong>✓ Select</strong> to choose a folder, or use <strong>Select This Folder</strong> below to pick the current directory.
             </div>
             <div class="folder-browser-list" id="folderBrowserList">
                 <!-- Directories rendered by JS -->

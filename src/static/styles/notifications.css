@@ -3,9 +3,9 @@
     position: fixed;
     bottom: 24px;
     right: 24px;
-    background: #0f172a;
-    color: #f8fafc;
-    border: 1px solid #334155;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
     padding: 12px 20px;
     border-radius: 8px;
     font-size: 13px;

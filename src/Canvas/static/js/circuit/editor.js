@@ -127,7 +127,7 @@ export async function deleteEdgeById(edgeId) {
         updateEdgeUISelection();
         if (state.network) state.network.redraw();
         if (typeof window.showToast === 'function') {
-            window.showToast('🗑️ Connection deleted');
+            window.showToast('Connection deleted');
         }
     } catch (err) {
         console.error('Failed to delete edge:', err);

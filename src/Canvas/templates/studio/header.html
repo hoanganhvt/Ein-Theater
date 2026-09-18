@@ -1,4 +1,9 @@
     <!-- ── Global Header ────────────────────────────────────────────── -->
+    <header class="studio-bar">
+        <nav class="mode-tabs" id="appModeTabs" aria-label="Workspace modes">
+            <button class="mode-tab active" data-mode="canvas" aria-current="page">Canvas</button>
+        </nav>
+    </header>
     <div class="header">
         <div class="header-left">
             <!-- File Menu Dropdown -->
@@ -6,16 +11,16 @@
                 <button class="btn menu-btn" id="fileMenuBtn" onclick="toggleFileMenu(event)" title="File options">File ▾</button>
                 <div class="menu-dropdown-content" id="fileMenuDropdown">
                     <div class="menu-item" onclick="saveActiveModel(); closeFileMenu();">
-                        <span class="menu-icon">💾</span>
+
                         <span class="menu-text">Save Model</span>
                         <span class="menu-badge">Ctrl+S</span>
                     </div>
                     <div class="menu-item" onclick="openSelectFolderModal(); closeFileMenu();">
-                        <span class="menu-icon">📂</span>
+
                         <span class="menu-text">Select Folder...</span>
                     </div>
                     <div class="menu-item disabled" title="Open File (coming soon)">
-                        <span class="menu-icon">📄</span>
+
                         <span class="menu-text">Open File...</span>
                         <span class="menu-badge">Soon</span>
                     </div>
@@ -34,33 +39,7 @@
                 <input id="modelTitleInput" type="text" maxlength="80"
                        onblur="commitRename()"
                        onkeydown="if(event.key==='Enter')commitRename();if(event.key==='Escape')cancelRename();" />
-            </div>
-
-            <div class="header-divider"></div>
-
-            <!-- Global Mode Switcher Tabs -->
-            <div class="mode-tabs" id="appModeTabs">
-                <button class="mode-tab active" data-mode="canvas" onclick="switchMode('canvas')" title="Canvas Neural Architecture Editor">
-                    <span class="mode-tab-icon">🎨</span>
-                    <span>Canvas</span>
-                </button>
-                <button class="mode-tab disabled" data-mode="data" onclick="switchMode('data')" title="Data Preparation & Dataloader (Coming Soon)">
-                    <span class="mode-tab-icon">📊</span>
-                    <span>Data</span>
-                    <span class="mode-tab-badge">Soon</span>
-                </button>
-                <button class="mode-tab disabled" data-mode="train" onclick="switchMode('train')" title="Training & Realtime Metrics (Coming Soon)">
-                    <span class="mode-tab-icon">⚡</span>
-                    <span>Train</span>
-                    <span class="mode-tab-badge">Soon</span>
-                </button>
-                <button class="mode-tab disabled" data-mode="code" onclick="switchMode('code')" title="Code Editor & Custom Scripts (Coming Soon)">
-                    <span class="mode-tab-icon">💻</span>
-                    <span>Code</span>
-                    <span class="mode-tab-badge">Soon</span>
-                </button>
-            </div>
-        </div>
+            </div></div>
 
         <div class="toolbar">
             <!-- Connection Type Pills in Header Toolbar -->
@@ -80,14 +59,14 @@
                 </div>
                 <div class="toolbar-divider-sm"></div>
                 <div class="header-edge-actions">
-                    <button class="btn-edge-pill" onclick="cycleSelectedEdgeFold()" title="Cycle bend mode (Space)">⤹ Fold</button>
-                    <button class="btn-edge-pill" onclick="openEditEdgeModal()" title="Edit connection details">✏️ Details</button>
-                    <button class="btn-edge-pill btn-edge-pill-danger" onclick="deleteSelectedEdge()" title="Delete connection">🗑️ Delete</button>
+                    <button class="btn-edge-pill" onclick="cycleSelectedEdgeFold()" title="Cycle bend mode (Space)">Fold</button>
+                    <button class="btn-edge-pill" onclick="openEditEdgeModal()" title="Edit connection details">Details</button>
+                    <button class="btn-edge-pill btn-edge-pill-danger" onclick="deleteSelectedEdge()" title="Delete connection">Delete</button>
                 </div>
                 <div class="toolbar-divider-sm"></div>
             </div>
 
-            <button class="btn btn-save" id="btnSaveModel" onclick="saveActiveModel()" title="Save Model (Ctrl+S)">💾 Save</button>
+            <button class="btn btn-save" id="btnSaveModel" onclick="saveActiveModel()" title="Save Model (Ctrl+S)">Save model</button>
             <button class="btn" onclick="fitView()">Fit View</button>
             <button class="btn btn-clear" onclick="clearGraph()">Clear Canvas</button>
         </div>

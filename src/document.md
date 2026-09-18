@@ -52,3 +52,7 @@ flowchart TD
 Run `go run .` here for studio mode or from `Canvas` for standalone mode. Run
 `go test ./...` and `go vet ./...` here. The global guide contains frontend/Python
 commands, expected outcomes and the manual test sequence for the complete flow.
+
+## Studio presentation
+
+The UI separates application mode navigation from model commands. Shared visual tokens and responsive component styles live in `static/styles`; Canvas owns its graph rendering and page markup. See [the visual system and UI verification guide](static/styles/document.md#studio-visual-system) for inputs, outputs, ownership, and manual checks.

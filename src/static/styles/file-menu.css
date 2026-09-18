@@ -8,7 +8,7 @@
 .header-divider {
     width: 1px;
     height: 22px;
-    background-color: #e2e8f0;
+    background-color: var(--surface);
     flex-shrink: 0;
 }
 
@@ -18,9 +18,9 @@
     display: inline-block;
 }
 .menu-btn {
-    background-color: #f8fafc;
-    border: 1px solid #cbd5e1;
-    color: #1e293b;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
     font-weight: 600;
     font-size: 13px;
     padding: 6px 12px;
@@ -32,19 +32,19 @@
     transition: all 0.15s;
 }
 .menu-btn:hover, .menu-btn.active {
-    background-color: #edf2f7;
-    border-color: #007acc;
-    color: #007acc;
+    background-color: var(--surface);
+    border-color: var(--border);
+    color: var(--text);
 }
 .menu-dropdown-content {
     display: none;
     position: absolute;
     top: calc(100% + 6px);
     left: 0;
-    background-color: #ffffff;
+    background-color: var(--surface);
     min-width: 220px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border);
     border-radius: 8px;
     z-index: 1000;
     padding: 6px 0;
@@ -64,13 +64,13 @@
     gap: 10px;
     font-size: 13px;
     font-weight: 500;
-    color: #334155;
+    color: var(--text);
     cursor: pointer;
     transition: background 0.12s;
 }
 .menu-item:hover:not(.disabled) {
-    background-color: #f1f5f9;
-    color: #007acc;
+    background-color: var(--surface);
+    color: var(--text);
 }
 .menu-item.disabled {
     opacity: 0.55;
@@ -87,15 +87,15 @@
 .menu-badge {
     font-size: 10px;
     font-weight: 600;
-    background-color: #e2e8f0;
-    color: #64748b;
+    background-color: var(--surface);
+    color: var(--muted);
     padding: 2px 6px;
     border-radius: 4px;
     text-transform: uppercase;
 }
 .menu-separator {
     height: 1px;
-    background-color: #e2e8f0;
+    background-color: var(--surface);
     margin: 5px 0;
 }
 .menu-item-info {
@@ -106,17 +106,26 @@
 }
 .menu-info-label {
     font-size: 11px;
-    color: #94a3b8;
+    color: var(--muted);
     text-transform: uppercase;
     font-weight: 600;
     letter-spacing: 0.3px;
 }
 .menu-info-val {
     font-size: 11px;
-    color: #475569;
+    color: var(--muted);
     font-family: monospace;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 200px;
 }
+
+.menu-btn { background: transparent; border-color: transparent; font-size: 11px; padding: 5px 8px; font-weight: 400; }
+.menu-btn:hover, .menu-btn.active { background: var(--hover); border-color: transparent; color: var(--text); }
+.header-left { gap: 12px; }
+.header-divider { height: 16px; }
+.menu-dropdown-content { background: var(--surface-raised); border-color: #373d45; border-radius: 5px; padding: 4px; box-shadow: 0 12px 32px #0006; animation: none; }
+.menu-item { font-size: 12px; font-weight: 400; padding: 8px 9px; border-radius: 3px; }
+.menu-item:hover:not(.disabled) { background: var(--hover); color: var(--text); }
+.menu-badge { background: transparent; font: 10px 'Consolas', monospace; color: var(--muted); padding: 0; }

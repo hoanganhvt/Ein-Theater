@@ -5,14 +5,14 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: #ffffff;
+    background: var(--surface);
     border-radius: 10px;
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22), 0 4px 16px rgba(0, 0, 0, 0.12);
     width: 620px;
     max-width: 92vw;
     z-index: 1000;
     font-family: 'Inter', sans-serif;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--border);
     animation: modalScaleIn 0.15s ease-out;
 }
 @keyframes modalScaleIn {
@@ -23,15 +23,15 @@
     background: transparent;
     border: none;
     font-size: 16px;
-    color: #64748b;
+    color: var(--muted);
     cursor: pointer;
     padding: 4px 8px;
     border-radius: 4px;
     transition: all 0.12s;
 }
 .modal-close-btn:hover {
-    background-color: #fee2e2;
-    color: #ef4444;
+    background-color: var(--surface);
+    color: var(--danger);
 }
 .folder-modal-body {
     padding: 16px 20px;
@@ -45,16 +45,16 @@
 .folder-path-bar input {
     flex: 1;
     padding: 7px 12px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--border);
     border-radius: 6px;
     font-size: 13px;
     font-family: monospace;
-    color: #1e293b;
+    color: var(--text);
     outline: none;
     transition: border-color 0.15s;
 }
 .folder-path-bar input:focus {
-    border-color: #007acc;
+    border-color: var(--border);
     box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.15);
 }
 .folder-drives-bar {
@@ -65,67 +65,67 @@
 }
 .folder-hint {
     font-size: 12px;
-    color: #475569;
-    background-color: #f8fafc;
-    border: 1px solid #e2e8f0;
+    color: var(--muted);
+    background-color: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 6px;
     padding: 7px 12px;
     margin-bottom: 10px;
     line-height: 1.4;
 }
 .drive-chip {
-    background-color: #f1f5f9;
-    border: 1px solid #cbd5e1;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
     padding: 3px 10px;
     border-radius: 12px;
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
-    color: #334155;
+    color: var(--text);
     transition: all 0.12s;
 }
 .drive-chip:hover {
-    background-color: #e2e8f0;
-    border-color: #007acc;
-    color: #007acc;
+    background-color: var(--surface);
+    border-color: var(--border);
+    color: var(--text);
 }
 .drive-chip.active {
-    background-color: #007acc;
-    border-color: #007acc;
-    color: #ffffff;
+    background-color: var(--surface);
+    border-color: var(--border);
+    color: var(--text);
 }
 .folder-browser-list {
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--border);
     border-radius: 6px;
     max-height: 280px;
     min-height: 180px;
     overflow-y: auto;
-    background-color: #fafbfc;
+    background-color: var(--surface);
 }
 .folder-browser-row {
     display: flex;
     align-items: center;
     gap: 10px;
     padding: 8px 14px;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--border);
     cursor: pointer;
     transition: background 0.12s;
     font-size: 13px;
 }
 .folder-browser-row:hover {
-    background-color: #f0f7ff;
+    background-color: var(--surface);
 }
 .folder-browser-row.selected {
-    background-color: #e8f4fc;
-    border-left: 3px solid #007acc;
+    background-color: var(--surface);
+    border-left: 3px solid var(--border);
     font-weight: 600;
 }
 .folder-browser-row.is-folder {
-    color: #1e293b;
+    color: var(--text);
     font-weight: 500;
 }
 .folder-browser-row.is-file {
-    color: #64748b;
+    color: var(--muted);
     font-size: 12px;
     cursor: default;
 }
@@ -133,10 +133,10 @@
     background-color: transparent;
 }
 .folder-browser-row.parent-row {
-    background-color: #f8fafc;
+    background-color: var(--surface);
     font-weight: 600;
-    color: #007acc;
-    border-bottom: 1px solid #e2e8f0;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
 }
 .fb-icon {
     font-size: 16px;
@@ -155,9 +155,9 @@
     margin-left: auto;
 }
 .fb-select-btn {
-    background-color: #007acc;
-    color: #ffffff;
-    border: 1px solid #007acc;
+    background-color: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
     border-radius: 4px;
     font-size: 11px;
     font-weight: 600;
@@ -166,37 +166,37 @@
     transition: all 0.12s;
 }
 .fb-select-btn:hover {
-    background-color: #0062a3;
-    border-color: #0062a3;
+    background-color: var(--surface);
+    border-color: var(--border);
 }
 .fb-open-btn {
-    background-color: #f8fafc;
-    border: 1px solid #cbd5e1;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 4px;
     font-size: 11px;
     font-weight: 600;
-    color: #334155;
+    color: var(--text);
     padding: 4px 9px;
     cursor: pointer;
     transition: all 0.12s;
 }
 .fb-open-btn:hover {
-    background-color: #e2e8f0;
-    color: #007acc;
-    border-color: #007acc;
+    background-color: var(--surface);
+    color: var(--text);
+    border-color: var(--border);
 }
 .folder-browser-row.is-model-folder {
-    background-color: #f0f9ff;
-    border-left: 3px solid #0284c7;
+    background-color: var(--surface);
+    border-left: 3px solid var(--border);
 }
 .folder-browser-row.is-model-folder:hover {
-    background-color: #e0f2fe;
+    background-color: var(--surface);
 }
 .model-tag {
     display: inline-block;
-    background-color: #e0f2fe;
-    color: #0284c7;
-    border: 1px solid #bae6fd;
+    background-color: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
     font-size: 10px;
     font-weight: 700;
     padding: 1px 6px;
@@ -207,9 +207,9 @@
     vertical-align: middle;
 }
 .fb-load-btn {
-    background-color: #059669;
-    color: #ffffff;
-    border: 1px solid #059669;
+    background-color: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
     border-radius: 4px;
     font-size: 11px;
     font-weight: 600;
@@ -221,8 +221,8 @@
     gap: 3px;
 }
 .fb-load-btn:hover {
-    background-color: #047857;
-    border-color: #047857;
+    background-color: var(--surface);
+    border-color: var(--border);
     box-shadow: 0 2px 4px rgba(5, 150, 105, 0.25);
 }
 .folder-browser-files-header {
@@ -230,30 +230,44 @@
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    color: #94a3b8;
-    background-color: #f1f5f9;
-    border-top: 1px solid #e2e8f0;
-    border-bottom: 1px solid #e2e8f0;
+    color: var(--muted);
+    background-color: var(--surface);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
 }
 .folder-browser-empty, .folder-browser-loading, .folder-browser-error {
     padding: 24px;
     text-align: center;
     font-size: 13px;
-    color: #94a3b8;
+    color: var(--muted);
 }
 .folder-browser-error {
-    color: #ef4444;
+    color: var(--danger);
 }
 .modal-footer-spacer {
     flex: 1;
 }
 .btn-system-browse {
-    background-color: #f8fafc;
-    border-color: #cbd5e1;
-    color: #334155;
+    background-color: var(--surface);
+    border-color: var(--border);
+    color: var(--text);
 }
 .btn-system-browse:hover {
-    background-color: #f1f5f9;
-    border-color: #94a3b8;
+    background-color: var(--surface);
+    border-color: var(--border);
 }
 
+
+#selectFolderModal { background: var(--surface-raised); border-color: #3a4049; border-radius: 6px; max-height: calc(100dvh - 40px); overflow-y: auto; animation: none; }
+#selectFolderModal > .modal-header { padding: 18px 20px 14px; margin-bottom: 0; }
+#selectFolderModal > .modal-footer { margin: 0; padding: 14px 20px; }
+.folder-path-bar { flex-wrap: wrap; }
+.folder-path-bar input { min-width: 120px; background: var(--surface-muted); }
+.folder-browser-list { background: var(--surface-muted); }
+.folder-browser-row:hover, .folder-browser-row.selected, .folder-browser-row.is-model-folder:hover { background: var(--hover); }
+.drive-chip { border-radius: 3px; font-size: 11px; font-weight: 400; }
+.drive-chip.active { background: var(--accent-soft); }
+.model-tag { background: transparent; border: none; color: var(--muted); font-weight: 400; }
+.fb-select-btn, .fb-load-btn { background: var(--accent-soft); border-color: #455267; color: var(--text); }
+.fb-select-btn:hover, .fb-load-btn:hover { background: var(--hover); box-shadow: none; }
+.modal-close-btn:hover { background: var(--hover); color: var(--text); }

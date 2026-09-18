@@ -19,7 +19,7 @@ export function renderProjectList(list, currentId) {
         item.className = 'project-item' + (p.id === currentId ? ' active' : '');
         item.title = p.name;
         item.innerHTML =
-            `<span class="project-icon">🧠</span>` +
+            `<span class="project-icon">&#9671;</span>` +
             `<span class="project-name">${esc(p.name)}</span>` +
             `<button class="btn-delete-project" title="Delete model"
                      onclick="deleteProject(event,'${esc(p.id)}')">✕</button>`;

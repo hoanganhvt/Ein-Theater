@@ -10,13 +10,13 @@ export function updateConnectBanner() {
     const bendLabel = BEND_LABELS[runtime.previewBendMode] || runtime.previewBendMode;
 
     if (runtime.wireStartNode === null) {
-        banner.innerHTML = `<span>🔗 <strong>Add Edge</strong> — Click a block to start wire. [Space] Bend: <strong>${bendLabel}</strong>. [Esc] Exit.</span>`;
+        banner.innerHTML = `<span><strong>Add Edge</strong> — Click a block to start wire. [Space] Bend: <strong>${bendLabel}</strong>. [Esc] Exit.</span>`;
     } else {
         const nodeData = state.nodesDataSet ? state.nodesDataSet.get(runtime.wireStartNode) : null;
         const nodeName = nodeData ? (nodeData.label || runtime.wireStartNode) : runtime.wireStartNode;
         const cornerCount = runtime.waypointSteps.length;
         const cornerHint = cornerCount > 0 ? ` (${cornerCount} corner${cornerCount > 1 ? 's' : ''} set, [Backspace] undo)` : '';
-        banner.innerHTML = `<span>🔗 Connecting from <strong>${nodeName}</strong> — Click grid for corners, click target block.${cornerHint} [Space] Bend: <strong>${bendLabel}</strong>. [Esc] Cancel.</span>`;
+        banner.innerHTML = `<span>Connecting from <strong>${nodeName}</strong> — Click grid for corners, click target block.${cornerHint} [Space] Bend: <strong>${bendLabel}</strong>. [Esc] Cancel.</span>`;
     }
 }
 
@@ -195,7 +195,7 @@ export async function finishWireCreation(targetNodeId) {
             const fromLabel = fromNode ? (fromNode.label || fromId) : fromId;
             const toLabel = toNode ? (toNode.label || toId) : toId;
             if (typeof window.showToast === 'function') {
-                window.showToast(`🔗 Connected: ${fromLabel} ➔ ${toLabel}`);
+                window.showToast(`Connected: ${fromLabel} ➔ ${toLabel}`);
             }
         }
 

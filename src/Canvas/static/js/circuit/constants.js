@@ -2,15 +2,15 @@
 
 export const GRID_SIZE = 50;          // Grid spacing in network-coordinate units
 
-export const BG_COLOR       = '#f8fafc';     // Clean schematic canvas background
+export const BG_COLOR       = '#111315';     // Clean schematic canvas background
 
-export const DOT_COLOR      = 'rgba(71, 85, 105, 0.35)'; // Visible circuit grid dots
+export const DOT_COLOR      = 'rgba(151, 161, 177, 0.16)'; // Visible circuit grid dots
 
 export const COLOR_TRACE    = '#16a34a';     // Standard wire trace (circuit green)
 
-export const COLOR_SELECTED = '#00e07a';     // Selected wire (bright neon green)
+export const COLOR_SELECTED = '#aabbd8';     // Selected wire (studio accent)
 
-export const COLOR_PREVIEW  = 'rgba(0, 224, 122, 0.90)'; // Live preview trace
+export const COLOR_PREVIEW  = 'rgba(170, 187, 216, 0.90)'; // Live preview trace
 
 export const TRACE_WIDTH    = 2.5;           // Wire stroke width
 

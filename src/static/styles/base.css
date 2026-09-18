@@ -1,14 +1,12 @@
-html, body {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-}
-body {
-    font-family: 'Inter', sans-serif;
-    background-color: #f0f2f5;
-    color: #333333;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
+/* Shared dark palette. Native inputs and select popups use the same color scheme. */
+:root { color-scheme: dark; --surface: #17191c; --surface-muted: #111315; --surface-raised: #1e2125; --hover: #25292e; --border: #2c3036; --text: #d8dce2; --muted: #939ba6; --accent: #aabbd8; --accent-soft: #252d39; --danger: #e39797; }
+* { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: #3b4047 transparent; }
+html, body { height: 100%; margin: 0; padding: 0; }
+body { font-family: 'Inter', 'Segoe UI', sans-serif; background: var(--surface-muted); color: var(--text); display: flex; flex-direction: column; overflow: hidden; font-size: 12px; -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; }
+input, select, textarea { color: var(--text); background: var(--surface-muted); }
+option, optgroup { color: var(--text); background: var(--surface-raised); }
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: .8; }
+button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; }
+::selection { background: #3e4a5c; color: #fff; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }

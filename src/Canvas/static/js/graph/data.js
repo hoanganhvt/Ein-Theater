@@ -21,12 +21,12 @@ export function prepareNodes(data) {
                     shape: 'box',
                     font: { face: 'monospace', size: 12, color: '#f8fafc', align: 'left' },
                     color: {
-                        background: '#0f172a',
-                        border: '#38bdf8',
-                        highlight: { background: '#1e293b', border: '#7dd3fc' }
+                        background: '#1b2027',
+                        border: '#66788f',
+                        highlight: { background: '#1e293b', border: '#aabbd8' }
                     },
                     borderWidth: 2,
-                    shadow: { enabled: true, color: 'rgba(56, 189, 248, 0.25)', size: 8, x: 0, y: 0 }
+                    shadow: { enabled: false }
                 };
             }
 

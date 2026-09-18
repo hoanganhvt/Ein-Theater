@@ -15,14 +15,14 @@ export function createNetworkOptions() {
             nodes: {
                 shape: 'box',
                 margin: 12,
-                font: { size: 14, color: '#1a202c', face: 'Inter' },
-                borderWidth: 1.5,
+                font: { size: 14, color: '#d8dce2', face: 'Inter' },
+                borderWidth: 1,
                 color: {
-                    background: '#ffffff',
-                    border: '#4a5568',
-                    highlight: { background: '#edf2f7', border: '#007acc' }
+                    background: '#20242a',
+                    border: '#505a68',
+                    highlight: { background: '#2b3340', border: '#aabbd8' }
                 },
-                shadow: { enabled: true, color: 'rgba(0,0,0,0.08)', size: 6, x: 2, y: 2 }
+                shadow: { enabled: false }
             },
             edges: {
                 // Keep Vis.js native edges completely invisible (opacity: 0, inherit: false).

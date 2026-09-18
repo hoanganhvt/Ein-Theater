@@ -90,7 +90,7 @@ export async function loadWorkspaceFiles(dirPath) {
                 ? `Model: "${f.name}" – Click to load onto canvas` 
                 : f.path;
             
-            const icon = f.isModel ? '🧠' : '📁';
+            const icon = f.isModel ? '&#9671;' : '&#9649;';
             const badgeHtml = f.isModel ? `<span class="model-badge" title="Verified PyTorch Model Folder">Model</span>` : '';
             
             item.innerHTML = `
@@ -129,11 +129,11 @@ export async function loadWorkspaceFiles(dirPath) {
             item.className = 'workspace-file-item is-file';
             item.title = f.path;
             const ext = f.name.split('.').pop().toLowerCase();
-            let icon = '📄';
-            if (ext === 'py') icon = '🐍';
-            else if (ext === 'json') icon = '📦';
-            else if (ext === 'md') icon = '📝';
-            else if (['jpg', 'png', 'svg', 'gif'].includes(ext)) icon = '🖼️';
+            let icon = '&#183;';
+            if (ext === 'py') icon = 'py';
+            else if (ext === 'json') icon = '{}';
+            else if (ext === 'md') icon = 'md';
+            else if (['jpg', 'png', 'svg', 'gif'].includes(ext)) icon = 'img';
 
             item.innerHTML = `
                 <span class="file-icon">${icon}</span>

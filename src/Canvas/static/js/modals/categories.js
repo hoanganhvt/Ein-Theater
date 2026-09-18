@@ -4,22 +4,22 @@ import { toggleCustom } from './add.js';
 // ── Add Block Modal ───────────────────────────────────────────────
 
 export const CATEGORY_DEFINITIONS = [
-    { id: 'all', label: 'All Categories', icon: '✨' },
-    { id: 'conv', label: 'Convolutional', icon: '🖼️' },
-    { id: 'dense', label: 'Dense & Linear', icon: '📦' },
-    { id: 'activation', label: 'Non-linear Activations', icon: '⚡' },
-    { id: 'pooling', label: 'Pooling Layers', icon: '🏊' },
-    { id: 'normalization', label: 'Normalization', icon: '📐' },
-    { id: 'padding', label: 'Padding Layers', icon: '🔲' },
-    { id: 'regularization', label: 'Dropout & Regularization', icon: '🛡️' },
-    { id: 'recurrent', label: 'Recurrent (RNN / LSTM / GRU)', icon: '🔁' },
-    { id: 'transformer', label: 'Transformer & Attention', icon: '🤖' },
-    { id: 'embedding', label: 'Embeddings', icon: '🔤' },
-    { id: 'vision', label: 'Vision & Resizing', icon: '🔍' },
-    { id: 'loss', label: 'Loss Functions', icon: '🎯' },
-    { id: 'distance', label: 'Distance & Similarity', icon: '📏' },
-    { id: 'utility', label: 'Shape Operations', icon: '🔄' },
-    { id: 'custom', label: 'Custom Layer...', icon: '⚙️' }
+    { id: 'all', label: 'All Categories' },
+    { id: 'conv', label: 'Convolutional' },
+    { id: 'dense', label: 'Dense & Linear' },
+    { id: 'activation', label: 'Non-linear Activations' },
+    { id: 'pooling', label: 'Pooling Layers' },
+    { id: 'normalization', label: 'Normalization' },
+    { id: 'padding', label: 'Padding Layers' },
+    { id: 'regularization', label: 'Dropout & Regularization' },
+    { id: 'recurrent', label: 'Recurrent (RNN / LSTM / GRU)' },
+    { id: 'transformer', label: 'Transformer & Attention' },
+    { id: 'embedding', label: 'Embeddings' },
+    { id: 'vision', label: 'Vision & Resizing' },
+    { id: 'loss', label: 'Loss Functions' },
+    { id: 'distance', label: 'Distance & Similarity' },
+    { id: 'utility', label: 'Shape Operations' },
+    { id: 'custom', label: 'Custom Layer...' }
 ];
 
 export function populateCategoryDropdown() {
@@ -42,7 +42,7 @@ export function populateCategoryDropdown() {
         } else if (cat.id !== 'custom' && counts[cat.id]) {
             countText = ` (${counts[cat.id]})`;
         }
-        html += `<option value="${esc(cat.id)}">${cat.icon} ${esc(cat.label)}${countText}</option>`;
+        html += `<option value="${esc(cat.id)}">${esc(cat.label)}${countText}</option>`;
     });
 
     select.innerHTML = html;
@@ -86,7 +86,7 @@ export function populateNodeTypeDropdown(category = 'all', searchQuery = '') {
             if (cat.id === 'all' || cat.id === 'custom') return;
             const items = groups[cat.id];
             if (items && items.length > 0) {
-                html += `<optgroup label="${cat.icon} ${esc(cat.label)}">`;
+                html += `<optgroup label="${esc(cat.label)}">`;
                 items.forEach(mod => {
                     html += `<option value="${esc(mod.type)}">${esc(mod.type)}</option>`;
                 });
@@ -99,7 +99,7 @@ export function populateNodeTypeDropdown(category = 'all', searchQuery = '') {
         });
     }
 
-    html += `<option value="custom">⚙️ Custom Layer...</option>`;
+    html += `<option value="custom"> Custom Layer...</option>`;
     select.innerHTML = html;
 
     if (category === 'custom') {
@@ -153,7 +153,7 @@ export function updateNodePreview() {
     }
     if (catEl) {
         const def = CATEGORY_DEFINITIONS.find(c => c.id === schema.category);
-        catEl.textContent = def ? `${def.icon} ${def.label}` : (schema.category || 'Layer');
+        catEl.textContent = def ? def.label : (schema.category || 'Layer');
     }
     if (labelEl) {
         const sampleLabel = formatNodeLabel(chosenType, getDefaultParams(chosenType));

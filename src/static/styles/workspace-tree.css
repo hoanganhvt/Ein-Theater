@@ -1,23 +1,23 @@
 /* Sidebar Working Directory Section */
 .workspace-section {
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--border);
     padding-bottom: 12px;
 }
 .btn-change-folder {
     background: transparent;
     border: none;
-    font-size: 14px;
+    font-size: 11px;
     cursor: pointer;
     padding: 2px 6px;
     border-radius: 4px;
     transition: background 0.15s;
 }
 .btn-change-folder:hover {
-    background-color: #e2e8f0;
+    background-color: var(--surface);
 }
 .workspace-card {
-    background-color: #ffffff;
-    border: 1px solid #e2e8f0;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 6px;
     padding: 8px 10px;
     display: flex;
@@ -25,14 +25,14 @@
     gap: 8px;
     cursor: pointer;
     transition: all 0.15s;
-    margin-bottom: 6px;
+    margin: 0 12px 6px;
 }
 .workspace-card:hover {
-    border-color: #007acc;
-    background-color: #f8fafc;
+    border-color: var(--border);
+    background-color: var(--surface);
 }
 .workspace-card-icon {
-    font-size: 20px;
+    font-size: 18px;
     flex-shrink: 0;
 }
 .workspace-card-info {
@@ -42,14 +42,14 @@
 .workspace-card-name {
     font-size: 13px;
     font-weight: 600;
-    color: #1e293b;
+    color: var(--text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 .workspace-card-path {
     font-size: 11px;
-    color: #64748b;
+    color: var(--muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -68,7 +68,7 @@
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 12px;
-    color: #475569;
+    color: var(--muted);
     cursor: pointer;
     transition: background 0.12s;
     white-space: nowrap;
@@ -76,37 +76,53 @@
     text-overflow: ellipsis;
 }
 .workspace-file-item:hover {
-    background-color: #e2e8f0;
-    color: #1e293b;
+    background-color: var(--surface);
+    color: var(--text);
 }
 .workspace-file-item.is-folder {
     font-weight: 500;
 }
 .workspace-file-item.is-model-folder {
     font-weight: 600;
-    color: #0369a1;
-    background-color: #f0f9ff;
+    color: var(--text);
+    background-color: var(--surface);
     border-radius: 4px;
 }
 .workspace-file-item.is-model-folder:hover {
-    background-color: #e0f2fe;
-    color: #0284c7;
+    background-color: var(--surface);
+    color: var(--text);
 }
 .model-badge {
     margin-left: auto;
-    background-color: #0284c7;
-    color: #ffffff;
+    background-color: var(--surface);
+    color: var(--text);
     font-size: 10px;
     font-weight: 700;
     padding: 1px 6px;
-    border-radius: 10px;
+    border-radius: 3px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 .workspace-empty-hint {
     font-size: 11px;
-    color: #94a3b8;
-    font-style: italic;
+    color: var(--muted);
+    font-style: normal;
     padding: 6px 8px;
 }
 
+
+.workspace-file-list { padding: 0 8px; }
+.file-icon { min-width: 20px; font: 10px monospace; color: var(--muted); text-align: center; }
+
+/* Flat explorer, without nested cards or colored model badges. */
+.workspace-section { padding-bottom: 10px; }
+.workspace-card { margin: 0 8px; padding: 7px 8px; border: none; border-radius: 3px; background: transparent; }
+.workspace-card:hover { background: var(--hover); }
+.workspace-card-icon { display: none; }
+.workspace-card-name { font-size: 12px; font-weight: 400; }
+.workspace-card-path { font-size: 10px; color: var(--muted); margin-top: 4px; }
+.workspace-empty-hint { font-size: 10px; padding: 8px 8px 0; line-height: 1.6; }
+.btn-change-folder { color: var(--muted); font-size: 10px; }
+.btn-change-folder:hover, .workspace-file-item:hover, .workspace-file-item.is-model-folder:hover { background: var(--hover); }
+.workspace-file-item.is-model-folder { background: transparent; color: var(--text); font-weight: 400; }
+.model-badge { background: transparent; color: var(--muted); font-size: 8px; font-weight: 400; letter-spacing: .6px; padding: 0; }

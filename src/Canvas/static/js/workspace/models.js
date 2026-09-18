@@ -13,9 +13,9 @@ export async function saveActiveModel() {
     }
 
     const btn = document.getElementById('btnSaveModel');
-    const origText = btn ? btn.textContent : '💾 Save';
+    const origText = btn ? btn.textContent : 'Save';
     if (btn) {
-        btn.textContent = '💾 Saving...';
+        btn.textContent = 'Saving...';
         btn.disabled = true;
     }
 
@@ -34,7 +34,7 @@ export async function saveActiveModel() {
             document.title = modelName + ' – Neural Network Builder';
         }
 
-        const msg = `✅ Saved '${modelName}' into '${folderName}/' (${folderName}.json, ${folderName}.py)`;
+        const msg = `Saved '${modelName}' into '${folderName}/' (${folderName}.json, ${folderName}.py)`;
         showToast(msg);
     } catch (err) {
         console.error('Save model error:', err);
@@ -53,7 +53,7 @@ export async function loadModelFromFolder(folderPath) {
         await Promise.all([loadProjects(), loadGraph({ projectId: res.projectId })]);
         fitView();
         closeSelectFolderModal();
-        showToast(`⚡ Model "${res.modelName || 'Model'}" loaded onto canvas (${res.nodeCount || 0} blocks)`);
+        showToast(`Model "${res.modelName || 'Model'}" loaded onto canvas (${res.nodeCount || 0} blocks)`);
     } catch (err) {
         console.error('Failed to load model from folder:', err);
         showToast('Failed to load model: ' + err.message);
