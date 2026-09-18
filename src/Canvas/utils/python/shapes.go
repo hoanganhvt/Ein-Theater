@@ -1,4 +1,6 @@
-package handler
+// Package python coordinates Python shape analysis and model generation.
+// See document.md for component inputs, outputs, and test instructions.
+package python
 
 import (
 	"bufio"
@@ -10,6 +12,7 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+	graphdata "web-app/Canvas/utils/graph"
 )
 
 // Python owns all shape rules. This bridge keeps one interpreter alive and
@@ -32,35 +35,35 @@ func (w *pythonShapeWorker) stop() {
 	w.cmd = nil
 }
 
-func (w *pythonShapeWorker) analyze(graph GraphData, baseDir string) (GraphData, error) {
+func (w *pythonShapeWorker) analyze(graph graphdata.GraphData, baseDir string) (graphdata.GraphData, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.cmd == nil {
-		path := filepath.Join(filepath.Dir(findGenCodePyPath()), "..", "auto_shape_fitting", "shape_inference.py")
+		path := filepath.Join(filepath.Dir(FindGenCodePyPath()), "..", "auto_shape_fitting", "shape_inference.py")
 		cmd := exec.Command("python", "-u", path, "--worker")
 		cmd.Env = append(os.Environ(), "PYTHONDONTWRITEBYTECODE=1")
 		input, err := cmd.StdinPipe()
 		if err != nil {
-			return GraphData{}, err
+			return graphdata.GraphData{}, err
 		}
 		output, err := cmd.StdoutPipe()
 		if err != nil {
 			_ = input.Close()
-			return GraphData{}, err
+			return graphdata.GraphData{}, err
 		}
 		cmd.Stderr = os.Stderr
 		if err = cmd.Start(); err != nil {
 			_ = input.Close()
 			_ = output.Close()
-			return GraphData{}, err
+			return graphdata.GraphData{}, err
 		}
 		w.cmd = cmd
 		w.input = input
 		w.output = bufio.NewReader(output)
 	}
 	request := struct {
-		Graph   GraphData `json:"graph"`
-		BaseDir string    `json:"baseDir"`
+		Graph   graphdata.GraphData `json:"graph"`
+		BaseDir string              `json:"baseDir"`
 	}{graph, baseDir}
 	type response struct {
 		data []byte
@@ -81,27 +84,28 @@ func (w *pythonShapeWorker) analyze(graph GraphData, baseDir string) (GraphData,
 	case result := <-done:
 		if result.err != nil {
 			w.stop()
-			return GraphData{}, fmt.Errorf("Python shape worker: %w", result.err)
+			return graphdata.GraphData{}, fmt.Errorf("Python shape worker: %w", result.err)
 		}
 		var payload struct {
-			Graph GraphData `json:"graph"`
-			Error string    `json:"error"`
+			Graph graphdata.GraphData `json:"graph"`
+			Error string              `json:"error"`
 		}
 		if err := json.Unmarshal(result.data, &payload); err != nil {
 			w.stop()
-			return GraphData{}, fmt.Errorf("Python shape response: %w", err)
+			return graphdata.GraphData{}, fmt.Errorf("Python shape response: %w", err)
 		}
 		if payload.Error != "" {
-			return GraphData{}, fmt.Errorf("%s", payload.Error)
+			return graphdata.GraphData{}, fmt.Errorf("%s", payload.Error)
 		}
 		return payload.Graph, nil
 	case <-time.After(45 * time.Second):
 		w.stop()
-		return GraphData{}, fmt.Errorf("Python shape analysis timed out after 45 seconds")
+		return graphdata.GraphData{}, fmt.Errorf("Python shape analysis timed out after 45 seconds")
 	}
 }
 
-func analyzeGraph(graph GraphData, baseDir string) (GraphData, error) {
+// AnalyzeGraph runs a detached graph through the shared worker, bypassing empty graphs.
+func AnalyzeGraph(graph graphdata.GraphData, baseDir string) (graphdata.GraphData, error) {
 	if len(graph.Nodes) == 0 {
 		return graph, nil
 	}

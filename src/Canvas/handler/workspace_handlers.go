@@ -2,30 +2,18 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+	"web-app/Canvas/utils/workspace"
 )
-
-func getSystemDrives() []string {
-	var drives []string
-	for _, letter := range "ABCDEFGHIJKLMNOPQRSTUVWXYZ" {
-		drive := string(letter) + ":\\"
-		if _, err := os.Stat(drive); err == nil {
-			drives = append(drives, drive)
-		}
-	}
-	return drives
-}
 
 // WorkspaceHandler returns the current working directory.
 func WorkspaceHandler(w http.ResponseWriter, r *http.Request) {
-	mu.Lock()
-	wd := workingDir
-	mu.Unlock()
+	store.Mu.Lock()
+	wd := store.WorkingDir
+	store.Mu.Unlock()
 
 	name := "None"
 	if wd != "" {
@@ -74,9 +62,9 @@ func SetWorkspaceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mu.Lock()
-	workingDir = cleanPath
-	mu.Unlock()
+	store.Mu.Lock()
+	store.WorkingDir = cleanPath
+	store.Mu.Unlock()
 
 	resp := WorkspaceResponse{
 		WorkingDir: cleanPath,
@@ -88,116 +76,17 @@ func SetWorkspaceHandler(w http.ResponseWriter, r *http.Request) {
 
 // BrowseWorkspaceHandler lists files and subfolders in the requested path.
 func BrowseWorkspaceHandler(w http.ResponseWriter, r *http.Request) {
-	mu.Lock()
+	store.Mu.Lock()
 	targetDir := r.URL.Query().Get("dir")
 	if targetDir == "" {
-		targetDir = workingDir
+		targetDir = store.WorkingDir
 	}
-	mu.Unlock()
+	store.Mu.Unlock()
 
-	// Fallback if no directory specified or workingDir is empty
-	if targetDir == "" {
-		if home, err := os.UserHomeDir(); err == nil && home != "" {
-			targetDir = home
-		} else if cwd, err := os.Getwd(); err == nil && cwd != "" {
-			targetDir = cwd
-		} else {
-			drives := getSystemDrives()
-			if len(drives) > 0 {
-				targetDir = drives[0]
-			}
-		}
-	}
-
-	targetDir = filepath.Clean(targetDir)
-	fi, err := os.Stat(targetDir)
-	if err != nil || !fi.IsDir() {
-		http.Error(w, "Directory does not exist: "+targetDir, http.StatusBadRequest)
-		return
-	}
-
-	entries, err := os.ReadDir(targetDir)
+	resp, err := workspace.Browse(targetDir)
 	if err != nil {
-		http.Error(w, "Unable to read directory: "+err.Error(), http.StatusInternalServerError)
+		writeError(w, err)
 		return
-	}
-
-	folders := make([]DirectoryItem, 0)
-	files := make([]DirectoryItem, 0)
-
-	for _, entry := range entries {
-		name := entry.Name()
-		// Skip hidden files/directories
-		if strings.HasPrefix(name, ".") {
-			continue
-		}
-		fullPath := filepath.Join(targetDir, name)
-		if entry.IsDir() {
-			isModel := false
-			modelName := name
-			if IsValidModelFolderName(name) {
-				pyFile := filepath.Join(fullPath, name+".py")
-				jsonFile := filepath.Join(fullPath, name+".json")
-				if fiPy, errPy := os.Stat(pyFile); errPy == nil && !fiPy.IsDir() {
-					if fiJSON, errJSON := os.Stat(jsonFile); errJSON == nil && !fiJSON.IsDir() {
-						isModel = true
-					}
-				}
-			} else {
-				fixed := FixModelName(name)
-				pyFile1 := filepath.Join(fullPath, name+".py")
-				jsonFile1 := filepath.Join(fullPath, name+".json")
-				pyFile2 := filepath.Join(fullPath, fixed+".py")
-				jsonFile2 := filepath.Join(fullPath, fixed+".json")
-
-				if fiPy, errPy := os.Stat(pyFile1); errPy == nil && !fiPy.IsDir() {
-					if fiJSON, errJSON := os.Stat(jsonFile1); errJSON == nil && !fiJSON.IsDir() {
-						isModel = true
-						modelName = fixed
-					}
-				}
-				if !isModel {
-					if fiPy, errPy := os.Stat(pyFile2); errPy == nil && !fiPy.IsDir() {
-						if fiJSON, errJSON := os.Stat(jsonFile2); errJSON == nil && !fiJSON.IsDir() {
-							isModel = true
-							modelName = fixed
-						}
-					}
-				}
-			}
-			folders = append(folders, DirectoryItem{
-				Name:      name,
-				Path:      fullPath,
-				IsDir:     true,
-				IsModel:   isModel,
-				ModelName: modelName,
-			})
-		} else {
-			info, _ := entry.Info()
-			var size int64
-			if info != nil {
-				size = info.Size()
-			}
-			files = append(files, DirectoryItem{
-				Name:  name,
-				Path:  fullPath,
-				IsDir: false,
-				Size:  size,
-			})
-		}
-	}
-
-	parent := filepath.Dir(targetDir)
-	if parent == targetDir {
-		parent = ""
-	}
-
-	resp := BrowseResponse{
-		Current: targetDir,
-		Parent:  parent,
-		Drives:  getSystemDrives(),
-		Folders: folders,
-		Files:   files,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -211,29 +100,16 @@ func SelectNativeFolderHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mu.Lock()
-	initialDir := workingDir
-	mu.Unlock()
+	store.Mu.Lock()
+	initialDir := store.WorkingDir
+	store.Mu.Unlock()
 
-	psScript := fmt.Sprintf(`
-Add-Type -AssemblyName System.Windows.Forms
-$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
-$dialog.Description = "Select Working Directory"
-$dialog.SelectedPath = "%s"
-$dialog.ShowNewFolderButton = $true
-if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-    Write-Output $dialog.SelectedPath
-}
-`, strings.ReplaceAll(initialDir, `"`, `\"`))
-
-	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", psScript)
-	out, err := cmd.Output()
+	selected, err := workspace.PickFolder(initialDir)
 	if err != nil {
-		http.Error(w, "Failed to launch native folder dialog: "+err.Error(), http.StatusInternalServerError)
+		writeError(w, err)
 		return
 	}
 
-	selected := strings.TrimSpace(string(out))
 	if selected == "" {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -249,9 +125,9 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
 		return
 	}
 
-	mu.Lock()
-	workingDir = cleanPath
-	mu.Unlock()
+	store.Mu.Lock()
+	store.WorkingDir = cleanPath
+	store.Mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -259,31 +135,6 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
 		"workingDir": cleanPath,
 		"name":       filepath.Base(cleanPath),
 	})
-}
-
-func findGenCodePyPath() string {
-	candidates := []string{
-		filepath.Join("Canvas", "utils", "generate code", "gen_code.py"),
-		filepath.Join("src", "Canvas", "utils", "generate code", "gen_code.py"),
-		filepath.Join("utils", "generate code", "gen_code.py"),
-		filepath.Join("src", "utils", "generate code", "gen_code.py"),
-		filepath.Join("..", "Canvas", "utils", "generate code", "gen_code.py"),
-		filepath.Join("..", "src", "Canvas", "utils", "generate code", "gen_code.py"),
-		filepath.Join("..", "src", "utils", "generate code", "gen_code.py"),
-		filepath.Join("..", "utils", "generate code", "gen_code.py"),
-		filepath.Join("..", "idea", "test.py"),
-		filepath.Join("idea", "test.py"),
-	}
-	for _, c := range candidates {
-		if _, err := os.Stat(c); err == nil {
-			abs, err := filepath.Abs(c)
-			if err == nil {
-				return abs
-			}
-			return c
-		}
-	}
-	return filepath.Join("Canvas", "utils", "generate code", "gen_code.py")
 }
 
 // CreateFolderHandler creates a new folder within the specified or active directory.
@@ -309,503 +160,17 @@ func CreateFolderHandler(w http.ResponseWriter, r *http.Request) {
 		req.Dir = r.URL.Query().Get("dir")
 	}
 
-	mu.Lock()
+	store.Mu.Lock()
 	if req.Dir == "" {
-		req.Dir = workingDir
+		req.Dir = store.WorkingDir
 	}
-	mu.Unlock()
+	store.Mu.Unlock()
 
-	req.Name = strings.TrimSpace(req.Name)
-	if req.Name == "" {
-		http.Error(w, "Folder name is required", http.StatusBadRequest)
-		return
-	}
-
-	if req.Dir == "" {
-		http.Error(w, "Target parent directory is required", http.StatusBadRequest)
-		return
-	}
-
-	cleanParent := filepath.Clean(req.Dir)
-	fi, err := os.Stat(cleanParent)
-	if err != nil || !fi.IsDir() {
-		http.Error(w, "Parent directory does not exist: "+cleanParent, http.StatusBadRequest)
-		return
-	}
-
-	newFolderPath := filepath.Join(cleanParent, req.Name)
-	if err := os.MkdirAll(newFolderPath, 0755); err != nil {
-		http.Error(w, "Failed to create directory: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status": "ok",
-		"path":   newFolderPath,
-		"name":   req.Name,
-		"parent": cleanParent,
-	})
-}
-
-// SaveModelHandler serializes the current project, invokes src/utils/generate code/gen_code.py to generate code,
-// and saves <model_name>/<model_name>.json and <model_name>/<model_name>.py.
-func SaveModelHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var req struct {
-		ProjectID string `json:"projectId"`
-		Dir       string `json:"dir"`
-	}
-	if r.Body != nil {
-		_ = json.NewDecoder(r.Body).Decode(&req)
-	}
-	if req.ProjectID == "" {
-		req.ProjectID = r.URL.Query().Get("projectId")
-	}
-	if req.Dir == "" {
-		req.Dir = r.URL.Query().Get("dir")
-	}
-
-	mu.Lock()
-	targetDir := req.Dir
-	if targetDir == "" {
-		targetDir = workingDir
-	}
-
-	p := cur()
-	if req.ProjectID != "" {
-		if found, ok := projects[req.ProjectID]; ok {
-			p = found
-		}
-	}
-
-	if p == nil {
-		mu.Unlock()
-		http.Error(w, "No active project found", http.StatusBadRequest)
-		return
-	}
-
-	if !IsValidModelFolderName(p.Name) {
-		p.Name = FixModelName(p.Name)
-	}
-
-	// Python performs fresh graph adaptation and validation before generation.
-	p.reindexEdges()
-	graphPayload := p.graphSnapshot()
-	baseDir := p.baseDir
-	if baseDir == "" {
-		baseDir = workingDir
-	}
-	mu.Unlock()
-
-	if targetDir == "" {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{
-			"error": "No working directory selected. Please select a folder first.",
-		})
-		return
-	}
-
-	cleanTarget := filepath.Clean(targetDir)
-	if fi, err := os.Stat(cleanTarget); err != nil || !fi.IsDir() {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{
-			"error": "Working directory does not exist: " + cleanTarget,
-		})
-		return
-	}
-
-	canvasBytes, err := json.Marshal(graphPayload)
+	result, err := workspace.CreateFolder(req.Dir, req.Name)
 	if err != nil {
-		http.Error(w, "Failed to serialize canvas data: "+err.Error(), http.StatusInternalServerError)
+		writeError(w, err)
 		return
-	}
-
-	genCodePyPath := findGenCodePyPath()
-	cmdArgs := []string{genCodePyPath, "--save-canvas", "-", "--out-dir", cleanTarget, "--base-dir", baseDir}
-	cmd := exec.Command("python", cmdArgs...)
-	cmd.Env = append(os.Environ(), "PYTHONDONTWRITEBYTECODE=1")
-	cmd.Stdin = strings.NewReader(string(canvasBytes))
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Python model generation error (%v): %s", err, string(out)), http.StatusInternalServerError)
-		return
-	}
-
-	outStr := strings.TrimSpace(string(out))
-	var result map[string]interface{}
-	if jsonErr := json.Unmarshal([]byte(outStr), &result); jsonErr != nil {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status": "ok",
-			"raw":    outStr,
-			"folder": filepath.Join(cleanTarget, graphPayload.Name),
-		})
-		return
-	}
-
-	// Only adopt the generated references if the canvas has not changed while
-	// Python was running. Never replace newer edits with an older save snapshot.
-	savedFolder, _ := filepath.Abs(filepath.Join(cleanTarget, graphPayload.Name))
-	if saved, readErr := readModelCanvas(savedFolder); readErr == nil {
-		mu.Lock()
-		p.adoptSavedIntegrations(graphPayload, saved, savedFolder)
-		mu.Unlock()
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
-}
-
-// LoadModelHandler loads a model from a folder containing <model_name>.json and <model_name>.py
-// onto the active canvas.
-func LoadModelHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var req struct {
-		Path string `json:"path"`
-		Dir  string `json:"dir"`
-	}
-	if r.Body != nil {
-		_ = json.NewDecoder(r.Body).Decode(&req)
-	}
-	folderPath := req.Path
-	if folderPath == "" {
-		folderPath = req.Dir
-	}
-	if folderPath == "" {
-		folderPath = r.URL.Query().Get("path")
-	}
-	if folderPath == "" {
-		folderPath = r.URL.Query().Get("dir")
-	}
-
-	folderPath = strings.TrimSpace(folderPath)
-	if folderPath == "" {
-		http.Error(w, "Model folder path is required", http.StatusBadRequest)
-		return
-	}
-
-	cleanFolder := filepath.Clean(folderPath)
-	fi, err := os.Stat(cleanFolder)
-	if err != nil || !fi.IsDir() {
-		http.Error(w, "Folder does not exist: "+cleanFolder, http.StatusBadRequest)
-		return
-	}
-
-	modelName := filepath.Base(cleanFolder)
-	validModelName := modelName
-	if !IsValidModelFolderName(modelName) {
-		validModelName = FixModelName(modelName)
-	}
-
-	jsonPath := filepath.Join(cleanFolder, modelName+".json")
-	if _, err := os.Stat(jsonPath); err != nil && validModelName != modelName {
-		alt := filepath.Join(cleanFolder, validModelName+".json")
-		if _, errAlt := os.Stat(alt); errAlt == nil {
-			jsonPath = alt
-		}
-	}
-	pyPath := filepath.Join(cleanFolder, modelName+".py")
-	if _, err := os.Stat(pyPath); err != nil && validModelName != modelName {
-		alt := filepath.Join(cleanFolder, validModelName+".py")
-		if _, errAlt := os.Stat(alt); errAlt == nil {
-			pyPath = alt
-		}
-	}
-
-	if _, err := os.Stat(jsonPath); err != nil {
-		http.Error(w, fmt.Sprintf("Model configuration file '%s.json' not found in %s", modelName, cleanFolder), http.StatusBadRequest)
-		return
-	}
-	if _, err := os.Stat(pyPath); err != nil {
-		http.Error(w, fmt.Sprintf("Model python file '%s.py' not found in %s", modelName, cleanFolder), http.StatusBadRequest)
-		return
-	}
-
-	jsonBytes, err := os.ReadFile(jsonPath)
-	if err != nil {
-		http.Error(w, "Failed to read model json: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	var rawWrapper map[string]json.RawMessage
-	if err := json.Unmarshal(jsonBytes, &rawWrapper); err != nil {
-		http.Error(w, "Failed to parse model JSON: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	var graphData GraphData
-	if canvasRaw, ok := rawWrapper["canvas"]; ok {
-		if err := json.Unmarshal(canvasRaw, &graphData); err != nil {
-			http.Error(w, "Failed to parse canvas graph data: "+err.Error(), http.StatusBadRequest)
-			return
-		}
-	} else {
-		if err := json.Unmarshal(jsonBytes, &graphData); err != nil {
-			http.Error(w, "Failed to parse graph data: "+err.Error(), http.StatusBadRequest)
-			return
-		}
-	}
-
-	if graphData.Name == "" {
-		graphData.Name = validModelName
-	} else if !IsValidModelFolderName(graphData.Name) {
-		graphData.Name = FixModelName(graphData.Name)
-	}
-	modelName = graphData.Name
-
-	mu.Lock()
-	defer mu.Unlock()
-
-	var p *Project
-	active := cur()
-	if active != nil && len(active.nodes) == 0 && (active.Name == "Untitled Model" || active.Name == modelName) {
-		p = active
-		p.Name = modelName
-	} else {
-		for _, proj := range projects {
-			if proj.Name == modelName {
-				p = proj
-				currentProjectID = p.ID
-				break
-			}
-		}
-		if p == nil {
-			p = makeProject(modelName)
-			projects[p.ID] = p
-			projectOrder = append(projectOrder, p.ID)
-			currentProjectID = p.ID
-		}
-	}
-
-	p.nodes = make(map[string]Node)
-	p.edges = make(map[string]Edge)
-	p.baseDir, _ = filepath.Abs(cleanFolder)
-	p.nodeOrder = nil
-
-	for _, n := range graphData.Nodes {
-		resolveModelPaths(&n, p.baseDir)
-		p.nodeOrder = append(p.nodeOrder, n.ID)
-		if n.Label == "" {
-			if strings.Contains(n.ID, "_") {
-				n.Label = strings.ReplaceAll(n.ID, "_", " ")
-			} else {
-				prefix := layerTypeToPrefix(n.LayerType)
-				if n.ID != "" {
-					n.Label = fmt.Sprintf("%s %s", prefix, n.ID)
-				} else {
-					n.Label = prefix
-				}
-			}
-		}
-		p.nodes[n.ID] = n
-	}
-
-	p.edgeOrder = make([]string, 0)
-	for _, e := range graphData.Edges {
-		if len(e.Lines) == 0 {
-			fn, ok1 := p.nodes[e.From]
-			tn, ok2 := p.nodes[e.To]
-			if ok1 && ok2 {
-				e.Lines = ComputeEdgeLines(fn, tn)
-			}
-		}
-		p.edges[e.ID] = e
-		p.edgeOrder = append(p.edgeOrder, e.ID)
-	}
-	p.reindexEdges()
-
-	p.nextEdgeID = len(p.edges)
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":    "ok",
-		"modelName": p.Name,
-		"projectId": p.ID,
-		"nodeCount": len(p.nodes),
-		"edgeCount": len(p.edges),
-	})
-}
-
-// InspectModelHandler checks if a directory contains a registered model (both json and py),
-// determines if it has input blocks, and returns its input and output port specifications.
-func InspectModelHandler(w http.ResponseWriter, r *http.Request) {
-	targetPath := r.URL.Query().Get("path")
-	if targetPath == "" && r.Body != nil {
-		var req struct {
-			Path string `json:"path"`
-		}
-		_ = json.NewDecoder(r.Body).Decode(&req)
-		targetPath = req.Path
-	}
-	targetPath = strings.TrimSpace(targetPath)
-	if targetPath == "" {
-		http.Error(w, "Path parameter is required", http.StatusBadRequest)
-		return
-	}
-
-	cleanFolder := filepath.Clean(targetPath)
-	fi, err := os.Stat(cleanFolder)
-	if err != nil || !fi.IsDir() {
-		http.Error(w, "Directory does not exist: "+cleanFolder, http.StatusBadRequest)
-		return
-	}
-
-	modelName := filepath.Base(cleanFolder)
-	validModelName := FixModelName(modelName)
-
-	jsonPath := filepath.Join(cleanFolder, modelName+".json")
-	if _, err := os.Stat(jsonPath); err != nil && validModelName != modelName {
-		alt := filepath.Join(cleanFolder, validModelName+".json")
-		if _, errAlt := os.Stat(alt); errAlt == nil {
-			jsonPath = alt
-		}
-	}
-	pyPath := filepath.Join(cleanFolder, modelName+".py")
-	if _, err := os.Stat(pyPath); err != nil && validModelName != modelName {
-		alt := filepath.Join(cleanFolder, validModelName+".py")
-		if _, errAlt := os.Stat(alt); errAlt == nil {
-			pyPath = alt
-		}
-	}
-
-	if _, err := os.Stat(jsonPath); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":  "error",
-			"isModel": false,
-			"error":   fmt.Sprintf("Missing %s.json", modelName),
-		})
-		return
-	}
-	if _, err := os.Stat(pyPath); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":  "error",
-			"isModel": false,
-			"error":   fmt.Sprintf("Missing %s.py", modelName),
-		})
-		return
-	}
-
-	jsonBytes, err := os.ReadFile(jsonPath)
-	if err != nil {
-		http.Error(w, "Failed to read model JSON: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	type PortDef struct {
-		ID    string      `json:"id"`
-		Name  string      `json:"name"`
-		Type  string      `json:"type"`
-		Shape interface{} `json:"shape"`
-	}
-
-	var rootMap map[string]interface{}
-	if err := json.Unmarshal(jsonBytes, &rootMap); err != nil {
-		http.Error(w, "Failed to parse model JSON: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	var inputs []PortDef
-	var outputs []PortDef
-
-	var nodesList []interface{}
-	if canvasVal, ok := rootMap["canvas"].(map[string]interface{}); ok {
-		if cn, ok := canvasVal["nodes"].([]interface{}); ok {
-			nodesList = cn
-		}
-	}
-	if len(nodesList) == 0 {
-		if rn, ok := rootMap["nodes"].([]interface{}); ok {
-			nodesList = rn
-		}
-	}
-
-	for _, n := range nodesList {
-		nMap, ok := n.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		lType, _ := nMap["layerType"].(string)
-		op, _ := nMap["op"].(string)
-		nType, _ := nMap["type"].(string)
-		id, _ := nMap["id"].(string)
-		label, _ := nMap["label"].(string)
-		params, _ := nMap["params"].(map[string]interface{})
-		if params == nil {
-			params = make(map[string]interface{})
-		}
-
-		isInput := strings.EqualFold(lType, "Input") ||
-			strings.EqualFold(nType, "input") ||
-			strings.EqualFold(op, "placeholder") ||
-			strings.HasPrefix(strings.ToLower(label), "input ") ||
-			strings.EqualFold(label, "input")
-
-		if isInput {
-			name, _ := params["input_name"].(string)
-			if name == "" {
-				name = id
-			}
-			itype, _ := params["input_type"].(string)
-			if itype == "" {
-				itype = "image"
-			}
-			shape := params["shape"]
-			if shape == nil {
-				shape = params["custom_shape"]
-			}
-			if shape == nil {
-				shape = []int{3, 224, 224}
-			}
-			inputs = append(inputs, PortDef{
-				ID:    id,
-				Name:  name,
-				Type:  itype,
-				Shape: shape,
-			})
-		}
-
-		isOutput := strings.EqualFold(op, "output") || strings.EqualFold(lType, "output") || strings.EqualFold(label, "output")
-		if isOutput {
-			outputs = append(outputs, PortDef{
-				ID:    id,
-				Name:  "out",
-				Type:  "tensor",
-				Shape: params["shape"],
-			})
-		}
-	}
-
-	if len(outputs) == 0 && len(nodesList) > 0 {
-		lastNode, _ := nodesList[len(nodesList)-1].(map[string]interface{})
-		lastID, _ := lastNode["id"].(string)
-		outputs = append(outputs, PortDef{
-			ID:    lastID,
-			Name:  "output",
-			Type:  "tensor",
-			Shape: []int{1, 10},
-		})
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":     "ok",
-		"isModel":    true,
-		"hasInputs":  len(inputs) > 0,
-		"modelName":  modelName,
-		"folderPath": cleanFolder,
-		"inputs":     inputs,
-		"outputs":    outputs,
-	})
 }

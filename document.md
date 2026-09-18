@@ -1,496 +1,313 @@
-# Ein Theater
+﻿# Ein Theater: global code flow
 
-> **A graphical UI solution to build, visualize, and test Deep Learning models as interactive circuit blocks.**
+This is the project-wide runtime guide. It follows execution from the browser to
+Go, through Python, and back to the UI or saved model files. Folder documents
+contain detailed component inputs/outputs, endpoint contracts and focused tests.
 
-**Ein Theater** transforms PyTorch neural network construction into an intuitive, visual drag-and-drop schematic editor. Inspired by electrical PCB schematics and IC chip diagrams, Ein Theater renders layers as rectangular IC blocks with orthogonal 90° circuit traces, interactive diamond fold waypoints, multi-model workspace tabs, live hyperparameter editing, and instant PyTorch code generation via symbolic graph tracing.
+Ein Theater is a visual PyTorch model editor. The implemented server mode is
+Canvas; the Data, Train and Code registrations in `src/main.go` are placeholders.
+The current application edits graphs, analyzes tensor shapes and generates model
+code. Starting the server does not start model training.
 
----
+## 1. Architecture and ownership
 
-## Table of Contents
-
-- [Key Features](#key-features)
-- [Architecture & Tech Stack](#architecture--tech-stack)
-- [Project Layout](#project-layout)
-- [Quickstart Guide](#quickstart-guide)
-  - [Prerequisites](#prerequisites)
-  - [Running the Web Application](#running-the-web-application)
-  - [Configuring the Server Port](#configuring-the-server-port)
-  - [Running Model Tracing & Code Generation Tests](#running-model-tracing--code-generation-tests)
-- [Canvas & Workflow Guide](#canvas--workflow-guide)
-  - [Interactive Modes](#interactive-modes)
-  - [Fundamental Blocks Sidebar](#fundamental-blocks-sidebar)
-  - [Categorized 152-Module Catalog & Search](#categorized-152-module-catalog--search)
-  - [Orthogonal Wire Routing & Fold Waypoints](#orthogonal-wire-routing--fold-waypoints)
-  - [Scoped 0-Indexed Block Naming System](#scoped-0-indexed-block-naming-system)
-  - [Saving Models & Generating Executable PyTorch Code](#saving-models--generating-executable-pytorch-code)
-  - [Loading Verified Models onto Canvas](#loading-verified-models-onto-canvas)
-  - [Workspace Folder Management](#workspace-folder-management)
-  - [Keyboard Shortcuts & Gestures](#keyboard-shortcuts--gestures)
-- [PyTorch FX Graph Generation & CLI](#pytorch-fx-graph-generation--cli)
-- [Backend REST API Reference](#backend-rest-api-reference)
-- [Sub-Module Documentation](#sub-module-documentation)
-
----
-
-## Key Features
-
-- **Electronic Circuit Schematic Canvas**:
-  - Infinite 50px dot-grid PCB background.
-  - Snap-to-grid coordinate alignment for neat architectural layouts.
-  - Orthogonal 90° right-angle wiring with custom diamond fold waypoints that can be interactively dragged or flipped (Horizontal ⇄ Vertical).
-  - Rubber-band marquee box selection (`Select` mode), rigid multi-block dragging with 100% wire shape and fold preservation, and batch deletion.
-  - **Full Clipboard System (Copy, Cut, Paste)**: Copy and paste single blocks or multi-block collections (`Ctrl+C` / `Ctrl+V` or right-click context menu) with full preservation of internal circuit wiring, exact layer hyperparameters, staggered or cursor-targeted grid placement, and cross-model session persistence. Automatically switches to Move mode with elements selected for immediate dragging.
-- **Fundamental Blocks Palette & Input Node**:
-  - The left sidebar displays an **11-block Fundamental Blocks palette** for fast access:
-    1. `Input` (Placeholder source block with Image, Text, Audio, and Raw Data presets)
-    2. `nn.Linear`
-    3. `nn.Conv2d`
-    4. `nn.ReLU`
-    5. `nn.MaxPool2d`
-    6. `nn.BatchNorm2d`
-    7. `nn.LayerNorm`
-    8. `nn.Dropout`
-    9. `nn.LSTM`
-    10. `nn.MultiheadAttention`
-    11. `nn.Embedding`
-  - Drag-and-drop directly onto the canvas or single-click to spawn near the center of the current view.
-  - Quick launcher (`+ More / Custom...`) opens the full 152-module categorized catalog.
-- **Python Shape Adaptation (`shape_inference.py`)**:
-  - Uses a persistent JSON-lines Python worker executing dummy tensors on PyTorch's `meta` device.
-  - Automatically infers tensor dimensions and matches downstream layer constraints (e.g. `in_features`, `in_channels`).
-  - Runs in the background and resolves shape mismatches dynamically without allocating real memory or blocking the UI.
-  - Synchronizes fitted parameters and output sizes back into the canvas state in real time.
-- **152 Categorized PyTorch Modules**:
-  - Complete coverage of `torch.nn.Module` subclasses defined in `modules.json`.
-  - Partitioned into **15 functional categories**: Linear, Convolution, Pooling, Non-linear Activations, Normalization, Recurrent, Transformer, Attention, Dropout, Sparse / Embedding, Loss Functions, Vision, Padding, Distance, and Utilities.
-  - Live instant text search filter across layer names and categories.
-  - Real-time interactive preview card showing layer badges, category tags, dynamic canvas label preview, and constructor code.
-  - Dynamic parameter modal generator supporting typed number inputs with constraints (`min`, `max`, `step`), boolean switches, and mustache templating.
-- **Scoped 0-Indexed Block Naming**:
-  - Layer instances automatically receive clean, 0-indexed identifiers scoped per layer type and workspace (e.g., `linear_0`, `linear_1`, `conv_0`, `conv_1`, `relu_0`).
-  - Canvas blocks render clean, human-readable labels (`linear 0`, `conv 0`, `relu 0`) instead of cluttered raw parameter numbers.
-  - Projects start fresh with an empty canvas and zero-indexed counter state.
-- **1-Click Model Serialization & PyTorch Code Generation**:
-  - Instant model saving via keyboard shortcut (`Ctrl+S` / `Cmd+S`), toolbar **💾 Save** button, or header **File** menu.
-  - Automated compilation into a dedicated package directory: `<workingDir>/<model_name>/` containing:
-    - `<model_name>.json`: Complete graph structure, layer parameters, and orthogonal wire coordinates.
-    - `<model_name>.py`: Standalone, executable PyTorch `nn.Module` source code with device detection (`cuda` / `cpu`) and self-testing `__main__` entry point.
-- **Smart Model Folder Detection & 1-Click Loading**:
-  - Automatically identifies valid model directories in the workspace containing both `<model_name>.json` and `<model_name>.py`.
-  - Decorated with a brain icon (`🧠`), distinctive blue accent, and `Model` badge in the sidebar tree and file browser modal.
-  - Single click or **⚡ Load Model** action directly restores the model onto the canvas, preserves project tabs, recomputes wire routing, and centers the camera.
-- **Workspace File & Directory Management**:
-  - Built-in working directory explorer with breadcrumb navigation and drive chip selectors.
-  - Directory creation directly from the sidebar (`➕`) or file browser modal (`➕ New Folder`).
-  - Native Windows folder picker integration via PowerShell dialogs (`System.Windows.Forms.FolderBrowserDialog`).
-  - Non-intrusive floating toast notifications (`.app-toast`) for save confirmations and system status.
-- **Multi-Model Project Management**:
-  - Sidebar project tabs supporting concurrent model architectures within a single session.
-  - Fast model creation, deletion, and inline model title renaming.
-- **Python FX Graph & Code Synthesis (`src/Canvas/utils/generate code/`)**:
-  - Uses Kahn's topological sort and `torch.fx.GraphModule` to build executable models.
-  - Recursive integrated models allow you to nest sub-models dynamically.
-  - Graph JSON serialization and automated compilation into clean, executable PyTorch `nn.Module` Python source code.
-  - CLI commands supporting canvas-to-code compilation (`--save-canvas`, `--canvas-json`, `--out-dir`).
-
----
-
-## Architecture & Tech Stack
-
-```
-   ┌────────────────────────────────────────────────────────┐
-   │                   Browser Frontend                     │
-   │  Vis.js Network • HTML5 Canvas Overlays • Circuit Grid  │
-   │   Vanilla ES6 Modules (State, Modes, Circuit, Modals)  │
-   │     Toast Alerts • Model Folders • 0-Indexed Labels    │
-   └───────────────────────────▲────────────────────────────┘
-                               │ REST API (/api/*) & Static Assets
-   ┌───────────────────────────▼────────────────────────────┐
-   │                    Go HTTP Backend                     │
-   │    In-Memory State (sync.Mutex) • Orthogonal Router    │
-   │       Workspace / File Browsers • Project Manager      │
-   │    Model Save / Load Handlers • Subprocess Pipeline    │
-   └───────────────────────────▲────────────────────────────┘
-                               │ Stdin / Stdout JSON Protocol
-   ┌───────────────────────────▼────────────────────────────┐
-   │             Python FX Engine & Generator               │
-   │  Meta Tensor Inference • Recursive Models • AST Gen    │
-   │   Automated nn.Module Code Generator & Test Suite      │
-   │    Model Package Builder (<name>.json & <name>.py)     │
-   └────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    User[User actions] --> UI[Browser: native JavaScript modules]
+    UI --> API[Frontend API wrappers]
+    API --> HTTP[Go HTTP handlers]
+    HTTP --> Graph[Go graph utilities and in-memory Store]
+    HTTP --> Files[Workspace and model IO utilities]
+    HTTP --> Bridge[Go Python bridge]
+    Bridge --> Shapes[Persistent Python shape worker]
+    Bridge --> Save[Python generation process]
+    Shapes --> Result[Analyzed canvas and tensor metadata]
+    Result --> HTTP
+    Save --> Disk[Saved JSON and Python artifacts]
+    Files --> Disk
+    Graph --> HTTP
+    HTTP --> API
+    API --> UI
 ```
 
-- **Backend**: Go (`net/http`) — fast, lightweight, zero external Go dependencies, configurable via `PORT` environment variable.
-- **Frontend**: Vanilla JavaScript (ES6 modules), HTML5 Canvas 2D context overlays, [Vis.js Network](https://github.com/visjs/vis-network), CSS3 custom properties with responsive toast notifications.
-- **Deep Learning & Graph Engine**: Python 3, PyTorch (`torch`, `torch.fx`, `torch.nn`), `operator`.
+| Layer / entry | Input | Output and ownership |
+| --- | --- | --- |
+| `src/main.go`, `src/Canvas/canvas.go` | Launch directory and optional `PORT` | HTTP server and route registrations; default port 8080. |
+| `src/templates`, `src/Canvas/templates` | Static HTML shells and include fragments | Composed pages; Go resolves includes before sending HTML. |
+| `src/static`, `src/Canvas/static` | Browser asset requests | Shared/Canvas CSS and native ES modules, served without a bundler. |
+| `Canvas/static/app.js` and `js/application` | DOM readiness and user events | Application initialization and feature bindings. |
+| `Canvas/static/js/api` | Feature commands and query data | HTTP calls, decoded results and scheduled shape refreshes. |
+| `Canvas/handler` | HTTP requests | Validation, locking/orchestration, utility calls and HTTP responses. |
+| `Canvas/utils/graph` | Project/graph commands and snapshots | In-memory edits, scoped IDs, wire geometry and metadata reconciliation. |
+| `Canvas/utils/workspace`, `modelio` | Directory paths and saved artifacts | Directory listings, folder creation, decoded canvases and model port metadata. |
+| `Canvas/utils/python` | Detached canvas, base directory, optional save target | Python process IO and decoded results/errors. |
+| `Canvas/utils/auto_shape_fitting` | Editable graph and model references | Fitted parameters, tensor metadata, diagnostics and adapted child graphs. |
+| `Canvas/utils/read_canvas` | Editable canvas | Computational graph JSON, retaining an editable `canvas` section. |
+| `Canvas/utils/generate code` | Canvas/computational graph and output directory | PyTorch source, saved JSON and generated artifact paths. |
+| `Canvas/utils/shared` | Module identifiers, names and graph connections | Shared constructor resolution, naming and deterministic edge ordering for Python. |
 
----
+Paths beginning with `Canvas/` above are relative to `src/`.
 
-## Project Layout
+### Where state lives
 
-```
-Ein Theater/
-├── document.md                 # Root documentation (this file)
-├── idea/                       # Prototyping directory: experimental model ideas & test suite
-│   ├── test_models.py          # Validation test suite (UNet, CNN, Linear, ViT, Transformer, etc.)
-│   └── outputs/                # Generated model code artifacts & test outputs
-└── src/                        # Go application root (web-app module)
-    ├── go.mod                  # Go module definition (web-app)
-    ├── main.go                 # Main HTTP server orchestrator (registers all studio modes)
-    ├── templates/
-    │   └── index.html          # Unified global HTML shell & Mode Tab view switcher
-    ├── static/
-    │   └── style.css           # Unified global stylesheet & shared design system
-    └── Canvas/                 # [Mode: Canvas] Neural Architecture Design Studio
-        ├── canvas.go           # Standalone Canvas mode runner & server entry point
-        ├── shape-inference.md  # Python shape adaptation documentation
-        ├── data/
-        │   └── modules.json    # PyTorch 152-module schema definitions, templates & parameter bounds
-        ├── handler/            # Canvas Go backend HTTP handlers
-        │   ├── document.md     # Detailed Canvas handler architecture & REST reference
-        │   ├── routes.go       # Centralized route registration helper (RegisterRoutes) & multiDirFS
-        │   ├── graph_handlers.go   # CRUD for nodes, edges, batch deletion & canvas clear
-        │   ├── index_handler.go    # Root template rendering & dynamic template locator
-        │   ├── models.go       # Core structs (Node, Edge, Line, Project), mutex, 0-indexed ID generator
-        │   ├── models_test.go  # Unit & integration tests for model handlers
-        │   ├── project_handlers.go # Multi-model lifecycle & renaming
-        │   └── workspace_handlers.go # Filesystem browsing, folder creation, model save/load pipeline
-        ├── utils/              # Canvas utility services & compilers
-        │   └── generate code/  # Template-driven PyTorch code synthesis engine
-        │       ├── document.md # Code generator engine architecture & CLI documentation
-        │       ├── __init__.py # Package initialization
-        │       ├── canvas.py   # Visual schematic JSON to FX computational graph compiler
-        │       ├── codegen.py  # FX Python code synthesis & model packaging
-        │       ├── common.py   # Model identifier sanitization & modules.json lookup
-        │       ├── gen_code.py # CLI code generator
-        │       ├── shape_inference.py # Persistent JSON-lines shape inference worker
-        │       └── test_shape_inference.py # Unit tests for shape adaptation
-        ├── static/             # Canvas mode static assets
-        │   ├── data/
-        │   │   └── modules.json# Static asset copy of 152 PyTorch module schemas
-        │   ├── canvas.css      # Mode-specific stylesheet (PCB grid, palette, block modals, wiring)
-        │   ├── app.js          # Canvas application entry point, global keybindings & orchestration
-        │   └── js/             # ES6 modular client architecture
-        │       ├── document.md # Detailed frontend architecture & module reference
-        │       ├── api.js      # REST API client wrapper (graph, workspace, model save/load, folders)
-        │       ├── circuit.js  # PCB dot-grid renderer & orthogonal edge drawing
-        │       ├── clipboard.js# Clipboard operations (copy, cut, paste, select all)
-        │       ├── contextMenu.js # Right-click context menu & shortcuts
-        │       ├── graph.js    # Vis.js network lifecycle, node placement & grid snap
-        │       ├── modals.js   # Add/Edit layer modals, live search & code preview
-        │       ├── modes.js    # Canvas tools switcher (Move, Select, Add, Connect)
-        │       ├── palette.js  # Fundamental blocks sidebar rendering & drag-and-drop
-        │       ├── projects.js # Project tabs, switching & renaming
-        │       ├── schemas.js  # Schema loading, parameter defaults & label formatting
-        │       ├── selection.js# Rubber-band marquee box selection
-        │       ├── sidebarLoader.js # Custom dynamic sidebar loader & mode switcher
-        │       ├── state.js    # Central shared reactive state container
-        │       ├── utils.js    # Utility helpers & string escaping
-        │       └── workspace.js# Working directory explorer, model detection, folder creation & toasts
-        └── templates/
-            ├── canvas.html     # Mode-specific HTML template
-            └── sidebar.html    # Canvas mode sidebar fragment loaded dynamically
-```
+- **Browser:** `js/state.js` owns the current project ID, Vis Network/datasets,
+  editor mode, selection-related references and workspace UI state. It renders
+  the server graph and maintains transient interaction state.
+- **Go:** `handler/state.go` creates one `graph.Store`. The store owns project maps,
+  tab order, active project, counters and working directory. It starts with one
+  empty project. This state is shared by requests to the server, not isolated per
+  browser session. Most mutations target the active project.
+- **Python:** the shape worker keeps its interpreter alive across requests; each
+  analysis receives a graph snapshot. It is not the owner of editable project state.
+- **Disk:** save writes explicit model artifacts. Unsaved projects are in memory
+  and do not survive server restart. Selecting a workspace does not save a graph.
 
----
+## 2. Startup: process to first canvas
 
-## Quickstart Guide
+1. Run `go run .` in `src`. `main.go` calls `handler.RegisterRoutes`, then
+   `http.ListenAndServe`. Standalone mode starts in `src/Canvas`, where `canvas.go`
+   calls `RegisterRoutesWithRoot(mux, CanvasHandler)`.
+2. `handler/routes.go` mounts pages, sidebar, static assets and Canvas APIs.
+   `utils/assets.ResolveStaticFS` combines global and Canvas static directories.
+3. The browser requests `/`. Studio mode uses `IndexHandler`; standalone mode uses
+   `CanvasHandler`. `utils/templates` finds the shell and recursively expands
+   include fragments. A missing or cyclic include fails before partial HTML is sent.
+4. The browser loads `/static/app.js`. It imports application event handlers and
+   runs `initApp` immediately or after `DOMContentLoaded`.
+5. `js/application/bootstrap.js` initializes schemas and dropdowns. If a sidebar
+   is absent, it invokes the sidebar loader; otherwise it renders the palette,
+   initializes workspace/project UI and enables palette drag-and-drop.
+6. `js/graph/loading.js::loadGraph` requests `/api/data?analyze=false`, prepares
+   node/edge datasets and initializes the network. A load version rejects older
+   loads that finish after a newer one.
+7. The UI records the project ID, schedules background shape refresh, and binds
+   canvas interactions, selection, context menus, clipboard and the save shortcut.
 
-### Prerequisites
+**Output:** an interactive canvas appears before Python shape analysis finishes.
 
-1. **Go**: Version 1.20 or newer installed.
-2. **Python**: Version 3.10+ with PyTorch installed (`pip install torch`).
-3. Modern Web Browser (Chrome, Firefox, Edge).
+## 3. Editing: user command to stored graph
 
-### Running the Web Application
-
-1. Navigate to the `src` directory:
-   ```bash
-   cd src
-   ```
-
-2. Launch the Go web server:
-   ```bash
-   go run main.go
-   ```
-
-3. Open your browser and navigate to:
-   ```
-   http://localhost:8080
-   ```
-
-### Configuring the Server Port
-
-The backend reads the optional `PORT` environment variable (defaults to `8080`):
-
-- **PowerShell**:
-  ```powershell
-  $env:PORT="9000"
-  go run main.go
-  ```
-- **Bash / Linux / macOS**:
-  ```bash
-  PORT=9000 go run main.go
-  ```
-
-### Running Model Tracing & Code Generation Tests
-
-Automated test suites and CLI compilers verify symbolic graph extraction and bidirectional PyTorch code synthesis across CNNs, UNets, Vision Transformers, and Multi-Input/Multi-Output architectures:
-
-```bash
-# Run model synthesis validation suite (UNet, CNN, Linear, ViT, Transformer)
-python idea/test_models.py
-
-# Run CLI canvas compilation directly
-python "src/Canvas/utils/generate code/gen_code.py" --save-canvas idea/outputs/cnn.json --out-dir idea/outputs
+```mermaid
+sequenceDiagram
+    participant U as User / feature module
+    participant A as Frontend API
+    participant H as Go handler
+    participant G as Graph Store
+    U->>A: Add, update, connect, delete or paste
+    A->>H: HTTP mutation
+    H->>H: Decode and validate request
+    H->>G: Lock Store.Mu and apply graph operation
+    G-->>H: Result or domain failure
+    H-->>A: Mutation response
+    A-->>U: Resolve command and update UI
+    A->>A: Schedule metadata refresh for semantic changes
 ```
 
----
+Feature modules live under `js/graph`, `modes`, `modals`, `clipboard`, `selection`,
+`contextMenu` and `circuit`. The stable `js/api.js` facade composes request groups
+from `js/api/*`; feature code does not call Python directly.
 
-## Canvas & Workflow Guide
+| Action | HTTP boundary | Task implementation | Result |
+| --- | --- | --- | --- |
+| Add/update/delete block | `node_handlers.go` | `graph/nodes.go`, `project.go`, `naming` | Scoped node ID or changed graph; incident edges are removed on deletion. |
+| Connect/update/delete wire | `edge_handlers.go` | `graph/edges.go`, `geometry.go` | Validated connection and orthogonal line segments. |
+| Drag blocks | Single/batch move endpoints | `graph/nodes.go`; frontend `graph/dragging.js` and circuit geometry | Updated coordinates; batch node moves preserve wire routes, which can be updated separately. |
+| Paste copied graph | `PasteGraphHandler` | `graph/clipboard.go` | New IDs, remapped copied parents, shifted/snapped nodes and offset internal wires. |
+| Clear graph | `ClearGraphHandler` | `graph/lifecycle.go` | Empty active graph with reset counters. |
+| Create/switch/delete project | `project_handlers.go` | `graph/projects.go`, `store.go` | Updated active project and ordered tab summaries. |
 
-### Interactive Modes
+Mutation completion does not wait for automatic shape inference. Position and
+wire-routing edits do not schedule semantic analysis. Detailed query/JSON formats
+and status codes are in the [handler contract](src/Canvas/handler/document.md).
 
-The toolbar allows switching between 4 specialized modes:
+## 4. Shape analysis: snapshot to derived metadata
 
-| Mode | Shortcut | Icon | Description |
-| :--- | :---: | :---: | :--- |
-| **Move** | `V` | 🖐 | Default mode. Drag anywhere on canvas to pan view; drag blocks to reposition with 50px grid snap. |
-| **Select** | `S` | ⬚ | Marquee selection. Click and drag a rubber-band rectangle to select multiple blocks. |
-| **Add Node** | `A` | ➕ | Click anywhere on the canvas grid to open the categorized layer creation modal at that exact coordinate. |
-| **Add Edge** | `C` | 🔗 | Click a source block and drag to a target block to establish a directed circuit connection. |
+1. `js/api/shapeRefresh.js` wraps semantic mutations and exposes `api.refreshShapes`.
+   It debounces for 80 ms, waits for pending mutations, permits one analysis request
+   in flight and coalesces later requests into a pending batch.
+2. The frontend requests `/api/data?projectId=...` with analysis enabled. The
+   project ID pins the request; an unknown pinned project returns 404.
+3. `DataHandler` locks `Store.Mu`, prepares missing routes and captures an isolated
+   JSON snapshot plus base directory. It unlocks before calling Python.
+4. `utils/python.AnalyzeGraph` bypasses an empty graph. Otherwise its independent
+   worker mutex serializes JSON-lines exchanges with
+   `auto_shape_fitting/shape_inference.py --worker`.
+5. The worker receives `{graph, baseDir}`. `shape_engine.py` orders dependencies,
+   checks graph structure and evaluates shapes using the FX/meta-tensor machinery.
+   Adapters fit supported constructor parameters; integrated-model handling can
+   recursively analyze saved child canvases. `shared/module_registry.py` supplies
+   constructor resolution; `shared/graph_order.py` supplies edge ordering.
+6. Python returns `{graph}` or `{error}`. An analyzed graph contains updated params,
+   `tensorInfo` and optional `adaptedModel`. The Go worker has a 45-second exchange
+   timeout and stops/restarts after transport failure, bad JSON or timeout.
+7. Go reacquires `Store.Mu`. `ApplyAnalysis` accepts results only if semantic inputs
+   still match the original snapshot. It updates metadata/params while preserving
+   the current positions and wire routes, then returns the current graph.
+8. The frontend checks mutation version, dataset identity and project ID before
+   updating existing dataset entries. It does not rebuild the network for metadata.
 
-### Fundamental Blocks Sidebar
+**Concurrency rule:** graph utilities rely on the caller holding `Store.Mu`.
+Filesystem and Python work happen outside the lock. Backend snapshot comparison
+protects newer graph edits; frontend version checks protect the displayed canvas.
+A drag alone does not invalidate inference, but a parameter/topology edit does.
 
-The left sidebar section titled **Fundamental Blocks** provides instant access to the core building blocks of deep learning:
+**Failure behavior:** the data handler preserves the graph and reports Python
+unavailability in node diagnostics. Background fetch failures are logged by the
+frontend. `Server-Timing` exposes snapshot and analysis durations. Snapshot-only
+requests never enter the worker.
 
-- **10 Core Layers**:
-  - `nn.Linear` (Dense / Fully Connected)
-  - `nn.Conv2d` (2D Spatial Convolution)
-  - `nn.ReLU` (Rectified Linear Unit)
-  - `nn.MaxPool2d` (2D Spatial Max Pooling)
-  - `nn.BatchNorm2d` (2D Spatial Batch Normalization)
-  - `nn.LayerNorm` (Layer Normalization)
-  - `nn.Dropout` (Dropout Regularization)
-  - `nn.LSTM` (Long Short-Term Memory)
-  - `nn.MultiheadAttention` (Multi-Head Attention)
-  - `nn.Embedding` (Lookup Table / Embeddings)
-- **Interaction**:
-  - **Drag & Drop**: Drag any block directly onto the canvas grid.
-  - **Click to Add**: Single-click a block in the palette to spawn it near the center of the current canvas viewport.
-  - **+ More / Custom...**: Opens the complete modal featuring all 152 PyTorch modules and custom layer definitions.
+## 5. Save: editable graph to executable artifacts
 
-### Categorized 152-Module Catalog & Search
+```mermaid
+flowchart TD
+    Button[Save button or Ctrl/Cmd+S] --> JS[workspace/models.js: saveActiveModel]
+    JS --> H[SaveModelHandler: select project and snapshot]
+    H --> P[utils/python.GenerateModel]
+    P --> CLI[gen_code.py --save-canvas]
+    CLI --> Fit[Infer shapes and validate for save]
+    Fit --> Children[Prepare adapted child model variants]
+    Children --> Convert[read_canvas: canvas_to_json_graph]
+    Convert --> FX[fx_builder and source_renderer]
+    FX --> Plan[Parse generated source and complete artifact plan]
+    Plan --> Write[Write model JSON and Python files]
+    Write --> Reply[Return generated paths]
+    Reply --> Adopt[Go conditionally adopts saved references]
+    Adopt --> Refresh[Frontend reloads workspace, projects and graph]
+```
 
-Clicking the canvas in **Add Node** mode or selecting **+ More / Custom...** opens the layer catalog modal:
+- **Frontend input:** active project ID and selected working directory. Without a
+  workspace, the UI opens folder selection instead of starting save.
+- **Go handoff:** `SaveModelHandler` sanitizes the project name, snapshots under the
+  lock, validates the output directory, then runs a separate generation process.
+  The canvas travels on stdin; target/base directories are command arguments.
+- **Python orchestration:** `generate code/model_storage.py::save_model_to_folder`
+  deep-copies input, performs fresh inference and validation, prepares adapted child
+  variants, converts the canvas and renders code. `source_renderer.py` uses
+  `fx_builder.py` to construct an FX graph and produce `nn.Module` source.
+- **File output:** `<workspace>/<name>/<name>.json` and `<name>.py`, with adapted
+  child artifacts when needed. JSON carries computational information and editable
+  canvas data. Saved references are made relative to artifact folders where applicable.
+- **Write behavior:** Python prepares the compilation plan and parses generated
+  source before writing artifacts. The subsequent filesystem writes are sequential;
+  this is not a transactional filesystem commit.
+- **Reconciliation:** Go reads the saved canvas and adopts generated integration
+  references only if the original semantic snapshot still matches. Newer edits survive.
+- **Frontend completion:** refresh workspace files, projects and graph, then show
+  status. The bridge returns parsed JSON or the existing raw-output fallback.
 
-1. **Instant Search Filter**: Type any keyword (e.g. `conv`, `norm`, `loss`, `gelu`, `transformer`) to immediately filter all matching modules.
-2. **15 Structured Categories**:
-   - **Linear**: `nn.Linear`, `nn.Bilinear`, `nn.LazyLinear`, `nn.Identity`
-   - **Convolutional**: `nn.Conv1d`, `nn.Conv2d`, `nn.Conv3d`, `nn.ConvTranspose1d/2d/3d`, `nn.LazyConv*`
-   - **Pooling**: `nn.MaxPool1d/2d/3d`, `nn.AvgPool1d/2d/3d`, `nn.AdaptiveMaxPool*`, `nn.AdaptiveAvgPool*`
-   - **Non-linear Activations**: `nn.ReLU`, `nn.LeakyReLU`, `nn.GELU`, `nn.SiLU`, `nn.Sigmoid`, `nn.Tanh`, `nn.Softmax`, `nn.Mish`, `nn.ELU`, `nn.SELU`, etc.
-   - **Normalization**: `nn.BatchNorm1d/2d/3d`, `nn.LayerNorm`, `nn.GroupNorm`, `nn.InstanceNorm*`, `nn.RMSNorm`
-   - **Recurrent**: `nn.RNN`, `nn.LSTM`, `nn.GRU`, `nn.RNNCell`, `nn.LSTMCell`, `nn.GRUCell`
-   - **Transformer**: `nn.Transformer`, `nn.TransformerEncoder`, `nn.TransformerDecoder`, `nn.TransformerEncoderLayer`, `nn.TransformerDecoderLayer`
-   - **Attention**: `nn.MultiheadAttention`
-   - **Dropout**: `nn.Dropout`, `nn.Dropout1d/2d/3d`, `nn.AlphaDropout`
-   - **Sparse / Embedding**: `nn.Embedding`, `nn.EmbeddingBag`
-   - **Loss Functions**: `nn.CrossEntropyLoss`, `nn.MSELoss`, `nn.L1Loss`, `nn.BCEWithLogitsLoss`, `nn.NLLLoss`, etc.
-   - **Vision / Spatial**: `nn.PixelShuffle`, `nn.PixelUnshuffle`, `nn.Upsample`
-   - **Padding**: `nn.ReflectionPad*`, `nn.ReplicationPad*`, `nn.ZeroPad2d`, `nn.ConstantPad*`
-   - **Distance**: `nn.CosineSimilarity`, `nn.PairwiseDistance`
-   - **Utilities**: `nn.Flatten`, `nn.Unflatten`, `nn.ChannelShuffle`
-3. **Live Preview Card**: Shows category, badge, formatted canvas label, and constructor code.
+Generation errors return HTTP 500; missing/invalid save directories return 400.
+Unlike shape exchange, generation currently has no explicit subprocess timeout.
+Save generates source; it does not train the generated network.
 
-### Orthogonal Wire Routing & Fold Waypoints
+## 6. Load, inspect and integrated models
 
-Connections between neural blocks use a specialized electronic circuit wire renderer (`circuit.js`):
+### Load a saved model
 
-- **90° Sharp Bends**: Replaces curved bezier splines with clean right-angle orthogonal traces.
-- **Interactive Diamond Fold Waypoints**: Every wire displays an interactive diamond handle at its orthogonal bend:
-  - Drag the diamond handle to dynamically shift the wire's fold position along the grid.
-  - Right-click any wire and choose **Invert Edge Fold (H ⇄ V)** or double-click to flip between Horizontal-first and Vertical-first routing.
-- **Dynamic Wire Drawing**: Click and hold a block, then drag across the grid to route traces. Backtracking automatically shrinks or erases drawn segments.
+`workspace/models.js::loadModelFromFolder` → API load request → `LoadModelHandler`
+→ `utils/modelio.Load` → `graph.Store.ImportGraph` → project/graph UI refresh.
 
-### Scoped 0-Indexed Block Naming System
+`Load` checks the directory and matching JSON/Python companions, including sanitized
+filename fallbacks. It accepts a wrapped `canvas` object or legacy graph JSON.
+Under the store lock, `ImportGraph` reuses an empty or same-name project where
+possible, otherwise creates a project. It restores nodes/edges, labels, ordering,
+relative model/weight references and missing geometry. The response contains model
+name, project ID and counts. Loading JSON does not execute the Python companion.
 
-To maintain clarity across complex architectures:
-- **0-Indexed Unique IDs**: Nodes receive an ID formatted as `<prefix>_<index>` starting at `0` for each layer type (e.g. `linear_0`, `linear_1`, `conv_0`, `conv_1`, `relu_0`).
-- **Workspace Scoped**: Indexing is scoped independently to each model workspace. When a node is deleted, the backend reuses the lowest available index upon adding the next node of that type.
-- **Clean Canvas Labels**: Canvas blocks render human-readable labels (`linear 0`, `conv 0`, `relu 0`) rather than cluttered raw parameter text.
-- **Parameter Inspection**: Double-clicking any block opens the hyperparameter editor, displaying the layer class and human-readable identifier (e.g., `nn.Linear (linear 0)`).
+### Inspect or add an integrated model
 
-### Saving Models & Generating Executable PyTorch Code
+Workspace browsing marks model folders. The inspect endpoint uses `modelio.Inspect`
+to read saved input/output port metadata. `js/graph/integrated.js` uses inspection
+results to create an integrated block referencing the model folder. Subsequent
+shape requests use the Python integrated-model flow to adapt child canvases; saving
+can materialize those adapted variants. Inspection itself reports saved metadata
+and defaults, not a fresh shape inference result.
 
-Ein Theater enables seamless translation from visual schematics into deployable PyTorch code:
+### Workspace navigation
 
-1. **Triggering Save**:
-   - Keyboard shortcut: `Ctrl + S` or `Cmd + S`.
-   - Toolbar button: **💾 Save**.
-   - Menu bar: **File** ▾ → **Save Model**.
-2. **Model Name Validation & Auto-Fixing**:
-   - Model names are validated and automatically sanitized if invalid:
-     - If the model name has spaces, all spaces are replaced with underscores (`_`).
-     - If the model name has a number before the text (starts with a digit), the prefix `model_` is added in front.
-     - Folder names strictly use valid Latin alphanumeric characters and underscores with a letter first.
-3. **Generated Package Structure**:
-   Models are saved inside a dedicated subfolder within the active working directory:
-   ```
-   <workingDir>/
-   └── <model_name>/
-       ├── <model_name>.json     # Complete graph schema and canvas coordinates
-       └── <model_name>.py       # Standalone, runnable PyTorch nn.Module script
-   ```
-4. **Standalone Python Script**:
-   The generated `.py` file includes:
-   - Necessary imports (`torch`, `torch.nn`, `operator`).
-   - The compiled `<model_name>(nn.Module)` class with initialized submodules and complete `forward()` flow.
-   - Dynamic device targeting (`device='cuda' if torch.cuda.is_available() else 'cpu'`).
-   - A runnable `if __name__ == '__main__':` block that initializes the model and prints its architecture summary.
-5. **Toast Notifications**:
-   Save progress and results are communicated via unobtrusive floating toast notifications (`.app-toast`) appearing at the bottom-right of the screen.
+Workspace handlers resolve query/body input and active-directory fallbacks, then
+call `utils/workspace` for browsing, folder creation or native selection. Confirmed
+selection updates Go workspace state; cancelling the Windows native picker leaves
+it unchanged. Workspace changes and model saving are separate operations.
 
-### Loading Verified Models onto Canvas
+## 7. Code-reading map
 
-Ein Theater recognizes existing models on disk:
+Read in execution order rather than reading every file in a folder:
 
-1. **Model Detection**:
-   - Folders in the workspace containing both `<model_name>.json` and `<model_name>.py` are identified as verified models.
-   - They appear with a brain icon (`🧠`), distinctive blue styling, and a `Model` badge in the sidebar tree and file browser modal.
-2. **1-Click Loading**:
-   - In the sidebar tree: Click the model folder directly.
-   - In the folder browser modal: Click the row or the **⚡ Load Model** button.
-3. **Graph Restoration**:
-   - The backend parses the model's canvas specification, restores all blocks and parameters, reconstructs orthogonal edge wires, and sets the model as active.
-   - The camera automatically centers on the loaded network (`fitView()`).
+| Question | Start here | Detailed guide |
+| --- | --- | --- |
+| How does the server start? | `src/main.go`, `src/Canvas/canvas.go`, `handler/routes.go` | [Source map](src/document.md) |
+| How is the first page rendered? | `handler/index_handler.go`, `template_handler.go`, `utils/templates` | [Templates](src/Canvas/utils/templates/document.md) |
+| How does browser initialization work? | `static/app.js`, `js/application/bootstrap.js` | [Frontend architecture](src/Canvas/static/js/document.md) |
+| Where does an edit go? | `js/api.js`, `js/api/*`, matching handler, `utils/graph/*` | [HTTP contracts](src/Canvas/handler/document.md), [graph operations](src/Canvas/utils/graph/document.md) |
+| Why is analysis asynchronous? | `js/api/shapeRefresh.js`, `handler/graph_handlers.go`, `utils/python/shapes.go` | [Frontend API](src/Canvas/static/js/api/document.md), [Go bridge](src/Canvas/utils/python/document.md) |
+| Where are shape rules implemented? | `auto_shape_fitting/shape_engine.py`, `shape_interpreter.py`, `adapters.py` | [Shape engine](src/Canvas/utils/auto_shape_fitting/document.md) |
+| How are model files produced? | `generate code/gen_code.py`, `model_storage.py`, `source_renderer.py`, `fx_builder.py` | [Generation](src/Canvas/utils/generate%20code/document.md) |
+| How is canvas data converted? | `read_canvas/canvas.py` and its input/layer/graph helpers | [Conversion](src/Canvas/utils/read_canvas/document.md) |
+| How are model files restored? | `handler/model_handlers.go`, `utils/modelio`, `utils/graph/import.go` | [Model IO](src/Canvas/utils/modelio/document.md) |
+| Where are other utilities documented? | `src/Canvas/utils/document.md` | [Utility category index](src/Canvas/utils/document.md) |
 
-### Workspace Folder Management
+Short paths in this table are within `src/Canvas` unless prefixed with `src/`.
 
-Organize multi-model projects directly within the interface:
-- **Sidebar Creation**: Click the **➕** button inside the "Working Directory" sidebar header to create a new subfolder in the active working directory.
-- **Modal Creation**: Click the **➕ New Folder** button in the folder browser dialog to create subdirectories anywhere in the filesystem.
+## 8. Run and verify the major flows
 
-### Keyboard Shortcuts & Gestures
+### Launch
 
-| Shortcut / Gesture | Action |
-| :--- | :--- |
-| `Ctrl + S` / `Cmd + S` | **Save Model**: Serializes canvas and generates PyTorch `.json` & `.py` files. |
-| `Ctrl + C` / `Cmd + C` | **Copy**: Copies selected block(s) and internal connecting wires. |
-| `Ctrl + V` / `Cmd + V` | **Paste**: Pastes copied block(s) and wires with 50px staggered offset. |
-| `Ctrl + X` / `Cmd + X` | **Cut**: Copies selected block(s) and removes them from canvas. |
-| `Ctrl + A` | **Select All**: Selects all blocks in the active model. |
-| `Del` / `Backspace` | Delete currently selected block(s) or wire. |
-| `Escape` | Close active modals, dismiss context menu, or cancel wire creation. |
-| `Right Click` (on block / wire) | Open contextual action menu (Edit, Copy, Paste, Delete, Invert Fold). |
-| `Right Click` (on empty canvas) | Open context menu: Paste Here, Add Node Here, Switch Modes, or Fit View. |
-| `Double Click` (on block) | Open layer hyperparameter configuration dialog. |
-| `Double Click` (on wire) | Toggle wire fold orientation (Horizontal ⇄ Vertical). |
-| `Space` (during wire draw) | Flip current orthogonal bend orientation (H-first ⇄ V-first). |
+Use the Go toolchain declared in `src/go.mod`. Shape analysis and generation require
+`python` on PATH with PyTorch available. Node.js runs the frontend regression scripts.
 
----
+From the repository root:
 
-## PyTorch FX Code Generation CLI
+```powershell
+Set-Location src
+go run .
+```
 
-Located in [`src/Canvas/utils/generate code/gen_code.py`](./src/Canvas/utils/generate%20code/gen_code.py), the Python engine provides compilation from Ein Theater JSON schematics to executable PyTorch modules:
+Open `http://localhost:8080`. Set `$env:PORT` before launch to override the port.
+For standalone Canvas, start a separate terminal at `src/Canvas` and run `go run .`.
+Do not run both on the same port simultaneously.
 
-1. **Topological Sort**: Orders visual canvas nodes using Kahn's algorithm and resolves argument mapping.
-2. **Shape Adaptation**: Uses `shape_inference.py` to evaluate the graph using PyTorch meta tensors, adapting parameters dynamically.
-3. **Command Line Interface (CLI)**:
-   ```bash
-   # Save and compile canvas JSON into <out-dir>/<model_name>/ (<model_name>.json + .py)
-   python "src/Canvas/utils/generate code/gen_code.py" --save-canvas path/to/canvas.json --out-dir path/to/output
+### Automated checks
 
-   # Compile directly from stdin pipe
-   cat canvas.json | python "src/Canvas/utils/generate code/gen_code.py" --save-canvas - --out-dir path/to/output
+From `src`:
 
-   # Compile from inline JSON string
-   python "src/Canvas/utils/generate code/gen_code.py" --canvas-json "{\"name\": \"my_model\", \"nodes\": [], \"edges\": []}" --out-dir path/to/output
+```powershell
+go test ./...
+go vet ./...
+go test -race ./...
+```
 
-   # Run validation test suite on complex model architectures
-   python idea/test_models.py
-   ```
-4. **Automated Code Synthesis (`generate_code_from_json`)**: Compiles graph JSON back into standalone, formatted PyTorch `nn.Module` classes:
-   ```python
-   import torch
-   import torch.nn as nn
-   import operator
+The race check needs CGO and a supported C compiler. If the default build cache is
+unavailable, set `$env:GOCACHE = Join-Path $env:TEMP 'ein-theater-go-cache'` first.
+Go tests cover graph edits, project lifecycle, snapshots, page/static serving,
+model formats and a workspace/load HTTP round trip. The worker integration test
+explicitly skips without Python/PyTorch; a skip does not validate inference.
 
-   class cnn_model(nn.Module):
-       def __init__(self, device='cpu'):
-           super().__init__()
-           self.device = device
-           self.c1 = nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, stride=1, padding=1, bias=True)
-           self.c2 = nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, stride=1, padding=1, bias=True)
-           self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
-           self.to(self.device)
+From the repository root:
 
-       def forward(self, x):
-           c1 = self.c1(x)
-           relu = torch.relu(c1)
-           c2 = self.c2(relu)
-           relu_1 = torch.relu(c2)
-           pool = self.pool(relu_1)
-           return pool
+```powershell
+node src/Canvas/static/js/api.test.mjs
+node src/Canvas/static/js/ui.test.mjs
+node src/Canvas/static/js/performance.test.mjs
+python -B -m unittest discover -s src/Canvas/utils/tests -p "test_*.py" -v
+```
 
-   if __name__ == '__main__':
-       device = 'cuda' if torch.cuda.is_available() else 'cpu'
-       model = cnn_model(device=device)
-       print(f"Model 'cnn_model' initialized successfully on {device}:")
-       print(model)
-   ```
+Expected: frontend regressions pass, and Python generation/inference regressions
+pass when their dependencies are installed. See [Python test documentation](src/Canvas/utils/tests/document.md)
+for fixtures, individual cases and prerequisites.
 
----
+### Manual end-to-end check
 
-## Backend REST API Reference
+1. Launch the app, add Input and Linear blocks, and connect them. The graph should
+   appear promptly and then receive fitted parameter/shape metadata.
+2. Drag, copy/paste and delete blocks. Verify wire geometry and scoped IDs. Switch
+   project tabs and confirm each project's graph is restored.
+3. Select a temporary workspace and save. Expect the named JSON/Python pair and a
+   successful save notification.
+4. Load that folder. Expect editable nodes, parameters, edges and resolved nested
+   references; loading it again should reuse the same-name project.
+5. Change parameters during analysis. Older analysis must not overwrite newer
+   semantic edits; dragging alone must preserve valid metadata.
 
-The Go HTTP backend exposes RESTful endpoints for graph state, project management, and workspace filesystem interaction:
-
-| Endpoint | Method | Request Payload | Description |
-| :--- | :---: | :--- | :--- |
-| `/` | `GET` | None | Serves `index.html` (Studio Mode) or `canvas.html` (Standalone Mode). |
-| `/canvas` | `GET` | None | Serves standalone Canvas mode HTML template (`canvas.html`). |
-| `/index` | `GET` | None | Serves global studio shell template (`index.html`). |
-| `/api/sidebar`<br>`/api/sidebar/` | `GET` | Query: `mode` (e.g. `canvas`) | Returns mode-specific sidebar HTML fragment for dynamic client injection. |
-| `/api/data` | `GET` | None | Returns all nodes and edges for the currently active project canvas (`GraphData`). |
-| `/api/addNode` | `POST` | Query: `label`, `layerType`, `x`, `y`<br>Optional JSON: `{ params }` | Creates a new block with 0-indexed ID (`<prefix>_<index>`) and snaps coordinates. |
-| `/api/updateNode` | `POST` | JSON: `{ id, label, layerType, params }` | Updates block hyperparameters (`params`), label, or layer type. |
-| `/api/deleteNode` | `POST` | Query: `id` | Deletes a single node by ID and removes attached edges. |
-| `/api/deleteNodes` | `POST` | JSON: `["id1", "id2"]` or Query: `ids` | Batch deletes multiple nodes and connected edges. |
-| `/api/moveNode` | `POST` | Query: `id`, `x`, `y`, `update_edges`? | Updates block canvas coordinates and adjusts edge endpoints while preserving custom waypoints. |
-| `/api/moveNodes` | `POST` | JSON: `[{"id", "x", "y"}]` | Batch updates coordinates for multiple nodes in a single lock. |
-| `/api/addEdge` | `POST` | JSON: `{ from, to, lines? }` or Query | Creates or updates a directed connection with orthogonal straight line segments. |
-| `/api/updateEdge` | `POST` | JSON: `{ id, lines, edgeType? }` | Updates edge line segments and custom fold waypoint coordinates. |
-| `/api/updateEdges` | `POST` | JSON: `[{"id", "lines"}]` | Batch updates line segments and fold waypoints for multiple edges. |
-| `/api/deleteEdge` | `POST` | Query: `id` | Deletes a wire connection by ID. |
-| `/api/paste`<br>`/api/pasteGraph` | `POST` | JSON: `{ nodes, edges, dx, dy }` | Duplicates elements into active project with new 0-indexed IDs and offset waypoints. |
-| `/api/clear` | `POST` | None | Clears all nodes and edges from the active canvas and resets ID counters to 0. |
-| `/api/projects` | `GET` | None | Lists all model projects and the active project ID. |
-| `/api/projects/create` | `POST` | Query: `name` | Creates a new model tab initialized with an empty canvas. |
-| `/api/projects/switch` | `POST` | Query: `id` | Switches the active model canvas by ID. |
-| `/api/projects/delete` | `POST` | Query: `id` | Deletes a model project by ID. |
-| `/api/rename` | `POST` | Query: `name` | Renames the currently active model. |
-| `/api/workspace` | `GET` | None | Returns current working directory path and folder name (`WorkspaceResponse`). |
-| `/api/workspace/set` | `POST` | JSON: `{ path }` or Query: `path` | Sets active working directory. |
-| `/api/workspace/browse` | `GET` | Query: `dir` | Browses subfolders, files, and system drives. Detects verified model packages (`isModel: true`). |
-| `/api/workspace/select-native` | `POST` | None | Launches Windows native folder picker dialog via PowerShell (`FolderBrowserDialog`). |
-| `/api/workspace/create-folder` | `POST` | JSON: `{ dir, name }` | Creates a new subdirectory in the target parent folder. |
-| `/api/workspace/save-model`<br>`/api/saveModel` | `POST` | JSON: `{ projectId?, dir? }` | Serializes model canvas, runs `src/Canvas/utils/generate code/gen_code.py` generator, and saves `<model_name>/<model_name>.json` and `.py`. |
-| `/api/workspace/load-model`<br>`/api/loadModel` | `POST` | JSON: `{ path?, dir? }` | Validates model naming, reads `<model_name>.json`, restores nodes and edges, and switches active canvas. |
-
----
-
-## Sub-Module Documentation
-
-For in-depth developer documentation of internal subsystems, refer to:
-
-- [`src/Canvas/document.md`](./src/Canvas/document.md) — Comprehensive overview of the Canvas mode subsystem (architecture, execution modes, and component integration).
-- [`src/Canvas/handler/document.md`](./src/Canvas/handler/document.md) — Detailed Go backend architecture, concurrency model, data structs, and handler implementations.
-- [`src/Canvas/static/js/document.md`](./src/Canvas/static/js/document.md) — Comprehensive frontend client architecture, Vis.js custom rendering pipeline, PCB circuit line algorithms, and reactive state management.
-- [`src/Canvas/utils/generate code/document.md`](./src/Canvas/utils/generate%20code/document.md) — PyTorch FX symbolic tracing, connection classification, FX code generation engine, and CLI compiler reference.
-- [`src/Canvas/shape-inference.md`](./src/Canvas/shape-inference.md) — Python shape adaptation and meta tensor execution.
-
-
-## UI feature refactor
-
-See the [UI source audit and architecture](src/Canvas/static/document.md) for the per-file analysis, feature ownership, new folder documentation and validation commands. HTML entry handlers now use `template_renderer.go` to compose named static partials before sending the response. JavaScript keeps its original public entry paths while implementations live in feature folders. Shared CSS has one source of truth with a small Canvas override.
+For failures, follow the boundary: browser request/response → handler validation →
+Go task result → Python stderr/diagnostics → generated files. Folder guides provide
+component-level input/output contracts and focused test commands.

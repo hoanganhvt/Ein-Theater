@@ -1,202 +1,138 @@
-# Backend Handlers Documentation (`src/Canvas/handler`)
+# Canvas HTTP handlers
 
-This directory contains the Go backend HTTP handler functions, domain data structures, and thread-safe state management for **Ein Theater** Canvas mode.
+This directory is the HTTP boundary: decode requests, apply transport defaults,
+validate required fields/methods, coordinate locking, call categorized utilities,
+and encode responses. Task algorithms and data ownership live in
+[utils](../utils/document.md). Existing URLs, aliases and response shapes are preserved.
 
----
+## Components
 
-## Architecture Overview
+| File / component | Input | Output / responsibility |
+| --- | --- | --- |
+| routes.go: RegisterRoutes | A fresh http.ServeMux | Registers all API/static/page routes with IndexHandler at root; no return. |
+| routes.go: RegisterRoutesWithRoot | Mux and optional root HandlerFunc | Same registrations with custom root (or no root when nil). Registers JS MIME type and no-cache static serving. |
+| state.go: store | graph.NewStore() | Shared in-memory application store, initially one empty active project. |
+| state.go: analyzeGraph | Snapshot and base directory | Analysis result/error; defaults to python.AnalyzeGraph. Private test seam; never change concurrently with requests. |
+| types.go and request aliases | graph/workspace utility types | Retain handler type names and JSON field contracts without duplicate definitions. |
+| template_handler.go: serveTemplate | ResponseWriter, request, template path | GET/HEAD HTML response; 405 for other methods, 500 on composition failure. HEAD has no body. |
+| error_handler.go: writeError | ResponseWriter and task error | Plain-text 400 for fault.Invalid, otherwise 500. Endpoint-specific graph errors are mapped by their handlers. |
 
-All handlers interact with an in-memory state protected by a package-level mutex (`sync.Mutex` `mu`). The server manages:
-- **Projects / Models**: Multi-project tabs containing graph nodes, orthogonal edges, and scoped ID counters.
-- **Graph Elements**: PyTorch neural network layer blocks (nodes) and directed orthogonal circuit connections (edges).
-- **Workspace & Filesystem**: Working directory selection, subfolder creation, directory browsing, verified model detection, and native Windows folder dialog integration via PowerShell.
-- **Python Code Generation Subprocess**: Seamless invocation of `src/Canvas/utils/generate code/gen_code.py` via standard input/output pipes to compile canvas graphs into executable PyTorch `nn.Module` scripts and JSON specifications.
+Every public handler takes (http.ResponseWriter, *http.Request) and returns no Go
+value. The following tables specify its HTTP input and output. “Any” means the
+existing handler does not enforce an HTTP method; this refactor does not add new
+method restrictions. Successful responses are 200. Validation errors are normally
+plain text unless a JSON error result is explicitly listed.
 
+## Page handlers (index_handler.go)
+
+| Handler / route | Input | Output |
+| --- | --- | --- |
+| IndexHandler: / | GET/HEAD, exact root path | Composed index.html, falling back to canvas.html; other paths return 404. |
+| CanvasHandler: /canvas | GET/HEAD | Composed canvas.html with no-cache headers. |
+| SidebarHandler: /api/sidebar or /api/sidebar/{mode} | mode query or trailing path, default canvas | Sidebar HTML; canvas fallback extracts the sidebar from canvas.html. Unknown/missing template returns 404. Ordinary template responses enforce GET/HEAD; the legacy extraction fallback writes directly. |
+| Inline /index route | GET/HEAD | Composed index.html. |
+
+## Project handlers (project_handlers.go)
+
+| Handler / route | Input | Output |
+| --- | --- | --- |
+| ListProjectsHandler: /api/projects | Any | {current, projects:[{id,name}]} in tab creation order. |
+| CreateProjectHandler: /api/projects/create | Any, name query | {id,name} for newly active project. Blank name becomes Untitled_Model; other names are sanitized. |
+| SwitchProjectHandler: /api/projects/switch | Any, id query | Empty success; 404 for unknown ID. |
+| DeleteProjectHandler: /api/projects/delete | Any, id query | Empty success; 400 when only one project remains, 404 for unknown ID otherwise. |
+| RenameModelHandler: /api/rename | Any, nonempty name query | {status:"ok",name}; sanitizes name, returns 400 for missing input. |
+
+## Node handlers (node_handlers.go)
+
+| Handler / route | Input | Output |
+| --- | --- | --- |
+| AddNodeHandler: /api/addNode | Any; JSON AddNodeReq or label/layerType/x/y query fallbacks | Created Node. Defaults: New Block label, layerType from label, box shape. Scoped ID/display name comes from graph.AddNode. |
+| UpdateNodeHandler: /api/updateNode | POST JSON UpdateNodeReq | Updated Node; 400 for malformed body/missing ID, 404 when absent. |
+| DeleteNodeHandler: /api/deleteNode | Any, id query | Empty success; deletes node and incident edges, tolerates unknown ID. |
+| DeleteNodesHandler: /api/deleteNodes | Any; JSON string array when Content-Type is exactly application/json, otherwise comma-separated ids query | Empty success; removes listed nodes and incident edges. Empty input is a no-op. |
+| MoveNodeHandler: /api/moveNode | Any; id/x/y query, optional update_edges=false | Empty success; 400 for invalid coordinates/missing ID, 404 for unknown node. |
+| MoveNodesHandler: /api/moveNodes | POST JSON array of {id,x,y} | Empty success; ignores unknown nodes and preserves edge routes. Invalid JSON returns 400. |
+
+## Edge handlers (edge_handlers.go)
+
+| Handler / route | Input | Output |
+| --- | --- | --- |
+| AddEdgeHandler: /api/addEdge | Any; JSON AddEdgeReq or from/to/foldMode query fallbacks | Created or updated Edge; 400 for missing, equal or nonexistent endpoints. edgeType/type input is accepted but single-edge creation retains normal type. |
+| UpdateEdgeHandler: /api/updateEdge | POST JSON UpdateEdgeReq | Updated Edge; 400 for malformed body/missing ID, 404 when absent. Retains normal type. |
+| UpdateEdgesHandler: /api/updateEdges | POST JSON UpdateEdgeReq array | Empty success; skips missing/unknown IDs and applies existing batch type rules. Invalid JSON returns 400. |
+| DeleteEdgeHandler: /api/deleteEdge | Any, id query | Empty success, including unknown IDs. |
+
+## Graph handlers (graph_handlers.go)
+
+| Handler / route | Input | Output |
+| --- | --- | --- |
+| DataHandler: /api/data | Any; optional projectId and analyze=false | GraphData and Server-Timing. Unknown pinned ID returns 404. Snapshot-only mode skips Python; default mode includes analysis. Python failure becomes node TensorInfo.message rather than an HTTP error. |
+| ClearGraphHandler: /api/clear | Any | Empty success after clearing active graph. |
+| PasteGraphHandler: /api/paste, /api/pasteGraph | POST JSON {nodes,edges,dx,dy} | {nodes,edges} created by graph.Paste; 400 on malformed body. Empty node input returns empty arrays. |
+
+For mutation/snapshot work, handlers hold store.Mu. DataHandler releases it before
+Python, then reacquires it to apply metadata only if the semantic snapshot matches.
+Concurrent drag/routing edits survive analysis; semantic edits reject stale results.
+
+## Workspace handlers (workspace_handlers.go)
+
+| Handler / route | Input | Output |
+| --- | --- | --- |
+| WorkspaceHandler: /api/workspace | Any | {workingDir,name}; unset name is None. |
+| SetWorkspaceHandler: /api/workspace/set | POST; path query, then JSON {path} | WorkspaceResponse; 400 for blank, missing or nondirectory path. |
+| BrowseWorkspaceHandler: /api/workspace/browse | Any; dir query, falling back to active workspace | BrowseResponse with current/parent/drives/folders/files. Uses workspace.Browse for filesystem work. |
+| SelectNativeFolderHandler: /api/workspace/select-native | POST | {cancelled:true}, or {cancelled:false,workingDir,name} and workspace update. Invalid selected folder returns 400, picker failure 500. Windows interactive feature. |
+| CreateFolderHandler: /api/workspace/create-folder | POST; JSON {dir,name}, then query fallbacks; dir defaults to workspace | {status,path,name,parent}; task errors map to 400/500. |
+
+## Model handlers (model_handlers.go)
+
+| Handler / route | Input | Output |
+| --- | --- | --- |
+| SaveModelHandler: /api/workspace/save-model, /api/saveModel | POST; JSON {projectId,dir}, then query fallbacks | Python save result map, or legacy {status,raw,folder} fallback. dir defaults to workspace; unknown projectId retains the active-project fallback. Missing/invalid target returns JSON {error} with 400. Process/serialization failures return 500. Writes model JSON/Python files. |
+| LoadModelHandler: /api/workspace/load-model, /api/loadModel | POST; JSON path/dir, then path/dir query | {status,modelName,projectId,nodeCount,edgeCount}; 400 for invalid/missing model or malformed JSON, 500 for read failure. Calls modelio.Load before acquiring store lock, then graph.Store.ImportGraph. |
+| InspectModelHandler: /api/workspace/inspect-model | Any; path query, then JSON {path} | Model/port metadata. Missing companion file returns 200 with isModel:false and an error field. Invalid folder/JSON returns 400; read failure 500. |
+
+SaveModelHandler snapshots under lock, runs Python unlocked and conditionally
+adopts saved references after reacquiring the lock. It never replaces a newer
+semantic edit with an older save snapshot.
+
+## Test instructions
+
+Start at the repository root:
+
+```powershell
+Set-Location src
+go test ./...
+go vet ./...
 ```
-                  ┌──────────────────────────────────────────────┐
-                  │            Incoming HTTP Request             │
-                  └──────────────────────┬───────────────────────┘
-                                         │
-                   ┌─────────────────────▼─────────────────────┐
-                   │               mu.Lock()                   │
-                   ├───────────────────────────────────────────┤
-                   │  Project Map: projects[id]                │
-                   │  Current Project: cur()                   │
-                   │  Working Directory: workingDir            │
-                   ├───────────────────────────────────────────┤
-                   │              mu.Unlock()                  │
-                   └─────────────────────┬─────────────────────┘
-                                         │
-        ┌────────────────────────────────┴────────────────────────────────┐
-        │                                                                 │
-┌───────▼──────────────────────────┐           ┌──────────────────────────▼───────┐
-│ Direct Handler Logic (CRUD/Path) │           │ Subprocess: gen_code.py          │
-│ Nodes, Edges, Workspace, Drives  │           │   --save-canvas - --out-dir <dir>│
-└───────┬──────────────────────────┘           └──────────────────────────┬───────┘
-        │                                                                 │
-        └────────────────────────────────┬────────────────────────────────┘
-                                         │
-                  ┌──────────────────────▼─────────────────────┐
-                  │         JSON / HTML HTTP Response          │
-                  └────────────────────────────────────────────┘
+
+If the environment cannot use its default Go build cache, set
+$env:GOCACHE = Join-Path $env:TEMP 'ein-theater-go-cache' before these commands.
+Expected: every Go test passes. Python/PyTorch integration explicitly reports SKIP
+when dependencies are missing; rerun with them installed to validate that bridge.
+
+Focused major-feature checks (from src):
+
+```powershell
+go test ./Canvas/handler -run 'TestPasteGraphHandler|TestMoveNodesAndEdgesHandler|TestEdgeCreationAndOrdering|TestEdgeBendingAndFoldModes' -v
+go test ./Canvas/handler -run 'TestSnapshotDoesNotWaitForShapeWorker|TestBackgroundAnalysisPreservesConcurrentDrag' -v
+go test ./Canvas/handler -run 'TestUIRoutesComposeFragments|TestTemplateIncludeFailuresAreAtomic' -v
+go test ./Canvas/handler -run TestWorkspaceModelRoundTrip -v
+go test ./Canvas/utils/python -v
 ```
 
----
+The workspace test uses temporary files and a fresh store: create folder → browse
+and inspect fixture model → load through both aliases → read graph. It checks
+hidden-file filtering, route reconstruction, relative references, tab reuse and
+error/method statuses. No real Python runs in this fixture test.
 
-## Files and Functions
+For concurrency instrumentation, use go test -race ./... on a Go installation with
+CGO and a supported C compiler. Tests changing the global store/analysis function
+must remain serial.
 
-### 1. [`graph_handlers.go`](./graph_handlers.go)
-Handles CRUD operations for neural network nodes and directed circuit edges within the active model canvas.
-
-| Function / Type | HTTP Method & Route | Request Body / Query Params | Description |
-| :--- | :--- | :--- | :--- |
-| `DataHandler(w, r)` | `GET /api/data` | None | Serializes and returns all nodes and edges belonging to the currently active project as JSON (`GraphData`). |
-| `AddNodeHandler(w, r)` | `POST /api/addNode` | Query: `label`, `layerType`, `x`, `y` | Allocates a 0-indexed ID (`<prefix>_<index>`) via `p.getNextNodeID(layerType)`, assigns a clean display label (e.g., `linear 0`, `conv 0`, `input 0`), snaps coordinates to the 50px grid, and adds the node to the active project. Returns created `Node` JSON. |
-| `UpdateNodeReq` | *(Struct)* | JSON: `{ "id", "label"?, "layerType"?, "params"?, "parent"?, "parentZone"? }` | Request payload struct for updating node attributes, hyperparameters, and hierarchical placement. |
-| `UpdateNodeHandler(w, r)` | `POST /api/updateNode` | JSON: `UpdateNodeReq` | Parses JSON body and updates a node's label, layer type, and hyperparameter configuration map (`params`) in the active project. |
-| `DeleteNodeHandler(w, r)` | `POST /api/deleteNode` | Query: `id` | Deletes a single node by ID and automatically removes all connected edges. |
-| `DeleteNodesHandler(w, r)` | `POST /api/deleteNodes` | JSON array `["linear_0", "conv_0"]` or Query: `ids=linear_0,conv_0` | Batch deletes multiple nodes and all attached edges in a single atomic transaction. |
-| `MoveNodeHandler(w, r)` | `POST /api/moveNode` | Query: `id`, `x`, `y`, `update_edges`? | Updates a node's canvas coordinates. When `update_edges=false`, updates coordinates without mutating edge lines, preventing race conditions with client-managed wire geometry. |
-| `MoveNodeItem` | *(Struct)* | JSON: `{ "id", "x", "y" }` | Defines coordinates for an individual node in a batch move. |
-| `MoveNodesHandler(w, r)` | `POST /api/moveNodes` | JSON: `[]MoveNodeItem` | Batch updates coordinates for multiple nodes in a single lock without mutating edge lines. |
-| `AddEdgeReq` | *(Struct)* | JSON: `{ "from", "to", "lines"? }` | Request payload struct for adding an edge, supporting custom straight line segments. |
-| `AddEdgeHandler(w, r)` | `POST /api/addEdge` | JSON `AddEdgeReq` or Query: `from`, `to` | Creates or updates a directed connection between two nodes. If custom `lines` are provided (from client-side waypoint routing), saves them directly; otherwise computes orthogonal segments via `ComputeEdgeLines`. Rejects self-loops (`from == to`) and missing node references. If an edge already exists between `from` and `to`, updates its path gracefully. Returns created or updated `Edge` JSON. |
-| `UpdateEdgeReq` | *(Struct)* | JSON: `{ "id", "lines" }` | Request payload struct for updating edge lines and waypoint coordinates. |
-| `UpdateEdgeHandler(w, r)` | `POST /api/updateEdge` | JSON: `UpdateEdgeReq` | Updates an edge's custom straight line segments when the user drags a diamond fold handle or inverts fold orientation. |
-| `UpdateEdgesHandler(w, r)` | `POST /api/updateEdges` | JSON: `[]UpdateEdgeReq` | Batch updates line segments and fold waypoints for multiple edges in a single atomic transaction. |
-| `DeleteEdgeHandler(w, r)` | `POST /api/deleteEdge` | Query: `id` | Deletes a directed edge identified by query parameter `id`. |
-| `PasteGraphReq` / `PasteGraphResp` | *(Struct)* | JSON: `{ "nodes", "edges", "dx", "dy" }` | Request/response payload structs for copying and pasting nodes and edges. |
-| `PasteGraphHandler(w, r)` | `POST /api/paste`<br>`POST /api/pasteGraph` | JSON: `PasteGraphReq` | Duplicates a collection of nodes and their internal connecting edges into the active project. Allocates clean, unique 0-indexed scoped IDs (`<prefix>_<index>`), replicates exact hyperparameters, offsets positions by `(dx, dy)`, offsets wire waypoints, and returns the created elements. |
-| `ClearGraphHandler(w, r)` | `POST /api/clear` | None | Wipes all nodes and edges from the currently active project canvas and resets `nextNodeID = 0` and `nextEdgeID = 0`. |
-
----
-
-### 2. [`index_handler.go`](./index_handler.go)
-Serves HTML application entry points, dynamic mode sidebar fragments, and template file discovery.
-
-| Function | HTTP Method & Route | Description |
-| :--- | :--- | :--- |
-| `IndexHandler(w, r)` | `GET /` | Serves the main studio application template (`templates/index.html`), falling back gracefully to `canvas.html`. Rejects unmatched non-root routes with HTTP 404 Not Found. |
-| `CanvasHandler(w, r)` | `GET /canvas` | Serves the standalone Canvas mode HTML template (`templates/canvas.html`). |
-| `SidebarHandler(w, r)` | `GET /api/sidebar`<br>`GET /api/sidebar/` | Serves mode-specific sidebar HTML fragments (e.g. `templates/sidebar.html` for `mode=canvas`) for dynamic client-side injection into `#sidebarSlot`. If fragment is missing, extracts `<div class="sidebar">` directly from `canvas.html` via `extractSidebarFromHTML`. |
-| `FindTemplatePath(rel)` | *(Helper)* | Dynamically probes candidate directories (`templates/`, `src/templates/`, `Canvas/templates/`, `src/Canvas/templates/`, etc.) to resolve HTML template paths across varying working directories. |
-| `extractSidebarFromHTML(path)` | *(Helper)* | Fallback parser that reads an HTML template and extracts the sidebar container div block. |
-
----
-
-### 3. [`models.go`](./models.go)
-Defines core domain models, shared thread-safe state, seed palette loading, layer prefix normalization, and 0-indexed ID generation.
-
-#### Data Structures (Types)
-
-- **`Point`**: 2D coordinate `{ X float64, Y float64 }` on the circuit grid.
-- **`Line`**: Straight line segment object forming an orthogonal trace. Fields:
-  - `First Point`: Starting point of the segment.
-  - `Last Point`: Ending point of the segment.
-  - `From Point`: Alias for `First` (for serialization compatibility).
-  - `To Point`: Alias for `Last` (for serialization compatibility).
-- **`Node`**: PyTorch neural layer block. Fields:
-  - `ID string`: Unique 0-indexed identifier scoped per layer type (e.g. `"linear_0"`).
-  - `Label string`: Formatted multi-line text rendered on the canvas (e.g. `"linear 0"`).
-  - `Shape string`: Always `"box"`.
-  - `Color string`: Hex background color (default `"#ffffff"`).
-  - `LayerType string`: Base PyTorch layer type (e.g. `"nn.Conv2d"`).
-  - `Params map[string]interface{}`: Hyperparameter dictionary.
-  - `X float64`, `Y float64`: Canvas grid coordinates.
-- **`Edge`**: Directed orthogonal connection between blocks. Fields:
-  - `ID string`: Unique edge identifier.
-  - `From string`: Source node ID.
-  - `To string`: Destination node ID.
-  - `Lines []Line`: Slice of straight orthogonal line segments with 90° bends.
-- **`Project`**: Independent neural network canvas instance. Fields:
-  - `ID string`: Unique project ID (e.g. `"proj_0"`).
-  - `Name string`: Project title (e.g. `"Untitled Model"`).
-  - `Nodes map[string]Node`: Node collection.
-  - `Edges map[string]Edge`: Edge collection.
-  - `NextNodeID int`, `NextEdgeID int`: Monotonic ID counters.
-- **`ProjectMeta`**: Lightweight summary struct (`ID`, `Name`) for project tabs.
-- **`GraphData`**: Graph payload containing `ProjectID`, `Name`, `Nodes []Node`, and `Edges []Edge`.
-- **`WorkspaceResponse`**: Response containing `WorkingDir` path and base folder `Name`.
-- **`DirectoryItem`**: Filesystem entry with `Name`, `Path`, `IsDir`, `Size`, `IsModel bool`, and `ModelName string`.
-- **`BrowseResponse`**: Filesystem browser payload with `Current`, `Parent`, `Drives []string`, `Folders []DirectoryItem`, and `Files []DirectoryItem`.
-
-#### Functions & State Management
-
-| Function / Variable | Description |
-| :--- | :--- |
-| `mu sync.Mutex` | Protects concurrent read/write operations across projects, canvas graphs, and workspace settings. |
-| `GridSize = 50.0` | Constant defining the electrical circuit grid dot spacing for alignment. |
-| `ComputeEdgeLines(from, to)` | Calculates sharp 90° right-angle orthogonal line segments between source node `from` and target node `to` using midpoint routing (`midX = (from.X + to.X) / 2`). |
-| `IsValidModelFolderName(name)` | Validates model naming rules: Latin alphanumeric characters (`a-z`, `A-Z`, `0-9`) and underscores (`_`), no white space, with the first character strictly being a Latin letter. |
-| `FixModelName(name)` | Automatically fixes invalid model names: replaces spaces with `_`, and prepends `model_` if a number precedes the text (starts with a digit), guaranteeing a valid identifier. |
-| `layerTypeToPrefix(layerType)` | Normalizes layer type to lowercase prefix (e.g. `nn.Linear` → `linear`, `nn.Conv2d` → `conv`, `nn.BatchNorm2d` → `batchnorm`, `nn.MaxPool2d` → `maxpool`, `nn.ReLU` → `relu`). |
-| `(p *Project) getNextNodeID(layerType)` | Computes the lowest available 0-indexed ID (`<prefix>_<index>`) for the layer type within the project workspace (e.g. `linear_0`, `linear_1`, `conv_0`, `conv_1`). |
-| `makeProject(name)` | Allocates a new empty `Project` struct with 0 nodes, initialized with 0-indexed ID counters scoped to its workspace. |
-| `cur() *Project` | Returns a pointer to the active `Project`. *Must be called while holding `mu`.* |
-
----
-
-### 4. [`project_handlers.go`](./project_handlers.go)
-Manages multi-model tabs, switching between active models, model creation, deletion, and renaming.
-
-| Function | HTTP Method & Route | Description |
-| :--- | :--- | :--- |
-| `ListProjectsHandler(w, r)` | `GET /api/projects` | Returns list of all model tabs in creation order alongside the active `currentProjectId`. |
-| `CreateProjectHandler(w, r)` | `POST /api/projects/create` | Instantiates a new project with optional `name` query parameter, initializes with 0 nodes, sets it as active, and returns its `ProjectMeta`. |
-| `SwitchProjectHandler(w, r)` | `POST /api/projects/switch` | Sets the active project to the one specified by query parameter `id`. |
-| `DeleteProjectHandler(w, r)` | `POST /api/projects/delete` | Deletes a project by query parameter `id`. Rejects deletion if it is the only existing project. If the active model is deleted, automatically switches to the first remaining model. |
-| `RenameModelHandler(w, r)` | `POST /api/rename` | Updates the title of the active project using query parameter `name`. |
-
----
-
-### 5. [`workspace_handlers.go`](./workspace_handlers.go)
-Provides filesystem access, directory navigation, folder creation, model serialization via Python code synthesis, and model loading.
-
-| Function | HTTP Method & Route | Description |
-| :--- | :--- | :--- |
-| `getSystemDrives()` | *(Helper)* | Probes drive letters A through Z on Windows using `os.Stat` and returns accessible root drives (e.g. `["C:\\", "D:\\"]`). |
-| `findGenCodePyPath()` | *(Helper)* | Resolves the location of `src/Canvas/utils/generate code/gen_code.py` by probing candidate paths (`Canvas/utils/generate code/gen_code.py`, `src/Canvas/utils/generate code/gen_code.py`, etc.). |
-| `WorkspaceHandler(w, r)` | `GET /api/workspace` | Returns the current working directory path and base folder name (`WorkspaceResponse`). |
-| `SetWorkspaceHandler(w, r)` | `POST /api/workspace/set` | Validates that a path exists and is a directory (via `path` query param or JSON body), then updates `workingDir`. |
-| `BrowseWorkspaceHandler(w, r)` | `GET /api/workspace/browse` | Reads subfolders and non-hidden files in the directory specified by `dir` query param (falls back to `workingDir`, user home directory, or root drive). Checks whether each subfolder contains both `<name>.json` and `<name>.py` and satisfies `IsValidModelFolderName`, setting `IsModel: true` and `ModelName: name`. |
-| `SelectNativeFolderHandler(w, r)` | `POST /api/workspace/select-native` | Launches a Windows native folder browser modal via PowerShell (`System.Windows.Forms.FolderBrowserDialog`). If confirmed, updates `workingDir` and returns the path. |
-| `CreateFolderHandler(w, r)` | `POST /api/workspace/create-folder` | Creates a new subdirectory inside the target directory specified by `dir` and `name`. |
-| `SaveModelHandler(w, r)` | `POST /api/workspace/save-model`<br>`POST /api/saveModel` | Serializes the active project canvas, invokes `python "src/Canvas/utils/generate code/gen_code.py" --save-canvas - --out-dir <targetDir>` via standard input pipe, and generates `<model_name>/<model_name>.json` and `<model_name>/<model_name>.py`. Returns save status JSON. |
-| `LoadModelHandler(w, r)` | `POST /api/workspace/load-model`<br>`POST /api/loadModel` | Reads `<model_name>/<model_name>.json`, validates naming rules, loads all nodes with clean labels, restores orthogonal connections, updates project tabs, and makes the model active. |
-
----
-
-### 6. [`routes.go`](./routes.go) Route Registration & Asset Resolvers
-
-Provides shared route registration and dynamic path resolvers used by both `canvas.go` and `main.go`:
-- `resolveStaticFS()`: Discovers both global static assets (`src/static/style.css`) and mode-specific static assets (`src/Canvas/static/canvas.css`), combining them into an HTTP filesystem (`multiDirFS`) so that `/static/*` requests seamlessly serve files from either location.
-- `RegisterRoutes(mux *http.ServeMux)`: Sets up all Canvas API endpoints, static asset streaming (with `Cache-Control: no-cache` headers), and binds `IndexHandler` at root (`/`).
-- `RegisterRoutesWithRoot(mux *http.ServeMux, rootHandler http.HandlerFunc)`: Sets up all Canvas handlers with a custom root handler (e.g. `CanvasHandler` for standalone mode).
-
----
-
-### 7. Entry Points: [`canvas.go`](../canvas.go) & [`main.go`](../../main.go)
-
-- **`src/Canvas/canvas.go`**: Standalone Canvas mode runner (`package main`). Directly starts the server for rapid mode-specific iteration, calling `handler.RegisterRoutesWithRoot(mux, handler.CanvasHandler)`.
-- **`src/main.go`**: Root studio orchestrator (`package main`). Mounts Canvas mode routes via `handler.RegisterRoutes(mux)` and coordinates future modes (`Data`, `Train`, `Code`).
-
----
-
-## Related Documentation
-
-- [Canvas Subsystem Documentation](../document.md) — Comprehensive overview of the Canvas mode architecture.
-- [Root Documentation](../../../document.md) — Comprehensive overview of Ein Theater.
-- [Frontend JavaScript Documentation](../static/js/document.md) — Client-side ES6 architecture and Vis.js/Canvas rendering pipeline.
-- [PyTorch Code Generation Engine](../utils/generate%20code/document.md) — FX code builder, FX graph tracing, and code generation reference.
-- [Python Shape Adaptation](../shape-inference.md) — Python shape adaptation and meta tensor execution.
-
-
-## UI feature refactor
-
-See the [UI source audit and architecture](../static/document.md) for the per-file analysis, feature ownership, new folder documentation and validation commands. HTML entry handlers now use `template_renderer.go` to compose named static partials before sending the response. JavaScript keeps its original public entry paths while implementations live in feature folders. Shared CSS has one source of truth with a small Canvas override.
-
-## Graph response latency
-
-`GET /api/data?analyze=false` returns a graph snapshot without entering the Python worker. The default request retains synchronous shape analysis for existing clients. The optional `projectId` pins either request to a specific project. `Server-Timing` reports snapshot duration and, when requested, analysis duration for inspection in browser network tools.
-
-Shape-result validation ignores node coordinates and wire routing changes, while still rejecting semantic parameter or topology changes. Applying analysis only updates parameters/tensor metadata and preserves current layout. `graph_latency_test.go` verifies that snapshots return even while the worker mutex is held and that a concurrent drag does not discard valid inference.
+Manual smoke test: go run . from src, open http://localhost:8080, create blocks,
+connect them, drag/paste/delete them, and switch project tabs. Select a temporary
+workspace, save a small Input → Linear graph with Python/PyTorch installed, then
+load the resulting folder. See the [Python bridge guide](../utils/python/document.md)
+for prerequisites and expected artifacts, and the [workspace guide](../utils/workspace/document.md)
+for native-picker cancellation testing.

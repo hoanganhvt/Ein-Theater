@@ -1,9 +1,52 @@
-# Source folders
+﻿# Source map and execution flow
 
-- `main.go` starts the studio server; [templates](./templates/document.md) owns its document shell and partials.
-- [static](./static/document.md) owns shared CSS and component styles.
-- [Canvas](./Canvas/document.md) contains the standalone entry, backend handlers, Python utilities and Canvas UI.
+The [global code-flow guide](../document.md) is the project-wide architecture
+reference. It explains startup, state ownership, graph editing, asynchronous shape
+analysis, Python generation, save/load, concurrency and end-to-end tests.
 
-The detailed [UI source audit](./Canvas/static/document.md) classifies every original frontend file and links each feature folder. UI JavaScript is served directly as native ES modules; no bundler is required. HTML partials are composed by the Go handler before sending pages. Backend graph and Python responsibilities remain separate from the frontend refactor.
+## Read the source in runtime order
 
-Run `go run .` here for the studio or `go run .` from `Canvas` for the standalone entry. Run `go test ./...` here and the two frontend `.test.mjs` scripts from the repository root.
+```mermaid
+flowchart TD
+    Main[main.go or Canvas/canvas.go] --> Routes[Canvas/handler/routes.go]
+    Routes --> Page[Templates and static assets]
+    Page --> App[Canvas/static/app.js]
+    App --> Init[js/application/bootstrap.js]
+    Init --> API[js/api and feature modules]
+    API --> Handlers[Canvas/handler]
+    Handlers --> Tasks[Canvas/utils Go packages]
+    Tasks --> Python[Python shape and generation packages]
+    Python --> Output[Metadata or saved model artifacts]
+    Output --> Handlers
+    Handlers --> API
+```
+
+| Source area | Input | Output / role |
+| --- | --- | --- |
+| `main.go` | Environment and launch directory | Studio server with Canvas routes. |
+| `Canvas/canvas.go` | Environment and launch directory | Standalone Canvas server. |
+| [templates](templates/document.md) | Shell and partial files | Studio HTML composed by Go. |
+| [static](static/document.md) | Asset requests | Shared styles. |
+| [Canvas templates](Canvas/templates/document.md) | Canvas/sidebar fragments | Canvas page and UI mount points. |
+| [Canvas frontend](Canvas/static/js/document.md) | User events and graph responses | Rendered canvas, API mutations and metadata refresh. |
+| [HTTP handlers](Canvas/handler/document.md) | HTTP requests | Validated utility calls and responses. |
+| [Categorized utilities](Canvas/utils/document.md) | Graph commands, paths and snapshots | Graph state, file IO, HTML composition and Python orchestration. |
+| [Python shape analysis](Canvas/utils/auto_shape_fitting/document.md) | Canvas and base directory | Fitted parameters, tensor diagnostics and adapted submodels. |
+| [Python generation](Canvas/utils/generate%20code/document.md) | Validated canvas/computational graph | Model JSON and executable Python source. |
+
+## Main call paths
+
+- **First render:** `main` → route registration → page composition → `app.js` →
+  `initApp` → `loadGraph` → `/api/data?analyze=false` → render datasets → background analysis.
+- **Edit:** feature event → API wrapper → matching handler → `utils/graph`
+  operation under `Store.Mu` → response → UI update.
+- **Analyze:** shape-refresh scheduler → `DataHandler` → detached snapshot →
+  Go Python bridge → shape worker → guarded metadata reconciliation → dataset update.
+- **Save:** `saveActiveModel` → `SaveModelHandler` → snapshot → generation subprocess
+  → infer/validate → canvas conversion → FX/source rendering → artifact writes → UI refresh.
+- **Load:** `loadModelFromFolder` → `LoadModelHandler` → `modelio.Load` →
+  `Store.ImportGraph` → project/graph refresh.
+
+Run `go run .` here for studio mode or from `Canvas` for standalone mode. Run
+`go test ./...` and `go vet ./...` here. The global guide contains frontend/Python
+commands, expected outcomes and the manual test sequence for the complete flow.

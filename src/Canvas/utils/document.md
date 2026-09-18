@@ -1,4 +1,30 @@
-# Canvas Python utilities
+# Canvas utilities
+
+## Go task categories
+
+HTTP adapters live in [handler](../handler/document.md). Go utility packages do not
+import handler. Each folder guide lists component inputs/outputs, error behavior,
+side effects and focused tests. Graph state is protected by Store.Mu at the caller;
+filesystem and Python work run outside that lock.
+
+| Directory | Input → output / responsibility |
+| --- | --- |
+| [graph](graph/document.md) | Graph commands and snapshots → project mutations, geometry and reconciled metadata. |
+| [naming](naming/document.md) | Model/layer strings → valid names and node-ID prefixes. |
+| [templates](templates/document.md) | Template paths → composed HTML bytes or errors. |
+| [assets](assets/document.md) | Launch directory / asset names → static filesystem and files. |
+| [workspace](workspace/document.md) | Directory inputs → listings, created folders or native selection. |
+| [modelio](modelio/document.md) | Saved model folder → decoded canvas or port metadata. |
+| [python](python/document.md) | Detached canvas → Python shape analysis or generated model artifacts. |
+| [fault](fault/document.md) | Failure message/classification → transport-independent task error. |
+
+From src, run go test ./... and go vet ./.... Graph edits, HTTP contracts,
+templates, static assets and filesystem fixtures run without Python. The persistent
+worker integration test requires python on PATH and PyTorch; verbose output shows
+an explicit skip when unavailable. See each folder's test section for commands and
+expected results. Package comments in the source files provide a short ownership summary.
+
+## Python task categories
 
 Utilities are grouped by responsibility. New Python packages use snake_case names;
 `generate code` keeps its existing name because the Go save bridge locates its CLI

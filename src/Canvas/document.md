@@ -55,7 +55,7 @@ src/Canvas/
 │   ├── document.md         # Detailed Go handler reference & architecture
 │   ├── graph_handlers.go   # CRUD operations for nodes, edges, batch move/delete & clear
 │   ├── index_handler.go    # Template rendering, sidebar loader endpoint & path resolvers
-│   ├── models.go           # Core structs (Point, Line, Node, Edge, Project), mutex & ID gen
+│   ├── types.go        # Aliases for graph/workspace utility types
 │   ├── models_test.go      # Unit & integration tests for state models & endpoints
 │   ├── project_handlers.go # Multi-model project lifecycle, switching & renaming
 │   ├── routes.go           # Central route registration (RegisterRoutes, RegisterRoutesWithRoot) & multiDirFS
@@ -162,15 +162,16 @@ go run Canvas/canvas.go
 
 ### Go HTTP Handlers (`handler/`)
 
-The backend state is kept in memory under thread-safe mutex protection (`sync.Mutex mu`). See [`src/Canvas/handler/document.md`](./handler/document.md) for full implementation details.
+The backend state lives in `utils/graph.Store`, protected by `Store.Mu`. HTTP adapters hold the lock for graph transactions and release it before filesystem or Python work. See [handler contracts](./handler/document.md) and [categorized utilities](./utils/document.md) for inputs, outputs and test instructions.
 
 Key handler responsibilities:
-- **`models.go`**: Defines `Node`, `Edge`, `Line`, `Project`, and `Point`. Computes 90° right-angle routing via `ComputeEdgeLines`. Allocates clean, scoped 0-indexed identifiers (`p.getNextNodeID(layerType)`). Validates and sanitizes model folder names via `IsValidModelFolderName` and `FixModelName`.
-- **`graph_handlers.go`**: Provides atomic endpoints for graph manipulation, including single/batch node updates, batch moves (`/api/moveNodes`), single/batch edge line updates (`/api/updateEdges`), and clipboard duplication (`/api/paste`).
+- **`utils/graph` and `utils/naming`**: Own graph types, project state, routing, scoped IDs and model-name normalization. `handler/types.go` keeps shared type aliases. See the utility folder documents for input/output contracts and tests.
+- **`graph_handlers.go`, `node_handlers.go`, `edge_handlers.go`**: Decode graph requests, coordinate transactions, call graph operations and encode results for snapshot, paste, node and edge endpoints.
 - **`project_handlers.go`**: Manages concurrent model tabs (`/api/projects`), creation, deletion, and active project switching.
-- **`workspace_handlers.go`**: Manages active working directory, system drive discovery, directory browsing with model folder detection (`isModel: true`), native Windows folder picker execution via PowerShell, and invocation of the Python compiler subprocess.
-- **`index_handler.go`**: Resolves template locations dynamically (`FindTemplatePath`), serves index and canvas shells, and returns mode sidebar fragments via `SidebarHandler` (`/api/sidebar`).
-- **`routes.go`**: Sets up `resolveStaticFS()` using `multiDirFS` to serve both root and mode static folders, and registers all endpoints on `*http.ServeMux`.
+- **`workspace_handlers.go`**: Adapts workspace requests to `utils/workspace` for browsing, folder creation and native selection.
+- **`model_handlers.go`**: Coordinates model save/load/inspect through `utils/modelio`, `utils/python` and `utils/graph`, preserving snapshot reconciliation.
+- **`index_handler.go`, `template_handler.go`**: Serve page/sidebar responses using `utils/templates` for discovery and fragment composition.
+- **`routes.go`**: Registers all endpoints on `*http.ServeMux`; `utils/assets.ResolveStaticFS` supplies the combined static filesystem.
 
 ### Frontend Client Architecture (`static/`)
 
@@ -375,4 +376,4 @@ For deep technical dives into individual subsystems within Canvas, refer to:
 
 ## UI feature refactor
 
-See the [UI source audit and architecture](static/document.md) for the per-file analysis, feature ownership, new folder documentation and validation commands. HTML entry handlers now use `template_renderer.go` to compose named static partials before sending the response. JavaScript keeps its original public entry paths while implementations live in feature folders. Shared CSS has one source of truth with a small Canvas override.
+See the [UI source audit and architecture](static/document.md) for the per-file analysis, feature ownership, new folder documentation and validation commands. HTML entry handlers now use `handler/template_handler.go` and `utils/templates` to compose named static partials before sending the response. JavaScript keeps its original public entry paths while implementations live in feature folders. Shared CSS has one source of truth with a small Canvas override.

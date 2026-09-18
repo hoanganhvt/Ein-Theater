@@ -2,23 +2,18 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+	"web-app/Canvas/utils/graph"
+	"web-app/Canvas/utils/naming"
 )
 
 // ListProjectsHandler lists all projects.
 func ListProjectsHandler(w http.ResponseWriter, r *http.Request) {
-	mu.Lock()
-	defer mu.Unlock()
-	type Response struct {
-		Current  string        `json:"current"`
-		Projects []ProjectMeta `json:"projects"`
-	}
-	resp := Response{Current: currentProjectID, Projects: []ProjectMeta{}}
-	for _, id := range projectOrder {
-		if p, ok := projects[id]; ok {
-			resp.Projects = append(resp.Projects, ProjectMeta{ID: p.ID, Name: p.Name})
-		}
-	}
+	store.Mu.Lock()
+	defer store.Mu.Unlock()
+	resp := store.ListProjects()
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
@@ -28,15 +23,13 @@ func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")
 	if name == "" {
 		name = "Untitled_Model"
-	} else if !IsValidModelFolderName(name) {
-		name = FixModelName(name)
+	} else if !naming.IsValidModelFolderName(name) {
+		name = naming.FixModelName(name)
 	}
-	mu.Lock()
-	defer mu.Unlock()
-	p := makeProject(name)
-	projects[p.ID] = p
-	projectOrder = append(projectOrder, p.ID)
-	currentProjectID = p.ID
+	store.Mu.Lock()
+	defer store.Mu.Unlock()
+	p := store.CreateProject(name)
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(ProjectMeta{ID: p.ID, Name: p.Name})
 }
@@ -44,39 +37,30 @@ func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 // SwitchProjectHandler switches the active project.
 func SwitchProjectHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
-	mu.Lock()
-	defer mu.Unlock()
-	if _, ok := projects[id]; !ok {
+	store.Mu.Lock()
+	defer store.Mu.Unlock()
+	if !store.SwitchProject(id) {
 		http.Error(w, "project not found", http.StatusNotFound)
 		return
 	}
-	currentProjectID = id
+
 	w.WriteHeader(http.StatusOK)
 }
 
 // DeleteProjectHandler deletes a project (unless it's the last one).
 func DeleteProjectHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
-	mu.Lock()
-	defer mu.Unlock()
-	if len(projects) <= 1 {
-		http.Error(w, "cannot delete the last model", http.StatusBadRequest)
-		return
-	}
-	if _, ok := projects[id]; !ok {
-		http.Error(w, "project not found", http.StatusNotFound)
-		return
-	}
-	delete(projects, id)
-	for i, oid := range projectOrder {
-		if oid == id {
-			projectOrder = append(projectOrder[:i], projectOrder[i+1:]...)
-			break
+	store.Mu.Lock()
+	defer store.Mu.Unlock()
+	if err := store.DeleteProject(id); err != nil {
+		if errors.Is(err, graph.ErrLastProject) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		} else {
+			http.Error(w, err.Error(), http.StatusNotFound)
 		}
+		return
 	}
-	if currentProjectID == id {
-		currentProjectID = projectOrder[0]
-	}
+
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -87,12 +71,12 @@ func RenameModelHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "name is required", http.StatusBadRequest)
 		return
 	}
-	if !IsValidModelFolderName(name) {
-		name = FixModelName(name)
+	if !naming.IsValidModelFolderName(name) {
+		name = naming.FixModelName(name)
 	}
-	mu.Lock()
-	cur().Name = name
-	mu.Unlock()
+	store.Mu.Lock()
+	store.Current().Name = name
+	store.Mu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "name": name})
 }

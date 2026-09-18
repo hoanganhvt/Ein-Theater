@@ -6,43 +6,16 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"web-app/Canvas/utils/graph"
 )
-
-func TestFixModelName(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"my model", "my_model"},
-		{"123 cnn", "model_123_cnn"},
-		{"123model", "model_123model"},
-		{"42", "model_42"},
-		{"0_resnet", "model_0_resnet"},
-		{"resnet50", "resnet50"},
-		{"model 1", "model_1"},
-		{"", "model"},
-		{"   ", "model"},
-		{"Untitled Model", "Untitled_Model"},
-	}
-
-	for _, tt := range tests {
-		got := FixModelName(tt.input)
-		if got != tt.expected {
-			t.Errorf("FixModelName(%q) = %q; expected %q", tt.input, got, tt.expected)
-		}
-		if !IsValidModelFolderName(got) {
-			t.Errorf("FixModelName(%q) = %q, which is not a valid model folder name", tt.input, got)
-		}
-	}
-}
 
 func TestPasteGraphHandler(t *testing.T) {
 	// Setup test project
-	mu.Lock()
-	p := makeProject("Test_Paste_Model")
-	projects[p.ID] = p
-	currentProjectID = p.ID
-	mu.Unlock()
+	store.Mu.Lock()
+	p := store.MakeProject("Test_Paste_Model")
+	store.Projects[p.ID] = p
+	store.CurrentProjectID = p.ID
+	store.Mu.Unlock()
 
 	// Initial node
 	initNode := Node{
@@ -125,11 +98,11 @@ func TestPasteGraphHandler(t *testing.T) {
 }
 
 func TestMoveNodesAndEdgesHandler(t *testing.T) {
-	mu.Lock()
-	p := makeProject("Test_Move_Model")
-	p.nodes["n1"] = Node{ID: "n1", X: 100, Y: 100}
-	p.nodes["n2"] = Node{ID: "n2", X: 300, Y: 100}
-	p.edges["e1"] = Edge{
+	store.Mu.Lock()
+	p := store.MakeProject("Test_Move_Model")
+	p.Nodes["n1"] = Node{ID: "n1", X: 100, Y: 100}
+	p.Nodes["n2"] = Node{ID: "n2", X: 300, Y: 100}
+	p.Edges["e1"] = Edge{
 		ID:   "e1",
 		From: "n1",
 		To:   "n2",
@@ -137,9 +110,9 @@ func TestMoveNodesAndEdgesHandler(t *testing.T) {
 			{First: Point{X: 100, Y: 100}, Last: Point{X: 300, Y: 100}},
 		},
 	}
-	projects[p.ID] = p
-	currentProjectID = p.ID
-	mu.Unlock()
+	store.Projects[p.ID] = p
+	store.CurrentProjectID = p.ID
+	store.Mu.Unlock()
 
 	// Test MoveNodesHandler
 	movePayload := []MoveNodeItem{
@@ -155,15 +128,15 @@ func TestMoveNodesAndEdgesHandler(t *testing.T) {
 		t.Fatalf("expected 200 from MoveNodesHandler, got %d", wMove.Code)
 	}
 
-	mu.Lock()
-	p = cur()
-	if p.nodes["n1"].X != 200 || p.nodes["n1"].Y != 200 {
-		t.Errorf("expected n1 at (200, 200), got (%f, %f)", p.nodes["n1"].X, p.nodes["n1"].Y)
+	store.Mu.Lock()
+	p = store.Current()
+	if p.Nodes["n1"].X != 200 || p.Nodes["n1"].Y != 200 {
+		t.Errorf("expected n1 at (200, 200), got (%f, %f)", p.Nodes["n1"].X, p.Nodes["n1"].Y)
 	}
-	if p.nodes["n2"].X != 400 || p.nodes["n2"].Y != 200 {
-		t.Errorf("expected n2 at (400, 200), got (%f, %f)", p.nodes["n2"].X, p.nodes["n2"].Y)
+	if p.Nodes["n2"].X != 400 || p.Nodes["n2"].Y != 200 {
+		t.Errorf("expected n2 at (400, 200), got (%f, %f)", p.Nodes["n2"].X, p.Nodes["n2"].Y)
 	}
-	mu.Unlock()
+	store.Mu.Unlock()
 
 	// Test UpdateEdgesHandler
 	edgePayload := []UpdateEdgeReq{
@@ -183,26 +156,26 @@ func TestMoveNodesAndEdgesHandler(t *testing.T) {
 		t.Fatalf("expected 200 from UpdateEdgesHandler, got %d", wEdge.Code)
 	}
 
-	mu.Lock()
-	p = cur()
-	e1 := p.edges["e1"]
+	store.Mu.Lock()
+	p = store.Current()
+	e1 := p.Edges["e1"]
 	if len(e1.Lines) != 1 || e1.Lines[0].First.X != 200 || e1.Lines[0].Last.X != 400 {
 		t.Errorf("expected updated edge lines, got %+v", e1.Lines)
 	}
-	mu.Unlock()
+	store.Mu.Unlock()
 }
 
 func TestEdgeCreationAndOrdering(t *testing.T) {
-	mu.Lock()
-	p := makeProject("Test_Edge_Creation")
-	projects[p.ID] = p
-	currentProjectID = p.ID
+	store.Mu.Lock()
+	p := store.MakeProject("Test_Edge_Creation")
+	store.Projects[p.ID] = p
+	store.CurrentProjectID = p.ID
 	// Add 4 test nodes
-	p.nodes["n0"] = Node{ID: "n0", Label: "input", X: 0, Y: 0}
-	p.nodes["n1"] = Node{ID: "n1", Label: "conv", X: 100, Y: 0}
-	p.nodes["n2"] = Node{ID: "n2", Label: "relu", X: 200, Y: 0}
-	p.nodes["n3"] = Node{ID: "n3", Label: "linear", X: 300, Y: 0}
-	mu.Unlock()
+	p.Nodes["n0"] = Node{ID: "n0", Label: "input", X: 0, Y: 0}
+	p.Nodes["n1"] = Node{ID: "n1", Label: "conv", X: 100, Y: 0}
+	p.Nodes["n2"] = Node{ID: "n2", Label: "relu", X: 200, Y: 0}
+	p.Nodes["n3"] = Node{ID: "n3", Label: "linear", X: 300, Y: 0}
+	store.Mu.Unlock()
 
 	// 1. Add edge 0: n0 -> n1
 	req0 := httptest.NewRequest(http.MethodPost, "/api/addEdge?from=n0&to=n1", nil)
@@ -266,28 +239,28 @@ func TestEdgeBendingAndFoldModes(t *testing.T) {
 	n2 := Node{ID: "n2", X: 300, Y: 200}
 
 	// 1. Test ComputeEdgeLinesWithMode
-	linesH := ComputeEdgeLinesWithMode(n1, n2, "horizontal", nil)
+	linesH := graph.ComputeEdgeLinesWithMode(n1, n2, "horizontal", nil)
 	if len(linesH) != 3 {
 		t.Errorf("expected horizontal Z-bend to have 3 lines, got %d", len(linesH))
 	}
 
-	linesV := ComputeEdgeLinesWithMode(n1, n2, "vertical", nil)
+	linesV := graph.ComputeEdgeLinesWithMode(n1, n2, "vertical", nil)
 	if len(linesV) != 3 {
 		t.Errorf("expected vertical Z-bend to have 3 lines, got %d", len(linesV))
 	}
 
-	linesLH := ComputeEdgeLinesWithMode(n1, n2, "l-horizontal", nil)
+	linesLH := graph.ComputeEdgeLinesWithMode(n1, n2, "l-horizontal", nil)
 	if len(linesLH) != 2 {
 		t.Errorf("expected l-horizontal to have 2 lines, got %d", len(linesLH))
 	}
 
-	linesLV := ComputeEdgeLinesWithMode(n1, n2, "l-vertical", nil)
+	linesLV := graph.ComputeEdgeLinesWithMode(n1, n2, "l-vertical", nil)
 	if len(linesLV) != 2 {
 		t.Errorf("expected l-vertical to have 2 lines, got %d", len(linesLV))
 	}
 
 	customX := 250.0
-	linesCustom := ComputeEdgeLinesWithMode(n1, n2, "horizontal", &customX)
+	linesCustom := graph.ComputeEdgeLinesWithMode(n1, n2, "horizontal", &customX)
 	if len(linesCustom) != 3 {
 		t.Errorf("expected customFold horizontal to have 3 lines, got %d", len(linesCustom))
 	}
@@ -296,13 +269,13 @@ func TestEdgeBendingAndFoldModes(t *testing.T) {
 	}
 
 	// 2. Test AddEdgeHandler with FoldMode and CustomFold via JSON
-	mu.Lock()
-	p := makeProject("Test_Edge_Bending_Model")
-	p.nodes["n1"] = n1
-	p.nodes["n2"] = n2
-	projects[p.ID] = p
-	currentProjectID = p.ID
-	mu.Unlock()
+	store.Mu.Lock()
+	p := store.MakeProject("Test_Edge_Bending_Model")
+	p.Nodes["n1"] = n1
+	p.Nodes["n2"] = n2
+	store.Projects[p.ID] = p
+	store.CurrentProjectID = p.ID
+	store.Mu.Unlock()
 
 	foldVal := 150.0
 	addReq := AddEdgeReq{
@@ -343,4 +316,3 @@ func TestEdgeBendingAndFoldModes(t *testing.T) {
 		t.Errorf("expected updated edge foldMode to be 'horizontal', got %q", updated.FoldMode)
 	}
 }
-
