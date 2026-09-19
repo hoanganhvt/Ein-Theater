@@ -14,3 +14,36 @@
 .btn.active { background: var(--accent-soft); border-color: #536178; color: var(--accent); }
 .btn:disabled, .btn.disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
 @media (max-width: 640px) { .header { padding: 8px 12px; } .toolbar { margin-left: 0; } }
+
+/* Main application menu */
+.studio-bar { height: 44px; align-items: center; gap: 2px; padding: 0 18px; background: #15181c; z-index: 30; }
+.brand-mark { color: #f0f1ed; text-decoration: none; font-size: 14px; font-weight: 600; letter-spacing: -.055em; margin-right: 22px; white-space: nowrap; }
+.brand-mark span { color: #aabbd8; font-weight: 400; }
+.studio-current-mode { margin-left: auto; color: var(--muted); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+.canvas-command-bar { min-height: 38px; padding-top: 4px; padding-bottom: 4px; }
+.studio-bar .menu-btn { font-size: 12px; font-weight: 500; padding: 6px 12px; border: 0; border-radius: 5px; }
+.studio-bar .menu-dropdown-content { top: calc(100% + 8px); min-width: 228px; max-width: min(320px, calc(100vw - 24px)); }
+.studio-bar .menu-item { width: 100%; border: 0; background: transparent; text-align: left; justify-content: space-between; border-radius: 4px; }
+.studio-bar .menu-item:hover:not(:disabled), .studio-bar .mode-tab:hover:not(:disabled) { background: var(--hover); }
+.studio-bar .menu-item:disabled { opacity: .4; cursor: not-allowed; }
+.studio-bar .menu-separator { background: var(--border); }
+.studio-bar .menu-info-val { max-width: 260px; }
+.mode-menu #appModeTabs { display: grid; }
+.mode-menu .mode-tab { display: block; width: 100%; text-align: left; border: 0; min-height: 34px; padding: 7px 9px; border-radius: 4px; }
+.mode-menu .mode-tab.active::after { content: '✓'; float: right; color: var(--accent); }
+@media (max-width: 640px) { .studio-bar { padding: 0 10px; } .brand-mark { margin-right: 7px; } .studio-current-mode { display: none; } }
+.mode-shell { flex: 1; display: grid; place-items: center; padding: 24px; }
+.mode-shell-card { max-width: 480px; width: 100%; padding: 40px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: 0 18px 60px #0003; }
+.mode-shell-kicker { color: var(--accent); letter-spacing: .14em; text-transform: uppercase; font-size: 10px; }
+.mode-shell h1 { font-size: 32px; letter-spacing: -.05em; margin: 12px 0; }
+.mode-shell p { color: var(--muted); font-size: 13px; line-height: 1.7; }
+.mode-shell-link { display: inline-block; margin-left: 16px; color: var(--accent); text-decoration: none; }
+.shell-folder-dialog { width: min(620px, calc(100vw - 32px)); max-height: 80vh; background: var(--surface-raised); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+.shell-folder-dialog::backdrop { background: #0009; }
+.shell-folder-bar, .shell-folder-actions { display: flex; gap: 8px; }
+.shell-folder-bar input { flex: 1; min-width: 0; padding: 8px; }
+.shell-folder-list { min-height: 120px; max-height: 45vh; overflow-y: auto; margin: 12px 0; }
+.shell-folder-row { display: block; width: 100%; text-align: left; background: transparent; color: var(--text); border: 0; border-radius: 4px; padding: 8px; cursor: pointer; }
+.shell-folder-row:hover, .shell-folder-row.selected { background: var(--hover); }
+.shell-folder-actions { justify-content: flex-end; }
+#shellFolderError { color: var(--danger); }

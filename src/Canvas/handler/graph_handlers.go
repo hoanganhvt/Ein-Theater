@@ -11,6 +11,7 @@ import (
 // DataHandler returns the current project's graph data.
 func DataHandler(w http.ResponseWriter, r *http.Request) {
 	started := time.Now()
+	editMu.Lock()
 	store.Mu.Lock()
 	p := store.Current()
 	if id := r.URL.Query().Get("projectId"); id != "" {
@@ -18,16 +19,19 @@ func DataHandler(w http.ResponseWriter, r *http.Request) {
 		p, ok = store.Projects[id]
 		if !ok {
 			store.Mu.Unlock()
+			editMu.Unlock()
 			http.Error(w, "project not found", http.StatusNotFound)
 			return
 		}
 	}
 	snapshot := p.PrepareSnapshot()
+	revision := p.SemanticRevision
 	baseDir := p.BaseDir
 	if baseDir == "" {
 		baseDir = store.WorkingDir
 	}
 	store.Mu.Unlock()
+	editMu.Unlock()
 	snapshotMS := float64(time.Since(started).Microseconds()) / 1000
 	if r.URL.Query().Get("analyze") == "false" {
 		w.Header().Set("Content-Type", "application/json")
@@ -45,10 +49,14 @@ func DataHandler(w http.ResponseWriter, r *http.Request) {
 			analyzed.Nodes[i].TensorInfo = &TensorInfo{Message: "Python shape analysis unavailable: " + err.Error()}
 		}
 	}
+	editMu.Lock()
 	store.Mu.Lock()
-	p.ApplyAnalysis(snapshot, analyzed)
+	if p.SemanticRevision == revision {
+		p.ApplyAnalysis(snapshot, analyzed)
+	}
 	data := p.GraphSnapshot()
 	store.Mu.Unlock()
+	editMu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Server-Timing", fmt.Sprintf("snapshot;dur=%.3f, analysis;dur=%.3f", snapshotMS, float64(time.Since(analysisStarted).Microseconds())/1000))
 	json.NewEncoder(w).Encode(data)

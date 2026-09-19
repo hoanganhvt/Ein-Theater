@@ -16,39 +16,15 @@ export async function deleteSelectionFromContextMenu() {
 
     if (selectedNodes.length === 0 && selectedEdges.length === 0) return;
 
-    // Delete selected nodes via batch API and clean up connected edges in frontend
-    if (selectedNodes.length > 0) {
-        try {
-            await api.deleteNodes(selectedNodes);
-            if (state.edgesDataSet) {
-                const nodeSet = new Set(selectedNodes);
-                const connectedEdges = state.edgesDataSet.get().filter(
-                    e => nodeSet.has(String(e.from)) || nodeSet.has(String(e.to))
-                );
-                if (connectedEdges.length > 0) {
-                    state.edgesDataSet.remove(connectedEdges.map(e => e.id));
-                }
-            }
-            if (state.nodesDataSet) {
-                state.nodesDataSet.remove(selectedNodes);
-            }
-        } catch (err) {
-            console.error('Failed to batch delete nodes:', err);
-        }
-    }
-
-    // Delete selected edges if any
-    if (selectedEdges.length > 0) {
-        for (const edgeId of selectedEdges) {
-            try {
-                await api.deleteEdge(edgeId);
-            } catch (err) {
-                console.error(`Failed to delete edge ${edgeId}:`, err);
-            }
-        }
-        if (state.edgesDataSet) {
-            state.edgesDataSet.remove(selectedEdges);
-        }
+    try {
+        await api.deleteSelection(selectedNodes, selectedEdges, state.currentProjectId);
+        const nodeSet = new Set(selectedNodes);
+        const incident = state.edgesDataSet ? state.edgesDataSet.get().filter(e => nodeSet.has(String(e.from)) || nodeSet.has(String(e.to))).map(e => e.id) : [];
+        if (state.edgesDataSet) state.edgesDataSet.remove([...new Set([...selectedEdges, ...incident])]);
+        if (state.nodesDataSet) state.nodesDataSet.remove(selectedNodes);
+    } catch (err) {
+        console.error('Failed to delete selection:', err);
+        throw err;
     }
 
     if (state.network) {

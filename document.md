@@ -4,8 +4,8 @@ This is the project-wide runtime guide. It follows execution from the browser to
 Go, through Python, and back to the UI or saved model files. Folder documents
 contain detailed component inputs/outputs, endpoint contracts and focused tests.
 
-Ein Theater is a visual PyTorch model editor. Canvas is the only implemented mode. The studio registry also declares Data, Code,
-Train and Debug as planned entries, without executable handlers.
+Ein Theater is a visual PyTorch model editor. Canvas is the implemented editor.
+Data, Debug and Code have navigable studio shells that identify their features as in development.
 The current application edits graphs, analyzes tensor shapes and generates model
 code. Starting the server does not start model training.
 
@@ -61,13 +61,13 @@ own their page/sidebar content, relative API routes and asset filesystem.
 - Mode APIs use /api/<id>/*; assets use /static/<id>/*; pages use /<id>.
 - Canvas retains flat legacy URLs for existing clients. In particular,
   /api/data is the Canvas graph endpoint, while /api/data/* belongs to future Data mode.
-- GET /api/modes supplies the shared navigation module. Planned entries are
-  disabled; registering a real implementation enables navigation automatically.
+- GET /api/modes supplies the shared Mode menu. Canvas, Data, Debug and Code are
+  navigable; the latter three currently display shells, not feature editors.
 - A mode owns its complete page and JavaScript lifecycle. Switching modes navigates
   to another page, not merely to another sidebar inside the Canvas editor.
 
-To add Data, Code, Train or Debug, implement its mode definition and replace its
-planned entry in main.go. Do not add feature routes to Canvas or studio. See the
+To implement Data, Debug or Code, replace its shell registration in main.go with
+its own mode definition. Do not add feature routes to Canvas or studio. See the
 [mode contract and implementation checklist](src/studio/document.md), including
 input/output contracts, example registration and isolation tests.
 
@@ -88,7 +88,7 @@ input/output contracts, example registration and isolation tests.
 ## 2. Startup: process to first canvas
 
 1. Run go run . in src. The composition root passes Canvas's definition
-   and the four planned mode entries to studio.NewHandler, then starts the server.
+   and three navigable development shells to studio.NewHandler, then starts the server.
    Standalone Canvas registers just Canvas with Standalone:true.
 2. Studio registers index, mode catalog, sidebar dispatch, shared static files and
    each available mode's page/API/asset namespace. Canvas APIs come from its private

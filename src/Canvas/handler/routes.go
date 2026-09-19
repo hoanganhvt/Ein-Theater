@@ -9,6 +9,11 @@ func RegisterAPI(mux *http.ServeMux) { registerAPI(mux, "") }
 func registerAPI(mux *http.ServeMux, prefix string) {
 	// Graph data
 	mux.HandleFunc(prefix+"/data", DataHandler)
+	mux.HandleFunc(prefix+"/history", HistoryHandler)
+	mux.HandleFunc(prefix+"/history/undo", HistoryHandler)
+	mux.HandleFunc(prefix+"/history/redo", HistoryHandler)
+	mux.HandleFunc(prefix+"/edit/drag", DragSelectionHandler)
+	mux.HandleFunc(prefix+"/edit/delete", DeleteSelectionHandler)
 
 	// Project management
 	mux.HandleFunc(prefix+"/projects", ListProjectsHandler)
@@ -29,20 +34,20 @@ func registerAPI(mux *http.ServeMux, prefix string) {
 	mux.HandleFunc(prefix+"/loadModel", LoadModelHandler)
 
 	// Node / edge operations (all apply to the active project)
-	mux.HandleFunc(prefix+"/rename", RenameModelHandler)
-	mux.HandleFunc(prefix+"/addNode", AddNodeHandler)
-	mux.HandleFunc(prefix+"/updateNode", UpdateNodeHandler)
-	mux.HandleFunc(prefix+"/deleteNode", DeleteNodeHandler)
-	mux.HandleFunc(prefix+"/deleteNodes", DeleteNodesHandler)
-	mux.HandleFunc(prefix+"/moveNode", MoveNodeHandler)
-	mux.HandleFunc(prefix+"/moveNodes", MoveNodesHandler)
-	mux.HandleFunc(prefix+"/addEdge", AddEdgeHandler)
-	mux.HandleFunc(prefix+"/updateEdge", UpdateEdgeHandler)
-	mux.HandleFunc(prefix+"/updateEdges", UpdateEdgesHandler)
-	mux.HandleFunc(prefix+"/deleteEdge", DeleteEdgeHandler)
-	mux.HandleFunc(prefix+"/paste", PasteGraphHandler)
-	mux.HandleFunc(prefix+"/pasteGraph", PasteGraphHandler)
-	mux.HandleFunc(prefix+"/clear", ClearGraphHandler)
+	mux.HandleFunc(prefix+"/rename", recorded(RenameModelHandler))
+	mux.HandleFunc(prefix+"/addNode", recorded(AddNodeHandler))
+	mux.HandleFunc(prefix+"/updateNode", recorded(UpdateNodeHandler))
+	mux.HandleFunc(prefix+"/deleteNode", recorded(DeleteNodeHandler))
+	mux.HandleFunc(prefix+"/deleteNodes", recorded(DeleteNodesHandler))
+	mux.HandleFunc(prefix+"/moveNode", recorded(MoveNodeHandler))
+	mux.HandleFunc(prefix+"/moveNodes", recorded(MoveNodesHandler))
+	mux.HandleFunc(prefix+"/addEdge", recorded(AddEdgeHandler))
+	mux.HandleFunc(prefix+"/updateEdge", recorded(UpdateEdgeHandler))
+	mux.HandleFunc(prefix+"/updateEdges", recorded(UpdateEdgesHandler))
+	mux.HandleFunc(prefix+"/deleteEdge", recorded(DeleteEdgeHandler))
+	mux.HandleFunc(prefix+"/paste", recorded(PasteGraphHandler))
+	mux.HandleFunc(prefix+"/pasteGraph", recorded(PasteGraphHandler))
+	mux.HandleFunc(prefix+"/clear", recorded(ClearGraphHandler))
 }
 
 // RegisterRoutes explicitly mounts legacy Canvas API paths, preventing namespace redirects.

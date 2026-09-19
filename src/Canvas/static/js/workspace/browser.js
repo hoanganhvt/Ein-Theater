@@ -59,6 +59,7 @@ export async function browseTo(dirPath) {
 
         // Update "Select This Folder" button
         if (confirmBtn) {
+            confirmBtn.disabled = false;
             confirmBtn.textContent = 'Select This Folder';
             const dirName = data.current.split(/[\\/]/).filter(Boolean).pop() || data.current;
             confirmBtn.title = `Set "${dirName}" as working directory`;
@@ -110,9 +111,7 @@ export async function browseTo(dirPath) {
                 folders.forEach(f => {
                     const row = document.createElement('div');
                     row.className = 'folder-browser-row is-folder' + (f.isModel ? ' is-model-folder' : '');
-                    row.title = f.isModel
-                        ? `Model "${f.name}": Click to load onto canvas`
-                        : `Click to select "${f.name}", or double-click to open`;
+                    row.title = `Click to select "${f.name}", or double-click to open`;
 
 
                     const tagHtml = f.isModel ? `<span class="model-tag">Model</span>` : '';
@@ -130,12 +129,8 @@ export async function browseTo(dirPath) {
                         </div>
                     `;
 
-                    // Single-click: if model, directly load onto canvas! Otherwise select row
-                    row.onclick = async () => {
-                        if (f.isModel) {
-                            await loadModelFromFolder(f.path);
-                            return;
-                        }
+                    // A single click selects a folder, including model folders.
+                    row.onclick = () => {
                         listContainer.querySelectorAll('.folder-browser-row').forEach(r => r.classList.remove('selected'));
                         row.classList.add('selected');
                         selectedFolderRowPath = f.path;
@@ -205,6 +200,7 @@ export async function browseTo(dirPath) {
         }
     } catch (err) {
         console.error('Failed to browse directory:', err);
+        if (confirmBtn) confirmBtn.disabled = true;
         if (listContainer) {
             listContainer.innerHTML = `<div class="folder-browser-error">Error: ${esc(err.message)}</div>`;
         }

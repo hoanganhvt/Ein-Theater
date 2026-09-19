@@ -101,8 +101,7 @@ state.network = {
     moveNode: (id, x, y) => { positions[id] = { x, y }; },
     setSelection() {}, redraw() {}
 };
-api.moveNodes = async items => { persisted.nodes = items; };
-api.updateEdges = async items => { persisted.edges = items; };
+api.dragSelection = async (nodes, edges) => { persisted.nodes = nodes; persisted.edges = edges; };
 setupNodeDragging();
 handlers.dragStart({ nodes: ['linear_0'] });
 for (const pos of Object.values(positions)) { pos.x += 73; pos.y += 26; }

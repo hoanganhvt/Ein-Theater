@@ -18,8 +18,15 @@ export async function initModeNavigation() {
             button.classList.toggle('disabled', !mode.available);
             button.title = mode.available ? `Open ${mode.name}` : `${mode.name} (Coming Soon)`;
             if (mode.id === active) button.setAttribute('aria-current', 'page');
-            if (mode.available) button.addEventListener('click', () => {
-                if (mode.id !== active) window.location.assign(mode.url);
+            if (mode.available) button.addEventListener('click', async () => {
+                if (mode.id === active) return;
+                try {
+                    await window.waitForCanvasEdits?.();
+                    window.location.assign(mode.url);
+                } catch (error) {
+                    console.error('Canvas edit is still unresolved:', error);
+                    alert('Could not finish the current edit. Please try again.');
+                }
             });
             return button;
         });

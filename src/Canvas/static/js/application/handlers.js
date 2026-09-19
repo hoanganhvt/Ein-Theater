@@ -27,6 +27,7 @@ import {
     updateEdgeUISelection
 } from '../circuit.js';
 import { copySelection, cutSelection, pasteClipboard, pasteClipboardAtContext, selectAllNodes, updateClipboardUI } from '../clipboard.js';
+import { undoCanvas, redoCanvas, refreshHistory } from '../history.js';
 
 export function invertSelectedEdgeFold() {
     const edgeId = getActiveEdgeId();
@@ -88,6 +89,9 @@ Object.assign(window, {
     pasteClipboardAtContext,
     selectAllNodes,
     updateClipboardUI,
+    undoCanvas,
+    redoCanvas,
+    refreshHistory,
 
     // Workspace & File Menu
     openSelectFolderModal,

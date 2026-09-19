@@ -264,29 +264,20 @@ export function setupNodeDragging() {
             state.edgesDataSet.update(edgeUpdates);
         }
 
-        // Persist to server
-        if (nodeUpdates.length > 0) {
-            api.moveNodes(nodeUpdates).catch(err => {
-                console.error('Failed to batch move nodes, falling back to individual moves:', err);
-                nodeUpdates.forEach(n => api.moveNode(n.id, n.x, n.y, false).catch(console.error));
-            });
-        }
-
-        if (edgeUpdates.length > 0) {
-            api.updateEdges(edgeUpdates.map(e => {
-                const edgeObj = state.edgesDataSet ? state.edgesDataSet.get(e.id) : null;
-                return {
-                    id: e.id,
-                    lines: e.lines,
-                    foldMode: e.foldMode || (edgeObj ? edgeObj.foldMode : undefined),
-                    customFold: e.customFold !== undefined ? e.customFold : (edgeObj ? edgeObj.customFold : undefined)
-                };
-            })).catch(err => {
-                console.error('Failed to batch update edges, falling back to individual updates:', err);
-                edgeUpdates.forEach(e => {
-                    const edgeObj = state.edgesDataSet ? state.edgesDataSet.get(e.id) : null;
-                    api.updateEdge(e.id, e.lines, edgeObj ? edgeObj.edgeType : null, edgeObj ? edgeObj.foldMode : null, edgeObj ? edgeObj.customFold : null).catch(console.error);
-                });
+        // Persist positions and wire geometry atomically as one history step.
+        const projectId = state.currentProjectId;
+        const persistedEdges = edgeUpdates.map(e => {
+            const edgeObj = state.edgesDataSet ? state.edgesDataSet.get(e.id) : null;
+            return {
+                id: e.id, lines: e.lines,
+                foldMode: e.foldMode || (edgeObj ? edgeObj.foldMode : undefined),
+                customFold: e.customFold !== undefined ? e.customFold : (edgeObj ? edgeObj.customFold : undefined)
+            };
+        });
+        if (nodeUpdates.length || persistedEdges.length) {
+            api.dragSelection(nodeUpdates, persistedEdges, projectId).catch(err => {
+                console.error('Failed to persist drag:', err);
+                import('./loading.js').then(({ loadGraph }) => loadGraph({ projectId }));
             });
         }
 

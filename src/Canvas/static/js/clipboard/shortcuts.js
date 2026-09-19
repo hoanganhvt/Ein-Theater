@@ -1,6 +1,7 @@
 import { state } from '../state.js';
 import { hasClipboardData, copySelection, cutSelection, pasteClipboard } from './operations.js';
 import { selectAllNodes, updateClipboardUI } from './presentation.js';
+import { undoCanvas, redoCanvas } from '../history.js';
 /**
  * Registers global keyboard shortcuts:
  * - Ctrl+C / Cmd+C: Copy selected node(s) and internal edges
@@ -12,7 +13,7 @@ export function setupClipboardShortcuts() {
     window.addEventListener('keydown', (e) => {
         // If user is editing inside a form field, let standard browser copy/paste take place
         const tag = document.activeElement ? document.activeElement.tagName : '';
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || document.activeElement?.isContentEditable) return;
 
         // If any modal dialog is currently visible, do not intercept canvas shortcuts
         const overlay = document.getElementById('modalOverlay');
@@ -22,7 +23,10 @@ export function setupClipboardShortcuts() {
         if (!isCtrl) return;
 
         const key = e.key.toLowerCase();
-        if (key === 'c') {
+        if (key === 'z' && e.shiftKey) { e.preventDefault(); redoCanvas(); }
+        else if (key === 'z') { e.preventDefault(); undoCanvas(); }
+        else if (key === 'y') { e.preventDefault(); redoCanvas(); }
+        else if (key === 'c') {
             const hasSel = state.network && state.network.getSelectedNodes().length > 0;
             if (hasSel) {
                 e.preventDefault();

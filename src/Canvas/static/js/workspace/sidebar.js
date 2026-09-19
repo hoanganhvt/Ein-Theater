@@ -2,7 +2,6 @@ import { state } from '../state.js';
 import { api } from '../api.js';
 import { esc } from '../utils.js';
 import { openSelectFolderModal } from './browser.js';
-import { closeFileMenu } from './menu.js';
 import { loadModelFromFolder } from './models.js';
 export async function initWorkspace() {
     try {
@@ -12,23 +11,13 @@ export async function initWorkspace() {
         } else {
             const container = document.getElementById('workspaceFileList');
             if (container) {
-                container.innerHTML = '<div class="workspace-empty-hint">No folder selected. Click to select a folder.</div>';
+                container.innerHTML = '<button class="workspace-empty-hint" onclick="openSelectFolderModal()">Open a folder to get started</button>';
             }
         }
     } catch (e) {
         console.error('Failed to initialize workspace:', e);
     }
 
-    // Close File menu when clicking outside
-    document.addEventListener('click', (e) => {
-        const fileMenu = document.getElementById('fileMenuDropdown');
-        const fileBtn = document.getElementById('fileMenuBtn');
-        if (fileMenu && fileMenu.classList.contains('open')) {
-            if (!fileMenu.contains(e.target) && e.target !== fileBtn) {
-                closeFileMenu();
-            }
-        }
-    });
 }
 
 export async function loadWorkspace() {
@@ -51,7 +40,7 @@ export function updateWorkspaceUI(workingDir, name) {
     const displayName = isNone ? 'None' : (name || workingDir.split(/[\\/]/).filter(Boolean).pop());
 
     if (menuDir) {
-        menuDir.textContent = isNone ? 'None' : workingDir;
+        menuDir.textContent = displayName;
         menuDir.title = isNone ? '' : workingDir;
     }
     if (sidebarName) sidebarName.textContent = displayName;
@@ -66,7 +55,7 @@ export async function loadWorkspaceFiles(dirPath) {
     if (!container) return;
 
     if (!dirPath) {
-        container.innerHTML = '<div class="workspace-empty-hint">No folder selected. Click to select a folder.</div>';
+        container.innerHTML = '<button class="workspace-empty-hint" onclick="openSelectFolderModal()">Open a folder to get started</button>';
         return;
     }
 

@@ -12,6 +12,7 @@ export function toggleFileMenu(event) {
     } else {
         menu.classList.add('open');
         if (btn) btn.classList.add('active');
+		if (btn) btn.setAttribute('aria-expanded', 'true');
     }
 }
 
@@ -20,4 +21,5 @@ export function closeFileMenu() {
     const btn = document.getElementById('fileMenuBtn');
     if (menu) menu.classList.remove('open');
     if (btn) btn.classList.remove('active');
+	if (btn) btn.setAttribute('aria-expanded', 'false');
 }

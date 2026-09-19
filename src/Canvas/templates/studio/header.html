@@ -1,74 +1,49 @@
-    <!-- ── Global Header ────────────────────────────────────────────── -->
-    <header class="studio-bar">
-        <nav class="mode-tabs" id="appModeTabs" aria-label="Workspace modes">
-            <button class="mode-tab active" data-mode="canvas" aria-current="page">Canvas</button>
-        </nav>
-    </header>
-    <div class="header">
-        <div class="header-left">
-            <!-- File Menu Dropdown -->
-            <div class="menu-dropdown">
-                <button class="btn menu-btn" id="fileMenuBtn" onclick="toggleFileMenu(event)" title="File options">File ▾</button>
-                <div class="menu-dropdown-content" id="fileMenuDropdown">
-                    <div class="menu-item" onclick="saveActiveModel(); closeFileMenu();">
-
-                        <span class="menu-text">Save Model</span>
-                        <span class="menu-badge">Ctrl+S</span>
-                    </div>
-                    <div class="menu-item" onclick="openSelectFolderModal(); closeFileMenu();">
-
-                        <span class="menu-text">Select Folder...</span>
-                    </div>
-                    <div class="menu-item disabled" title="Open File (coming soon)">
-
-                        <span class="menu-text">Open File...</span>
-                        <span class="menu-badge">Soon</span>
-                    </div>
-                    <div class="menu-separator"></div>
-                    <div class="menu-item-info">
-                        <span class="menu-info-label">Working Directory:</span>
-                        <span class="menu-info-val" id="menuWorkingDir">None</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="header-divider"></div>
-
-            <div class="model-title-wrap" onclick="startRename()" title="Click to rename model">
-                <h1 id="modelTitle">Untitled Model</h1>
-                <input id="modelTitleInput" type="text" maxlength="80"
-                       onblur="commitRename()"
-                       onkeydown="if(event.key==='Enter')commitRename();if(event.key==='Escape')cancelRename();" />
-            </div></div>
-
-        <div class="toolbar">
-            <!-- Connection Type Pills in Header Toolbar -->
-            <div id="headerEdgeToolbar" class="header-edge-toolbar" style="display:none;" onmousedown="event.preventDefault()">
-                <span class="header-edge-title" id="headerEdgeTitle">Edge:</span>
-                <span class="header-edge-nodes" id="headerEdgeNodes"></span>
-                <div class="header-edge-pills">
-                    <button class="btn-edge-pill" id="hdrBtnNormal" onclick="setSelectedEdgeType('normal')" title="Set connection to Normal Flow (unindexed)">
-                        <span class="pill-dot dot-normal"></span> Normal
-                    </button>
-                    <button class="btn-edge-pill" id="hdrBtnResidual" onclick="setSelectedEdgeType('residual')" title="Set connection to Residual (+) (indexed)">
-                        <span class="pill-dot dot-residual"></span> Residual (+)
-                    </button>
-                    <button class="btn-edge-pill" id="hdrBtnSkip" onclick="setSelectedEdgeType('skip')" title="Set connection to Skip (Concat) (indexed)">
-                        <span class="pill-dot dot-skip"></span> Skip (Concat)
-                    </button>
-                </div>
-                <div class="toolbar-divider-sm"></div>
-                <div class="header-edge-actions">
-                    <button class="btn-edge-pill" onclick="cycleSelectedEdgeFold()" title="Cycle bend mode (Space)">Fold</button>
-                    <button class="btn-edge-pill" onclick="openEditEdgeModal()" title="Edit connection details">Details</button>
-                    <button class="btn-edge-pill btn-edge-pill-danger" onclick="deleteSelectedEdge()" title="Delete connection">Delete</button>
-                </div>
-                <div class="toolbar-divider-sm"></div>
-            </div>
-
-            <button class="btn btn-save" id="btnSaveModel" onclick="saveActiveModel()" title="Save Model (Ctrl+S)">Save model</button>
-            <button class="btn" onclick="fitView()">Fit View</button>
-            <button class="btn btn-clear" onclick="clearGraph()">Clear Canvas</button>
+<header class="studio-bar" id="studioMenubar">
+    <a class="brand-mark" href="/" aria-label="EinTheater home">Ein<span>Theater</span></a>
+    <div class="menu-dropdown">
+        <button type="button" class="menu-btn" id="fileMenuBtn" aria-expanded="false" aria-controls="fileMenuDropdown">File</button>
+        <div class="menu-dropdown-content" id="fileMenuDropdown">
+            <button type="button" class="menu-item" data-command="open-folder">Open Folder…</button>
+            <button type="button" class="menu-item" id="btnSaveModel" data-command="save">Save Model <span class="menu-badge">Ctrl+S</span></button>
+            <div class="menu-separator"></div>
+            <div class="menu-item-info"><span class="menu-info-label">Workspace</span><span class="menu-info-val" id="menuWorkingDir">None</span></div>
         </div>
     </div>
-
+    <div class="menu-dropdown">
+        <button type="button" class="menu-btn" id="editMenuBtn" aria-expanded="false" aria-controls="editMenuDropdown">Edit</button>
+        <div class="menu-dropdown-content" id="editMenuDropdown">
+            <button type="button" class="menu-item" data-command="undo">Undo <span class="menu-badge">Ctrl+Z</span></button>
+            <button type="button" class="menu-item" data-command="redo">Redo <span class="menu-badge">Ctrl+Shift+Z</span></button>
+            <div class="menu-separator"></div>
+            <button type="button" class="menu-item" data-command="cut">Cut <span class="menu-badge">Ctrl+X</span></button>
+            <button type="button" class="menu-item" data-command="copy">Copy <span class="menu-badge">Ctrl+C</span></button>
+            <button type="button" class="menu-item" data-command="paste">Paste <span class="menu-badge">Ctrl+V</span></button>
+            <button type="button" class="menu-item" data-command="select-all">Select All <span class="menu-badge">Ctrl+A</span></button>
+            <div class="menu-separator"></div>
+            <button type="button" class="menu-item" data-command="clear">Clear Canvas…</button>
+        </div>
+    </div>
+    <div class="menu-dropdown">
+        <button type="button" class="menu-btn" id="modeMenuBtn" aria-expanded="false" aria-controls="modeMenuDropdown">Mode</button>
+        <nav class="menu-dropdown-content mode-menu" id="modeMenuDropdown" aria-label="Workspace modes"><div id="appModeTabs"></div></nav>
+    </div>
+    <span class="studio-current-mode">Canvas</span>
+</header>
+<div class="header canvas-command-bar">
+    <div class="model-title-wrap" onclick="startRename()" title="Click to rename model">
+        <h1 id="modelTitle">Untitled Model</h1>
+        <input id="modelTitleInput" type="text" maxlength="80" onblur="commitRename()" onkeydown="if(event.key==='Enter')commitRename();if(event.key==='Escape')cancelRename();" />
+    </div>
+    <div class="toolbar">
+        <div id="headerEdgeToolbar" class="header-edge-toolbar" style="display:none;" onmousedown="event.preventDefault()">
+            <span class="header-edge-title" id="headerEdgeTitle">Edge:</span>
+            <span class="header-edge-nodes" id="headerEdgeNodes"></span>
+            <div class="header-edge-actions">
+                <button class="btn-edge-pill" onclick="cycleSelectedEdgeFold()" title="Cycle bend mode (Space)">Fold</button>
+                <button class="btn-edge-pill" onclick="openEditEdgeModal()" title="Edit connection details">Details</button>
+                <button class="btn-edge-pill btn-edge-pill-danger" onclick="deleteSelectedEdge()" title="Delete connection">Delete</button>
+            </div>
+        </div>
+        <button class="btn" onclick="fitView()">Fit View</button>
+    </div>
+</div>

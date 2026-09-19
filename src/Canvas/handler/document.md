@@ -139,3 +139,13 @@ workspace, save a small Input → Linear graph with Python/PyTorch installed, th
 load the resulting folder. See the [Python bridge guide](../utils/python/document.md)
 for prerequisites and expected artifacts, and the [workspace guide](../utils/workspace/document.md)
 for native-picker cancellation testing.
+# History endpoints
+
+`GET /api/history?projectId=...` returns the graph, `canUndo`, `canRedo` and
+revision. `POST /api/history/undo` and `/api/history/redo` restore one project
+step. Namespaced `/api/canvas/history/*` works as well. Missing projects return
+404 and empty history returns 409. `POST /api/edit/drag` commits positions and
+routes as one validated step; `POST /api/edit/delete` deletes a node/edge
+selection as one validated step. Both accept `projectId`, `nodes` and `edges`.
+Mutations are serialized with history commands; shape analysis runs outside
+the edit lock.

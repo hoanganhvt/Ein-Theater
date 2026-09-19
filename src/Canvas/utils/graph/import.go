@@ -69,6 +69,7 @@ func (s *Store) ImportGraph(graphData GraphData, cleanFolder string) *Project {
 	p.ReindexEdges()
 
 	p.NextEdgeID = len(p.Edges)
+	p.ResetHistory()
 
 	return p
 }

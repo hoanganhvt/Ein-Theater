@@ -13,9 +13,11 @@ import { setupContextMenu } from '../contextMenu.js';
 import { initWorkspace, saveActiveModel } from '../workspace.js';
 
 import { setupClipboardShortcuts } from '../clipboard.js';
+import { trackCanvasEdits } from './pending.js';
 
 // ── Application Initialization ────────────────────────────────────
 export async function initApp() {
+    trackCanvasEdits();
     await initSchemas();
     populateCategoryDropdown();
     populateNodeTypeDropdown();
@@ -36,6 +38,11 @@ export async function initApp() {
     setupBoxSelection();
     setupContextMenu();
     setupClipboardShortcuts();
+    window.addEventListener('beforeunload', () => {
+        const { state } = window;
+        if (!state?.network || !state.currentProjectId) return;
+        try { sessionStorage.setItem('ein_view_' + state.currentProjectId, JSON.stringify({ position: state.network.getViewPosition(), scale: state.network.getScale() })); } catch (_) {}
+    });
 
     // Global shortcut: Ctrl+S or Cmd+S to save model
     window.addEventListener('keydown', (e) => {

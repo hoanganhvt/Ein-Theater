@@ -7,15 +7,19 @@ import (
 
 // Project holds all state for one model canvas.
 type Project struct {
-	BaseDir    string
-	NodeOrder  []string
-	ID         string
-	Name       string
-	Nodes      map[string]Node
-	Edges      map[string]Edge
-	EdgeOrder  []string
-	NextNodeID int
-	NextEdgeID int
+	BaseDir          string
+	NodeOrder        []string
+	ID               string
+	Name             string
+	Nodes            map[string]Node
+	Edges            map[string]Edge
+	EdgeOrder        []string
+	NextNodeID       int
+	NextEdgeID       int
+	Revision         uint64
+	SemanticRevision uint64
+	UndoStack        []ProjectState
+	RedoStack        []ProjectState
 }
 
 // ReindexEdges purges deleted edges from EdgeOrder and clears legacy indexes.

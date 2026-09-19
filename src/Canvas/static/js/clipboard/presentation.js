@@ -35,4 +35,7 @@ export function updateClipboardUI() {
             btnPaste.setAttribute('disabled', 'true');
         }
     }
+    for (const [command, enabled] of Object.entries({ copy: hasSelection, cut: hasSelection, paste: hasClip, 'select-all': !!state.nodesDataSet?.length, clear: !!state.nodesDataSet?.length })) {
+        document.querySelectorAll?.(`[data-command="${command}"]`).forEach(item => item.disabled = !enabled);
+    }
 }

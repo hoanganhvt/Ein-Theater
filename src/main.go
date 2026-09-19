@@ -12,16 +12,7 @@ import (
 func main() {
 	fmt.Println("Starting Ein Theater Studio...")
 
-	mux, err := studio.NewHandler(studio.Config{
-		DefaultMode: "canvas",
-		Modes: []studio.Mode{
-			canvas.Definition(),
-			{ID: "data", Name: "Data"},
-			{ID: "code", Name: "Code"},
-			{ID: "train", Name: "Train"},
-			{ID: "debug", Name: "Debug"},
-		},
-	})
+	mux, err := studio.NewHandler(studioConfig())
 	if err != nil {
 		panic(err)
 	}
@@ -37,5 +28,17 @@ func main() {
 
 	if err := http.ListenAndServe(":"+port, mux); err != nil {
 		fmt.Println("Error starting server:", err)
+	}
+}
+
+func studioConfig() studio.Config {
+	return studio.Config{
+		DefaultMode: "canvas",
+		Modes: []studio.Mode{
+			canvas.Definition(),
+			{ID: "data", Name: "Data", Page: studio.ShellPage("data", "Data")},
+			{ID: "debug", Name: "Debug", Page: studio.ShellPage("debug", "Debug")},
+			{ID: "code", Name: "Code", Page: studio.ShellPage("code", "Code")},
+		},
 	}
 }

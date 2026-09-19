@@ -11,6 +11,7 @@ export function attachShapeRefresh(api) {
     let timer = null;
     let running = false;
     let waiters = [];
+    api.invalidateShapeRefresh = () => { ++version; requested = null; };
 
     function settle() {
         if (timer !== null || running || requested || pendingMutations) return;
@@ -70,7 +71,7 @@ export function attachShapeRefresh(api) {
         });
     };
 
-    for (const method of ['addNode', 'updateNode', 'deleteNode', 'deleteNodes', 'addEdge', 'deleteEdge', 'pasteGraph', 'clearGraph', 'saveModel']) {
+    for (const method of ['addNode', 'updateNode', 'deleteNode', 'deleteNodes', 'deleteSelection', 'addEdge', 'deleteEdge', 'pasteGraph', 'clearGraph', 'saveModel']) {
         const mutate = api[method];
         api[method] = async function (...args) {
             const dataSet = state.nodesDataSet;

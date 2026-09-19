@@ -89,3 +89,12 @@ handler's package-level store or analysis function.
 encoding-corrupted IntegratedModel captions, recursively including adapted graphs.
 It returns nothing and preserves parameters, topology and ordinary labels. Saved
 model decoding calls it before snapshots. See [performance](../../performance.md).
+# Edit history
+
+`Project` owns bounded Undo and Redo stacks (100 steps) of deep project states.
+`RecordEdit` ignores no-op changes and derived shape metadata. Layout edits
+increment the general revision; semantic edits also increment semantic revision.
+`DataHandler` checks semantic revision before applying asynchronous inference,
+which prevents an old A→B→A analysis result from overwriting restored state.
+Importing a model resets that project's history baseline. History is kept only
+for the current server lifetime.

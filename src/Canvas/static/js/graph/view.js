@@ -10,7 +10,7 @@ export function fitView() {
 }
 
 export async function clearGraph() {
-    if (!confirm('Clear the entire canvas? This cannot be undone.')) return;
+    if (!confirm('Clear the entire canvas? You can undo this action.')) return;
     try {
         cancelWireCreation();
         await api.clearGraph();

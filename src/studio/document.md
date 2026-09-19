@@ -1,7 +1,7 @@
 # Studio routing and mode registration
 
 The studio owns application-level HTTP behavior. It imports no Canvas, Data, Code,
-Train or Debug implementation. `src/main.go` is the composition root that supplies
+or Debug feature implementation. `src/main.go` is the composition root that supplies
 mode definitions. Canvas-specific HTML is owned by Canvas even when it is the
 first page shown at `/`.
 
@@ -44,18 +44,18 @@ Modes may reuse relative endpoint and asset names without shadowing one another.
 Global static files win over legacy Canvas fallbacks. Registry IDs are trusted
 startup configuration; request values never become template filenames.
 
-## Add Data, Code, Train or Debug
+## Implement Data, Code or Debug
 
 1. Create a feature directory, e.g. `src/Data/handler`, `templates`, `static` and
    task-specific `utils`. Keep its state and workflows out of Canvas packages.
 2. Add `src/Data/mode` returning `studio.Mode`. Register only relative API paths.
    Use `paths.Source("Data", "templates", "data.html")` and `studio.ServeTemplate`
    for a page. Give the page its own JavaScript entry under `/static/data/`.
-3. Replace `{ID: "data", Name: "Data"}` in `src/main.go` with `data.Definition()`.
+3. Replace the matching `studio.ShellPage` registration in `src/main.go` with `data.Definition()`.
    Do not edit `studio` or `Canvas/handler/routes.go` to add mode-specific routes.
 4. For shared navigation, render `id="appModeTabs"`, set
    `<body data-studio-mode="data">`, and load `/static/studio/navigation.js` as a
-   module. Available modes navigate to their pages; planned modes stay disabled.
+   module. Available modes navigate to their pages.
 5. Add mode-local HTTP/task tests, folder documentation with input/output/error
    contracts, and an integration test through `studio.NewHandler`.
 
@@ -100,3 +100,13 @@ From the repository root, run
 an available sibling navigates to its URL, and an unavailable mode is disabled.
 Manually launch studio and check Canvas, Data, Code, Train and Debug appear; only
 Canvas is available until the other definitions provide implementations.
+# Current studio navigation
+
+The application menu is `EinTheater File Edit Mode`. `/api/modes` returns Canvas,
+Data, Debug and Code in that order. Data, Debug and Code currently use `ShellPage`
+with independent routes and clear development status. The standalone Canvas
+entry registers Canvas only. `static/studio/menubar.js` owns menu interaction,
+while `navigation.js` fills the Mode dropdown from the registry.
+Canvas waits for pending graph writes before following a Mode link. Run
+`node src/static/studio/menubar.test.mjs` and
+`node src/static/studio/navigation.test.mjs` for menu behavior.

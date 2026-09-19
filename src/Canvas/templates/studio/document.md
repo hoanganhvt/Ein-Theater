@@ -16,7 +16,7 @@ studio router selects `handler.HomeHandler` when Canvas is the initial studio mo
 
 Fragments are trusted static input to the shared include composer. Their output is
 HTML embedded in the Canvas home document, not standalone responses. No Data,
-Code, Train or Debug rendering logic belongs here.
+Code or Debug rendering logic belongs here.
 
 From `src`, run `go test ./Canvas/mode -v`; root, Canvas and sidebar pages must have
 resolved includes and expected mount elements. From the repository root, run

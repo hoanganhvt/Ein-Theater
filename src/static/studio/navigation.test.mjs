@@ -28,7 +28,7 @@ assert.equal(buttons.length, 3);
 assert.equal(buttons[0].attributes['aria-current'], 'page');
 buttons[0].click();
 assert.equal(destination, null);
-buttons[1].click();
+await buttons[1].click();
 assert.equal(destination, '/data');
 assert.equal(buttons[2].disabled, true);
 assert.equal(buttons[2].click, undefined);
