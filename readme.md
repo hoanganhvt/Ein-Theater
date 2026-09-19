@@ -6,6 +6,8 @@ Ein Theater is a solution to free up your mind from coding, and let you focus on
 
 Inspired by electrical PCB schematics and IC chip diagrams, **Ein Theater** turns PyTorch neural network construction into an intuitive, visual drag-and-drop schematic editor with orthogonal 90° wiring, interactive diamond fold waypoints, multi-model workspace tabs, live hyperparameter configuration, and instant standalone PyTorch `nn.Module` code generation via symbolic graph tracing.
 
+![Ein Theater — UNet architecture on the visual canvas](./assets/Demo_image.png)
+
 ---
 
 ## Quickstart
