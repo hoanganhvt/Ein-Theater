@@ -3,6 +3,43 @@ import { api } from '../api.js';
 import { esc } from '../utils.js';
 import { openSelectFolderModal } from './browser.js';
 import { loadModelFromFolder } from './models.js';
+import { showToast } from './notifications.js';
+
+function showModelFolderMenu(event, folder) {
+    let menu = document.getElementById('modelFolderMenu');
+    if (!menu) {
+        menu = document.createElement('div');
+        menu.id = 'modelFolderMenu';
+        menu.className = 'context-menu model-folder-menu';
+        menu.innerHTML = '<button type="button" class="context-menu-item danger">Delete model folder…</button>';
+        document.body.appendChild(menu);
+        menu.querySelector('button').addEventListener('click', async () => {
+            const path = menu.dataset.path;
+            const name = menu.dataset.name;
+            menu.style.display = 'none';
+            if (!window.confirm(`Delete the entire model folder "${name}" and all files inside it? This cannot be undone.`)) return;
+            try {
+                await api.deleteModelFolder(path);
+                await loadWorkspaceFiles(state.workingDir);
+                showToast(`Deleted model folder "${name}"`);
+            } catch (err) {
+                showToast('Failed to delete model folder: ' + err.message);
+            }
+        });
+        document.addEventListener('click', (e) => {
+            if (!menu.contains(e.target)) menu.style.display = 'none';
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') menu.style.display = 'none';
+        });
+    }
+    menu.dataset.path = folder.path;
+    menu.dataset.name = folder.name;
+    menu.style.display = 'block';
+    menu.style.left = Math.max(8, Math.min(event.clientX, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+    menu.style.top = Math.max(8, Math.min(event.clientY, window.innerHeight - menu.offsetHeight - 8)) + 'px';
+}
+
 export async function initWorkspace() {
     try {
         await loadWorkspace();
@@ -88,6 +125,11 @@ export async function loadWorkspaceFiles(dirPath) {
                 ${badgeHtml}
             `;
             if (f.isModel) {
+                item.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showModelFolderMenu(e, f);
+                });
                 item.setAttribute('draggable', 'true');
                 item.addEventListener('dragstart', (e) => {
                     e.dataTransfer.setData('text/plain', JSON.stringify({

@@ -87,3 +87,59 @@ func TestWorkspaceModelRoundTrip(t *testing.T) {
 		t.Fatalf("method guard: %d", w.Code)
 	}
 }
+
+func TestDeleteModelFolderOnlyWithinActiveWorkspace(t *testing.T) {
+	previous := store
+	store = graph.NewStore()
+	t.Cleanup(func() { store = previous })
+	root := t.TempDir()
+	outside := t.TempDir()
+	store.WorkingDir = root
+	model := filepath.Join(root, "demo")
+	otherModel := filepath.Join(outside, "other")
+	plain := filepath.Join(root, "plain")
+	for _, folder := range []string{model, otherModel, plain} {
+		if err := os.Mkdir(folder, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, folder := range []string{model, otherModel} {
+		name := filepath.Base(folder)
+		for _, ext := range []string{".json", ".py"} {
+			if err := os.WriteFile(filepath.Join(folder, name+ext), []byte("fixture"), 0600); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if err := os.Mkdir(filepath.Join(model, "nested"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	mux := http.NewServeMux()
+	RegisterRoutes(mux)
+	request := func(method, path string) int {
+		t.Helper()
+		body, _ := json.Marshal(map[string]string{"path": path})
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, httptest.NewRequest(method, "/api/workspace/delete-model-folder", strings.NewReader(string(body))))
+		return w.Code
+	}
+	if got := request("GET", model); got != http.StatusMethodNotAllowed {
+		t.Fatalf("GET: %d", got)
+	}
+	for _, path := range []string{root, plain, filepath.Join(model, "nested"), outside, otherModel, filepath.Join(root, "..", filepath.Base(otherModel))} {
+		if got := request("POST", path); got != http.StatusBadRequest {
+			t.Fatalf("delete %q: %d", path, got)
+		}
+	}
+	if got := request("POST", model); got != http.StatusOK {
+		t.Fatalf("model delete: %d", got)
+	}
+	if _, err := os.Stat(model); !os.IsNotExist(err) {
+		t.Fatalf("model folder still exists: %v", err)
+	}
+	for _, path := range []string{plain, otherModel} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("protected folder %q: %v", path, err)
+		}
+	}
+}

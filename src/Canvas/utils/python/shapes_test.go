@@ -1,10 +1,104 @@
 package python
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 	graphdata "web-app/Canvas/utils/graph"
 )
+
+func TestPythonWorkerFallsBackWhenPython3CannotStart(t *testing.T) {
+	requireUnixShellFake(t)
+	dir := t.TempDir()
+	python3 := filepath.Join(dir, "python3")
+	if err := os.WriteFile(python3, []byte("#!/missing-interpreter\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	python := filepath.Join(dir, "python")
+	if err := os.WriteFile(python, []byte("#!/bin/sh\necho python >> \"$TEST_PYTHON_LOG\"\nwhile IFS= read -r request; do printf '{\"graph\":{\"name\":\"fallback\"}}\\n'; done\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	log := filepath.Join(dir, "calls")
+	t.Setenv("PATH", dir)
+	t.Setenv("TEST_PYTHON_LOG", log)
+
+	worker := &pythonShapeWorker{}
+	defer worker.stop()
+	result, err := worker.analyze(graphdata.GraphData{Name: "request", Nodes: []graphdata.Node{{ID: "n"}}}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Name != "fallback" {
+		t.Fatalf("worker result = %#v", result)
+	}
+	if got := readFakeLog(t, log); got != "python" {
+		t.Fatalf("interpreter calls = %q, want python fallback only", got)
+	}
+}
+
+func TestPythonWorkerFallsBackWhenPython3ExitsBeforeResponse(t *testing.T) {
+	requireUnixShellFake(t)
+	dir := installFakePython(t, map[string]string{
+		"python3": "#!/bin/sh\necho python3 >> \"$TEST_PYTHON_LOG\"\nexit 1\n",
+		"python":  "#!/bin/sh\necho python >> \"$TEST_PYTHON_LOG\"\nif IFS= read -r request || [ -n \"$request\" ]; then printf '%s' \"$request\" > \"$TEST_PYTHON_INPUT\"; fi\nprintf '{\"graph\":{\"name\":\"fallback-exchange\"}}\\n'\n",
+	})
+	log := filepath.Join(dir, "calls")
+	inputPath := filepath.Join(dir, "python-input")
+	t.Setenv("PATH", dir)
+	t.Setenv("TEST_PYTHON_LOG", log)
+	t.Setenv("TEST_PYTHON_INPUT", inputPath)
+
+	worker := &pythonShapeWorker{}
+	defer worker.stop()
+	result, err := worker.analyze(graphdata.GraphData{Name: "retry-exchange", Nodes: []graphdata.Node{{ID: "n"}}}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Name != "fallback-exchange" {
+		t.Fatalf("worker result = %#v", result)
+	}
+	if got := readFakeLog(t, log); got != "python3\npython" {
+		t.Fatalf("interpreter calls = %q, want one call to each interpreter", got)
+	}
+	request, err := os.ReadFile(inputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(request), "retry-exchange") {
+		t.Fatalf("fallback did not receive the original request: %q", request)
+	}
+}
+
+func TestPythonWorkerDoesNotFallbackAfterPython3Starts(t *testing.T) {
+	requireUnixShellFake(t)
+	dir := installFakePython(t, map[string]string{
+		"python3": "#!/bin/sh\necho python3 >> \"$TEST_PYTHON_LOG\"\nwhile IFS= read -r request; do printf '{\"error\":\"declared graph error\"}\\n'; done\n",
+		"python":  "#!/bin/sh\necho python >> \"$TEST_PYTHON_LOG\"\nexit 99\n",
+	})
+	log := filepath.Join(dir, "calls")
+	t.Setenv("PATH", dir)
+	t.Setenv("TEST_PYTHON_LOG", log)
+
+	worker := &pythonShapeWorker{}
+	defer worker.stop()
+	_, err := worker.analyze(graphdata.GraphData{Name: "request", Nodes: []graphdata.Node{{ID: "n"}}}, "")
+	if err == nil || !strings.Contains(err.Error(), "declared graph error") {
+		t.Fatalf("worker error = %v", err)
+	}
+	if got := readFakeLog(t, log); got != "python3" {
+		t.Fatalf("interpreter calls = %q, want python3 only", got)
+	}
+}
+
+func requireUnixShellFake(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("shell-script fake interpreters are not portable to Windows")
+	}
+}
 
 func TestPythonWorkerProtocolAndReuse(t *testing.T) {
 	python, err := exec.LookPath("python")

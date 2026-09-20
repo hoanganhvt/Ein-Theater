@@ -1,3 +1,8 @@
 .btn-save { background: #c9d2df; color: #14171c; border-color: #c9d2df; font-weight: 600; }
 .btn-save:hover { background: #e0e5ed; color: #14171c; border-color: #e0e5ed; }
 .btn-save:disabled { opacity: .4; cursor: not-allowed; }
+
+.save-status { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.save-status[hidden] { display: none; }
+.save-spinner { width: 12px; height: 12px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: save-spin .7s linear infinite; }
+@keyframes save-spin { to { transform: rotate(360deg); } }

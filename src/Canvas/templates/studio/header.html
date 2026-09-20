@@ -35,6 +35,7 @@
         <input id="modelTitleInput" type="text" maxlength="80" onblur="commitRename()" onkeydown="if(event.key==='Enter')commitRename();if(event.key==='Escape')cancelRename();" />
     </div>
     <div class="toolbar">
+        <span id="saveModelStatus" class="save-status" role="status" aria-live="polite" hidden><span class="save-spinner" aria-hidden="true"></span>Saving model…</span>
         <div id="headerEdgeToolbar" class="header-edge-toolbar" style="display:none;" onmousedown="event.preventDefault()">
             <span class="header-edge-title" id="headerEdgeTitle">Edge:</span>
             <span class="header-edge-nodes" id="headerEdgeNodes"></span>

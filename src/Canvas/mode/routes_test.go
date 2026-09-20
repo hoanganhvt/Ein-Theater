@@ -10,11 +10,27 @@ import (
 	"web-app/studio"
 )
 
+func chdirForTest(t *testing.T, dir string) {
+	t.Helper()
+	previous, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(previous); err != nil {
+			t.Error(err)
+		}
+	})
+}
+
 func TestUIRoutesComposeFragments(t *testing.T) {
 	// Test both supported launch directories, including the standalone Canvas app.
 	for _, dir := range []string{"../..", ".."} {
 		t.Run(dir, func(t *testing.T) {
-			t.Chdir(dir)
+			chdirForTest(t, dir)
 			mux, err := studio.NewHandler(studio.Config{Modes: []studio.Mode{Definition()}, DefaultMode: "canvas"})
 			if err != nil {
 				t.Fatal(err)

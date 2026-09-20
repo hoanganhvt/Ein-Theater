@@ -34,6 +34,16 @@ export const workspaceApi = {
         return await res.json();
     },
 
+    async deleteModelFolder(path) {
+        const res = await fetch('/api/workspace/delete-model-folder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path })
+        });
+        if (!res.ok) throw new Error(await res.text() || 'Failed to delete model folder');
+        return await res.json();
+    },
+
     async inspectModel(path) {
         const res = await fetch(`/api/workspace/inspect-model?path=${encodeURIComponent(path)}`);
         if (!res.ok) {

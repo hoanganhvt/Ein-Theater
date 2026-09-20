@@ -33,7 +33,7 @@ func ComposeTemplate(path string, active map[string]bool) ([]byte, error) {
 			return ""
 		}
 		rel := templateInclude.FindStringSubmatch(marker)[1]
-		if !filepath.IsLocal(rel) || strings.Contains(rel, "..") {
+		if filepath.IsAbs(rel) || filepath.VolumeName(rel) != "" || strings.Contains(rel, "..") {
 			includeErr = fmt.Errorf("invalid template include: %s", rel)
 			return ""
 		}

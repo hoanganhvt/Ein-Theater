@@ -5,7 +5,10 @@ import { loadProjects } from '../projects.js';
 import { openSelectFolderModal, closeSelectFolderModal } from './browser.js';
 import { loadWorkspaceFiles } from './sidebar.js';
 import { showToast } from './notifications.js';
+let savingModel = false;
+
 export async function saveActiveModel() {
+    if (savingModel) return;
     if (!state.workingDir) {
         alert('Please select a working directory first to save your model.');
         openSelectFolderModal();
@@ -13,11 +16,15 @@ export async function saveActiveModel() {
     }
 
     const btn = document.getElementById('btnSaveModel');
-    const origText = btn ? btn.textContent : 'Save';
+    const status = document.getElementById('saveModelStatus');
+    const label = btn?.firstChild;
+    const origText = label?.textContent;
+    savingModel = true;
     if (btn) {
-        btn.textContent = 'Saving...';
+        if (label) label.textContent = 'Saving… ';
         btn.disabled = true;
     }
+    if (status) status.hidden = false;
 
     try {
         const res = await api.saveModel(state.currentProjectId || '', state.workingDir);
@@ -41,9 +48,11 @@ export async function saveActiveModel() {
         alert('Failed to save model: ' + err.message);
     } finally {
         if (btn) {
-            btn.textContent = origText;
+            if (label) label.textContent = origText;
             btn.disabled = false;
         }
+        if (status) status.hidden = true;
+        savingModel = false;
     }
 }
 

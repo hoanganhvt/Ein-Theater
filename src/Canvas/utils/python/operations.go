@@ -19,12 +19,21 @@ func GenerateModel(graphPayload graph.GraphData, cleanTarget, baseDir string) (m
 
 	genCodePyPath := FindGenCodePyPath()
 	cmdArgs := []string{genCodePyPath, "--save-canvas", "-", "--out-dir", cleanTarget, "--base-dir", baseDir}
-	cmd := exec.Command("python", cmdArgs...)
-	cmd.Env = processEnvironment()
-	cmd.Stdin = strings.NewReader(string(canvasBytes))
-	out, err := cmd.CombinedOutput()
+	run := func(interpreter string) ([]byte, error) {
+		cmd := exec.Command(interpreter, cmdArgs...)
+		cmd.Env = processEnvironment()
+		// Build a reader per attempt because the first process consumes its input.
+		cmd.Stdin = strings.NewReader(string(canvasBytes))
+		return cmd.CombinedOutput()
+	}
+
+	out, err := run("python3")
 	if err != nil {
-		return nil, false, fault.Internal(fmt.Sprintf("Python model generation error (%v): %s", err, string(out)))
+		python3Err, python3Out := err, out
+		out, err = run("python")
+		if err != nil {
+			return nil, false, fault.Internal(fmt.Sprintf("Python model generation error (python3: %v: %s; python: %v: %s)", python3Err, string(python3Out), err, string(out)))
+		}
 	}
 
 	outStr := strings.TrimSpace(string(out))

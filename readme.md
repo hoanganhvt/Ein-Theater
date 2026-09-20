@@ -6,7 +6,7 @@ Design PyTorch models visually. Build and connect blocks on the Canvas, then sav
 
 ## Get started
 
-Install Go 1.25.5 and Python with PyTorch, then run:
+Install Go 1.18 or newer and Python with PyTorch, then run:
 
 ```powershell
 cd src

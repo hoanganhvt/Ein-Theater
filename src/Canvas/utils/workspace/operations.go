@@ -172,3 +172,36 @@ func CreateFolder(dir, name string) (map[string]interface{}, error) {
 		"parent": cleanParent,
 	}, nil
 }
+
+// DeleteModelFolder removes a saved model that is an immediate child of the active workspace.
+func DeleteModelFolder(workingDir, folderPath string) error {
+	if workingDir == "" || folderPath == "" {
+		return fault.Invalid("Working directory and model folder are required")
+	}
+	root, err := filepath.Abs(workingDir)
+	if err != nil {
+		return fault.Invalid("Invalid working directory")
+	}
+	target, err := filepath.Abs(folderPath)
+	if err != nil || filepath.Dir(target) != root {
+		return fault.Invalid("Model folder must be directly inside the active workspace")
+	}
+	listing, err := Browse(root)
+	if err != nil {
+		return err
+	}
+	isModel := false
+	for _, folder := range listing.Folders {
+		if folder.Path == target && folder.IsModel {
+			isModel = true
+			break
+		}
+	}
+	if !isModel {
+		return fault.Invalid("Folder is not a saved model")
+	}
+	if err := os.RemoveAll(target); err != nil {
+		return fault.Internal("Failed to delete model folder: " + err.Error())
+	}
+	return nil
+}

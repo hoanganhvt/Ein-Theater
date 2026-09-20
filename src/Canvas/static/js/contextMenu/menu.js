@@ -82,7 +82,7 @@ export function setupContextMenu() {
             cmCopy.style.display = 'flex';
             if (count > 0) {
                 cmCopy.classList.remove('disabled');
-                cmCopyText.textContent = count > 1 ? `Copy (${count} blocks)` : 'Copy';
+                cmCopyText.textContent = count > 1 ? `Copy (${count} blocks)` : 'Copy block';
             } else {
                 cmCopy.classList.add('disabled');
                 cmCopyText.textContent = 'Copy';

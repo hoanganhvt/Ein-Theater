@@ -13,7 +13,7 @@ func TestGeneratorDiscoveryFromLaunchAndPackageDirectories(t *testing.T) {
 	}
 	for _, dir := range []string{".", "../..", "../../.."} {
 		t.Run(dir, func(t *testing.T) {
-			t.Chdir(dir)
+			chdirForTest(t, dir)
 			got := FindGenCodePyPath()
 			if got != want {
 				t.Fatalf("generator = %q, want %q", got, want)
@@ -23,4 +23,20 @@ func TestGeneratorDiscoveryFromLaunchAndPackageDirectories(t *testing.T) {
 			}
 		})
 	}
+}
+
+func chdirForTest(t *testing.T, dir string) {
+	t.Helper()
+	previous, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(previous); err != nil {
+			t.Error(err)
+		}
+	})
 }

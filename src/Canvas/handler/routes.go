@@ -27,6 +27,7 @@ func registerAPI(mux *http.ServeMux, prefix string) {
 	mux.HandleFunc(prefix+"/workspace/browse", BrowseWorkspaceHandler)
 	mux.HandleFunc(prefix+"/workspace/select-native", SelectNativeFolderHandler)
 	mux.HandleFunc(prefix+"/workspace/create-folder", CreateFolderHandler)
+	mux.HandleFunc(prefix+"/workspace/delete-model-folder", DeleteModelFolderHandler)
 	mux.HandleFunc(prefix+"/workspace/inspect-model", InspectModelHandler)
 	mux.HandleFunc(prefix+"/workspace/save-model", SaveModelHandler)
 	mux.HandleFunc(prefix+"/saveModel", SaveModelHandler)
