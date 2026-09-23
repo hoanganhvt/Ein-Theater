@@ -35,13 +35,13 @@ export async function loadGraph({ projectId = null } = {}) {
         const options = createNetworkOptions();
 
         if (state.network && state.currentProjectId) {
-            try { sessionStorage.setItem('ein_view_' + state.currentProjectId, JSON.stringify({ position: state.network.getViewPosition(), scale: state.network.getScale() })); } catch (_) {}
+            try { localStorage.setItem('ein_view_' + state.currentProjectId, JSON.stringify({ position: state.network.getViewPosition(), scale: state.network.getScale() })); } catch (_) {}
         }
         state.currentProjectId = data.projectId;
         if (state.network) state.network.destroy();
         state.network = new vis.Network(container, graphData, options);
         try {
-            const saved = JSON.parse(sessionStorage.getItem('ein_view_' + data.projectId) || 'null');
+            const saved = JSON.parse(localStorage.getItem('ein_view_' + data.projectId) || 'null');
             if (saved?.position && Number.isFinite(saved.scale)) state.network.moveTo({ position: saved.position, scale: saved.scale, animation: false });
         } catch (_) {}
         setMode(state.currentMode);

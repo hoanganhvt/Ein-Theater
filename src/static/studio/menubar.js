@@ -27,7 +27,7 @@ if (bar) {
         const item = event.target.closest('[data-command]');
         if (!item || item.disabled) return;
         const actions = {
-            'open-folder': () => window.openSelectFolderModal?.(),
+            'open-folder': () => window.chooseWorkspace?.(),
             save: () => window.saveActiveModel?.(),
             undo: () => window.undoCanvas?.(),
             redo: () => window.redoCanvas?.(),

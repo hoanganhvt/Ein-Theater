@@ -1,0 +1,56 @@
+{
+  "name": "ein-theater-desktop",
+  "version": "0.1.0",
+  "description": "Ein Theater visual PyTorch model editor for Windows",
+  "author": "Ein Theater",
+  "main": "main.cjs",
+  "private": true,
+  "scripts": {
+    "prepare:runtime": "node scripts/prepare-runtime.mjs",
+    "build:go": "node scripts/build-go.mjs",
+    "dev": "npm run prepare:runtime && npm run build:go && electron .",
+    "test": "node --test test/*.test.mjs && node ../src/Canvas/static/js/workspace/chooser.test.mjs",
+    "dist:win": "npm run prepare:runtime && npm run build:go && electron-builder --win nsis --x64 && node scripts/checksum.mjs",
+    "smoke:packaged": "node scripts/smoke-packaged.mjs"
+  },
+  "dependencies": {
+    "@fontsource/inter": "5.2.8",
+    "vis-network": "10.0.2"
+  },
+  "devDependencies": {
+    "electron": "44.4.5",
+    "electron-builder": "26.15.3",
+    "sharp": "0.35.4"
+  },
+  "build": {
+    "appId": "com.eintheater.desktop",
+    "productName": "Ein Theater",
+    "asar": true,
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "package.json"
+    ],
+    "extraResources": [
+      { "from": "build/ein-theater-server.exe", "to": "server/ein-theater-server.exe" },
+      { "from": "../src/templates", "to": "app-src/templates" },
+      { "from": "../src/static", "to": "app-src/static" },
+      { "from": "runtime-static/vendor", "to": "app-src/static/vendor" },
+      { "from": "../src/Canvas/templates", "to": "app-src/Canvas/templates" },
+      { "from": "../src/Canvas/static", "to": "app-src/Canvas/static" },
+      { "from": "../src/Canvas/data", "to": "app-src/Canvas/data" },
+      { "from": "../src/Canvas/utils", "to": "app-src/Canvas/utils", "filter": ["**/*.py"] }
+    ],
+    "win": {
+      "icon": "build/icon.png",
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "artifactName": "Ein-Theater-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}

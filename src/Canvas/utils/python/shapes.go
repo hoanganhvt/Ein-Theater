@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 	graphdata "web-app/Canvas/utils/graph"
@@ -44,9 +45,8 @@ func (w *pythonShapeWorker) stop() {
 	_ = cmd.Wait()
 }
 
-func (w *pythonShapeWorker) start(interpreter, path string) error {
-	cmd := exec.Command(interpreter, "-u", path, "--worker")
-	cmd.Env = processEnvironment()
+func (w *pythonShapeWorker) start(candidate Candidate, path string) error {
+	cmd := command(candidate, "-u", path, "--worker")
 	input, err := cmd.StdinPipe()
 	if err != nil {
 		return err
@@ -127,51 +127,38 @@ func (w *pythonShapeWorker) analyze(graph graphdata.GraphData, baseDir string) (
 	defer w.mu.Unlock()
 
 	path := filepath.Join(filepath.Dir(FindGenCodePyPath()), "..", "auto_shape_fitting", "shape_inference.py")
-	started := false
-	interpreter := ""
-	var python3StartErr error
-	if w.cmd == nil {
-		started = true
-		if err := w.start("python3", path); err != nil {
-			python3StartErr = err
-			if err = w.start("python", path); err != nil {
-				return graphdata.GraphData{}, fmt.Errorf("Python shape worker failed to start with python3 (%v), then python: %w", python3StartErr, err)
-			}
-			interpreter = "python"
-		} else {
-			interpreter = "python3"
-		}
-	}
-
 	request := shapeWorkerRequest{Graph: graph, BaseDir: baseDir}
-	result := w.exchange(request)
-	if result.err == nil {
-		return result.graph, nil
-	}
-	if result.valid {
-		return graphdata.GraphData{}, result.err
-	}
-	w.stop()
-	if !started || interpreter != "python3" || result.timedOut {
-		if python3StartErr != nil {
-			return graphdata.GraphData{}, fmt.Errorf("Python shape worker failed with python3 (%v), then python: %w", python3StartErr, result.err)
+	if w.cmd != nil {
+		result := w.exchange(request)
+		if result.err == nil {
+			return result.graph, nil
 		}
-		return graphdata.GraphData{}, result.err
+		if result.valid {
+			return graphdata.GraphData{}, result.err
+		}
+		w.stop()
 	}
 
-	python3ExchangeErr := result.err
-	if err := w.start("python", path); err != nil {
-		return graphdata.GraphData{}, fmt.Errorf("Python shape worker failed with python3 (%v), then python failed to start: %w", python3ExchangeErr, err)
+	var failures []string
+	for _, candidate := range candidates() {
+		if err := w.start(candidate, path); err != nil {
+			failures = append(failures, fmt.Sprintf("%s start: %v", candidate.Executable, err))
+			continue
+		}
+		result := w.exchange(request)
+		if result.err == nil {
+			return result.graph, nil
+		}
+		if result.valid {
+			return graphdata.GraphData{}, result.err
+		}
+		failures = append(failures, fmt.Sprintf("%s: %v", candidate.Executable, result.err))
+		w.stop()
+		if result.timedOut {
+			break
+		}
 	}
-	fallback := w.exchange(request)
-	if fallback.err == nil {
-		return fallback.graph, nil
-	}
-	if fallback.valid {
-		return graphdata.GraphData{}, fallback.err
-	}
-	w.stop()
-	return graphdata.GraphData{}, fmt.Errorf("Python shape worker failed with python3 (%v), then python: %w", python3ExchangeErr, fallback.err)
+	return graphdata.GraphData{}, fmt.Errorf("%w: Python shape worker failed (%s)", ErrUnavailable, strings.Join(failures, "; "))
 }
 
 // AnalyzeGraph runs a detached graph through the shared worker, bypassing empty graphs.
@@ -180,4 +167,11 @@ func AnalyzeGraph(graph graphdata.GraphData, baseDir string) (graphdata.GraphDat
 		return graph, nil
 	}
 	return shapeWorker.analyze(graph, baseDir)
+}
+
+// StopWorker releases the long-lived Python process during reconfiguration or shutdown.
+func StopWorker() {
+	shapeWorker.mu.Lock()
+	defer shapeWorker.mu.Unlock()
+	shapeWorker.stop()
 }

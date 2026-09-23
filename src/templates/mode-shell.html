@@ -3,7 +3,6 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{.Name}} · EinTheater</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body data-studio-mode="{{.ID}}">
@@ -28,7 +27,6 @@
     <span class="studio-current-mode">{{.Name}}</span>
   </header>
   <main class="mode-shell"><div class="mode-shell-card"><span class="mode-shell-kicker">EinTheater Studio</span><h1>{{.Name}}</h1><p>{{.Name}} is in development. Open a folder to set your workspace, or return to Canvas to edit a model.</p><button type="button" class="btn btn-primary" id="shellOpenFolder">Open Folder…</button><a class="mode-shell-link" href="/canvas">Open Canvas →</a></div></main>
-  <dialog id="shellFolderDialog" class="shell-folder-dialog" aria-label="Open folder"><h2>Open Folder</h2><div class="shell-folder-bar"><input id="shellFolderPath" aria-label="Folder path" placeholder="Folder path"><button type="button" id="shellFolderGo">Go</button><button type="button" id="shellFolderUp">Up</button></div><div id="shellFolderList" class="shell-folder-list"></div><p id="shellFolderError" role="alert"></p><div class="shell-folder-actions"><button type="button" id="shellFolderNative">Browse System…</button><button type="button" id="shellFolderCancel">Cancel</button><button type="button" id="shellFolderConfirm" class="btn btn-primary">Use This Folder</button></div></dialog>
   <script type="module" src="/static/studio/navigation.js"></script>
   <script type="module" src="/static/studio/menubar.js"></script>
   <script type="module" src="/static/studio/shell.js"></script>

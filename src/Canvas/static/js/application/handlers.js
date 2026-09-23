@@ -12,7 +12,7 @@ import { openAddNodeModal, populateCategoryDropdown, populateNodeTypeDropdown, t
 import { loadSidebar, switchMode, getActiveSidebarMode } from '../sidebarLoader.js';
 
 import { hideContextMenu, deleteSelectionFromContextMenu } from '../contextMenu.js';
-import { openSelectFolderModal, closeSelectFolderModal, browseTo, browseParentFolder, applyTypedPath, confirmSelectFolder, browseSystemFolder, toggleFileMenu, closeFileMenu, saveActiveModel, promptCreateFolderModal, promptCreateFolderSidebar, loadModelFromFolder } from '../workspace.js';
+import { chooseWorkspace, toggleFileMenu, closeFileMenu, saveActiveModel, promptCreateFolderSidebar, loadModelFromFolder } from '../workspace.js';
 import {
     invertEdgeFold,
     cycleEdgeFoldMode,
@@ -94,17 +94,10 @@ Object.assign(window, {
     refreshHistory,
 
     // Workspace & File Menu
-    openSelectFolderModal,
-    closeSelectFolderModal,
-    browseTo,
-    browseParentFolder,
-    applyTypedPath,
-    confirmSelectFolder,
-    browseSystemFolder,
+    chooseWorkspace,
     toggleFileMenu,
     closeFileMenu,
     saveActiveModel,
-    promptCreateFolderModal,
     promptCreateFolderSidebar,
     loadModelFromFolder,
 

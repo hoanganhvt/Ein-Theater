@@ -14,6 +14,7 @@ import { initWorkspace, saveActiveModel } from '../workspace.js';
 
 import { setupClipboardShortcuts } from '../clipboard.js';
 import { trackCanvasEdits } from './pending.js';
+import { initPythonRuntime } from '../runtime.js';
 
 // ── Application Initialization ────────────────────────────────────
 export async function initApp() {
@@ -38,10 +39,11 @@ export async function initApp() {
     setupBoxSelection();
     setupContextMenu();
     setupClipboardShortcuts();
+    void initPythonRuntime();
     window.addEventListener('beforeunload', () => {
         const { state } = window;
         if (!state?.network || !state.currentProjectId) return;
-        try { sessionStorage.setItem('ein_view_' + state.currentProjectId, JSON.stringify({ position: state.network.getViewPosition(), scale: state.network.getScale() })); } catch (_) {}
+        try { localStorage.setItem('ein_view_' + state.currentProjectId, JSON.stringify({ position: state.network.getViewPosition(), scale: state.network.getScale() })); } catch (_) {}
     });
 
     // Global shortcut: Ctrl+S or Cmd+S to save model

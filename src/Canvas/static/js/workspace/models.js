@@ -2,7 +2,7 @@ import { state } from '../state.js';
 import { api } from '../api.js';
 import { loadGraph, fitView } from '../graph.js';
 import { loadProjects } from '../projects.js';
-import { openSelectFolderModal, closeSelectFolderModal } from './browser.js';
+import { chooseWorkspace } from './chooser.js';
 import { loadWorkspaceFiles } from './sidebar.js';
 import { showToast } from './notifications.js';
 let savingModel = false;
@@ -11,7 +11,8 @@ export async function saveActiveModel() {
     if (savingModel) return;
     if (!state.workingDir) {
         alert('Please select a working directory first to save your model.');
-        openSelectFolderModal();
+        await chooseWorkspace();
+        if (!state.workingDir) return;
         return;
     }
 
@@ -61,7 +62,6 @@ export async function loadModelFromFolder(folderPath) {
         const res = await api.loadModel(folderPath);
         await Promise.all([loadProjects(), loadGraph({ projectId: res.projectId })]);
         fitView();
-        closeSelectFolderModal();
         showToast(`Model "${res.modelName || 'Model'}" loaded onto canvas (${res.nodeCount || 0} blocks)`);
     } catch (err) {
         console.error('Failed to load model from folder:', err);

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"web-app/utils/assets"
@@ -65,6 +66,9 @@ func NewHandler(config Config) (http.Handler, error) {
 	mux := http.NewServeMux()
 	_ = mime.AddExtensionType(".js", "application/javascript; charset=utf-8")
 	globalStatic := http.FileSystem(http.Dir(paths.Source("static")))
+	if overlay := os.Getenv("EIN_THEATER_STATIC_OVERLAY_DIR"); overlay != "" {
+		globalStatic = assets.Overlay(http.FileSystem(http.Dir(overlay)), globalStatic)
+	}
 	for _, mode := range config.Modes {
 		if mode.Page == nil {
 			continue

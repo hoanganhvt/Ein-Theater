@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { api } from '../api.js';
 import { esc } from '../utils.js';
-import { openSelectFolderModal } from './browser.js';
+import { chooseWorkspace } from './chooser.js';
 import { loadModelFromFolder } from './models.js';
 import { showToast } from './notifications.js';
 
@@ -48,7 +48,7 @@ export async function initWorkspace() {
         } else {
             const container = document.getElementById('workspaceFileList');
             if (container) {
-                container.innerHTML = '<button class="workspace-empty-hint" onclick="openSelectFolderModal()">Open a folder to get started</button>';
+                container.innerHTML = '<button class="workspace-empty-hint" onclick="chooseWorkspace()">Open a folder to get started</button>';
             }
         }
     } catch (e) {
@@ -92,7 +92,7 @@ export async function loadWorkspaceFiles(dirPath) {
     if (!container) return;
 
     if (!dirPath) {
-        container.innerHTML = '<button class="workspace-empty-hint" onclick="openSelectFolderModal()">Open a folder to get started</button>';
+        container.innerHTML = '<button class="workspace-empty-hint" onclick="chooseWorkspace()">Open a folder to get started</button>';
         return;
     }
 
@@ -148,7 +148,7 @@ export async function loadWorkspaceFiles(dirPath) {
                 if (f.isModel) {
                     await loadModelFromFolder(f.path);
                 } else {
-                    openSelectFolderModal(f.path);
+                    chooseWorkspace(f.path);
                 }
             });
             container.appendChild(item);
@@ -181,7 +181,7 @@ export async function loadWorkspaceFiles(dirPath) {
 export async function promptCreateFolderSidebar() {
     if (!state.workingDir) {
         alert('Please select a working directory first.');
-        openSelectFolderModal();
+        chooseWorkspace();
         return;
     }
     const folderName = prompt(`Create new folder inside "${state.workingDirName}":`);

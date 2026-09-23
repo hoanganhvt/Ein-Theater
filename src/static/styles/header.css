@@ -46,4 +46,3 @@
 .shell-folder-row { display: block; width: 100%; text-align: left; background: transparent; color: var(--text); border: 0; border-radius: 4px; padding: 8px; cursor: pointer; }
 .shell-folder-row:hover, .shell-folder-row.selected { background: var(--hover); }
 .shell-folder-actions { justify-content: flex-end; }
-#shellFolderError { color: var(--danger); }

@@ -3,7 +3,6 @@ package python
 import (
 	"encoding/json"
 	"fmt"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"web-app/Canvas/utils/fault"
@@ -19,21 +18,24 @@ func GenerateModel(graphPayload graph.GraphData, cleanTarget, baseDir string) (m
 
 	genCodePyPath := FindGenCodePyPath()
 	cmdArgs := []string{genCodePyPath, "--save-canvas", "-", "--out-dir", cleanTarget, "--base-dir", baseDir}
-	run := func(interpreter string) ([]byte, error) {
-		cmd := exec.Command(interpreter, cmdArgs...)
-		cmd.Env = processEnvironment()
+	run := func(candidate Candidate) ([]byte, error) {
+		cmd := command(candidate, cmdArgs...)
 		// Build a reader per attempt because the first process consumes its input.
 		cmd.Stdin = strings.NewReader(string(canvasBytes))
 		return cmd.CombinedOutput()
 	}
 
-	out, err := run("python3")
-	if err != nil {
-		python3Err, python3Out := err, out
-		out, err = run("python")
-		if err != nil {
-			return nil, false, fault.Internal(fmt.Sprintf("Python model generation error (python3: %v: %s; python: %v: %s)", python3Err, string(python3Out), err, string(out)))
+	var out []byte
+	var failures []string
+	for _, candidate := range candidates() {
+		out, err = run(candidate)
+		if err == nil {
+			break
 		}
+		failures = append(failures, fmt.Sprintf("%s: %v: %s", candidate.Executable, err, string(out)))
+	}
+	if err != nil {
+		return nil, false, fault.Internal(fmt.Sprintf("%v: Python model generation error (%s)", ErrUnavailable, strings.Join(failures, "; ")))
 	}
 
 	outStr := strings.TrimSpace(string(out))

@@ -22,3 +22,21 @@
     transform: translateY(0);
 }
 
+.python-runtime-banner {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 560px;
+    padding: 12px 14px;
+    border: 1px solid var(--warning, #d59a24);
+    border-radius: 8px;
+    background: var(--surface, #fff);
+    color: var(--text, #20242b);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .18);
+}
+.python-runtime-banner[hidden] { display: none; }
+.python-runtime-banner button { white-space: nowrap; }

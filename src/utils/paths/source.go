@@ -9,6 +9,9 @@ import (
 // SourceRoot finds src from the repository, source, standalone-mode, or test directory.
 // When discovery fails it returns the current directory; normal file errors remain visible.
 func SourceRoot() string {
+	if configured := os.Getenv("EIN_THEATER_RESOURCE_DIR"); configured != "" {
+		return filepath.Clean(configured)
+	}
 	dir, err := os.Getwd()
 	if err != nil {
 		return "."

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 
 const events = {};
 let folderOpens = 0;
-const window = globalThis.window = { openSelectFolderModal: () => { folderOpens++; }, refreshHistory() {}, updateClipboardUI() {} };
+const window = globalThis.window = { chooseWorkspace: () => { folderOpens++; }, refreshHistory() {}, updateClipboardUI() {} };
 
 function menu() {
     const classes = new Set();

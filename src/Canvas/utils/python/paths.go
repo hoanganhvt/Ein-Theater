@@ -3,11 +3,13 @@ package python
 import (
 	"os"
 	"path/filepath"
+	"web-app/utils/paths"
 )
 
 // FindGenCodePyPath locates the generator from supported application and test directories.
 func FindGenCodePyPath() string {
 	candidates := []string{
+		paths.Source("Canvas", "utils", "generate code", "gen_code.py"),
 		filepath.Join("Canvas", "utils", "generate code", "gen_code.py"),
 		filepath.Join("src", "Canvas", "utils", "generate code", "gen_code.py"),
 		filepath.Join("utils", "generate code", "gen_code.py"),
