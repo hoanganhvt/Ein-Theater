@@ -16,6 +16,8 @@ and encode responses. Task algorithms and data ownership live in
 | types.go and request aliases | graph/workspace utility types | Retain handler type names and JSON field contracts without duplicate definitions. |
 | Shared rendering | Mode-owned template path | src/studio.ServeTemplate performs GET/HEAD validation, composition and response writes. |
 | error_handler.go: writeError | ResponseWriter and task error | Plain-text 400 for fault.Invalid, otherwise 500. Endpoint-specific graph errors are mapped by their handlers. |
+| persistence.go | Optional data directory and mutating requests | Restores and schedules debounced desktop session snapshots; flushes at shutdown. |
+| runtime_handlers.go | Health/Python runtime requests | Process-level JSON health, interpreter detection and manual configuration. |
 
 Every public handler takes (http.ResponseWriter, *http.Request) and returns no Go
 value. The following tables specify its HTTP input and output. “Any” means the
@@ -91,13 +93,29 @@ Concurrent drag/routing edits survive analysis; semantic edits reject stale resu
 
 | Handler / route | Input | Output |
 | --- | --- | --- |
-| SaveModelHandler: /api/workspace/save-model, /api/saveModel | POST; JSON {projectId,dir}, then query fallbacks | Python save result map, or legacy {status,raw,folder} fallback. dir defaults to workspace; unknown projectId retains the active-project fallback. Missing/invalid target returns JSON {error} with 400. Process/serialization failures return 500. Writes model JSON/Python files. |
+| SaveModelHandler: /api/workspace/save-model, /api/saveModel | POST; JSON {projectId,dir}, then query fallbacks | Python save result map, or legacy {status,raw,folder} fallback. dir defaults to workspace; unknown projectId retains the active-project fallback. Missing/invalid target returns JSON {error} with 400; unavailable Python returns JSON code `python_unavailable` with 503; other process/serialization failures return 500. Writes model JSON/Python files. |
 | LoadModelHandler: /api/workspace/load-model, /api/loadModel | POST; JSON path/dir, then path/dir query | {status,modelName,projectId,nodeCount,edgeCount}; 400 for invalid/missing model or malformed JSON, 500 for read failure. Calls modelio.Load before acquiring store lock, then graph.Store.ImportGraph. |
 | InspectModelHandler: /api/workspace/inspect-model | Any; path query, then JSON {path} | Model/port metadata. Missing companion file returns 200 with isModel:false and an error field. Invalid folder/JSON returns 400; read failure 500. |
 
 SaveModelHandler snapshots under lock, runs Python unlocked and conditionally
 adopts saved references after reacquiring the lock. It never replaces a newer
 semantic edit with an older save snapshot.
+
+## Process runtime routes (runtime_handlers.go)
+
+These routes are registered above the Studio handler by `src/main.go` and are not
+Canvas-mode aliases. In desktop mode, all requests require the sidecar token.
+
+| Route | Input | Output |
+| --- | --- | --- |
+| `GET /api/health` | No body | JSON `{status,version,mode}`; other methods return 405. |
+| `GET /api/runtime/python` | No body | JSON availability, executable, Python/PyTorch versions, or validation error. |
+| `POST /api/runtime/python` | JSON `{path}` | Validated runtime status and persisted executable, or JSON `python_unavailable` with 503. Bad JSON returns 400; other methods return 405. |
+
+The Windows directory picker remains available through
+`/api/workspace/select-native` for `go run .` development. Electron uses its
+preload IPC dialog and then calls `/api/workspace/set`; the removed HTML folder
+modal has no server endpoint.
 
 ## Test instructions
 

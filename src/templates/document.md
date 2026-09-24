@@ -14,7 +14,7 @@ used by a mode or studio renderer. There are currently no shared HTML files here
 Keep this resource directory in the source layout: shared path discovery identifies
 the source root using `go.mod` and this folder.
 
-New Data, Code, Train and Debug pages should live under their own mode directories,
+New Data, Code, and Debug pages should live under their own mode directories,
 with mode-local scripts/assets. Use shared templates only for shared markup.
 Run `go test ./studio ./Canvas/mode -v` from `src` to verify application dispatch
 and current page composition. See the studio guide for full extension tests.

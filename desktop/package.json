@@ -8,8 +8,8 @@
   "scripts": {
     "prepare:runtime": "node scripts/prepare-runtime.mjs",
     "build:go": "node scripts/build-go.mjs",
-    "dev": "npm run prepare:runtime && npm run build:go && electron .",
-    "test": "node --test test/*.test.mjs && node ../src/Canvas/static/js/workspace/chooser.test.mjs",
+    "dev": "npm run prepare:runtime && npm run build:go && node scripts/dev.mjs",
+    "test": "node scripts/test.mjs",
     "dist:win": "npm run prepare:runtime && npm run build:go && electron-builder --win nsis --x64 && node scripts/checksum.mjs",
     "smoke:packaged": "node scripts/smoke-packaged.mjs"
   },

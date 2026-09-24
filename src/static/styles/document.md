@@ -26,13 +26,12 @@ Owns context menu presentation. Selectors: `.context-menu`, `.context-menu-item`
 
 Owns file menu presentation. Selectors: `.header-left`, `.header-divider`, `.menu-dropdown`, `.menu-btn`, `.menu-btn:hover, .menu-btn.active`, `.menu-dropdown-content`, `.menu-dropdown-content.open`, `from`, `to`, `.menu-item`, `.menu-item:hover:not(.disabled)`, `.menu-item.disabled`, `.menu-icon`, `.menu-text`, `.menu-badge`, `.menu-separator`, `.menu-item-info`, `.menu-info-label`, `.menu-info-val`.
 
-### [folder-browser.css](./folder-browser.css)
-
-Owns folder browser presentation. Selectors: `#selectFolderModal`, `from`, `to`, `.modal-close-btn`, `.modal-close-btn:hover`, `.folder-modal-body`, `.folder-path-bar`, `.folder-path-bar input`, `.folder-path-bar input:focus`, `.folder-drives-bar`, `.folder-hint`, `.drive-chip`, `.drive-chip:hover`, `.drive-chip.active`, `.folder-browser-list`, `.folder-browser-row`, `.folder-browser-row:hover`, `.folder-browser-row.selected`, `.folder-browser-row.is-folder`, `.folder-browser-row.is-file`, `.folder-browser-row.is-file:hover`, `.folder-browser-row.parent-row`, `.fb-icon`, `.fb-name`, `.fb-actions`, `.fb-select-btn`, `.fb-select-btn:hover`, `.fb-open-btn`, `.fb-open-btn:hover`, `.folder-browser-row.is-model-folder`, `.folder-browser-row.is-model-folder:hover`, `.model-tag`, `.fb-load-btn`, `.fb-load-btn:hover`, `.folder-browser-files-header`, `.folder-browser-empty, .folder-browser-loading, .folder-browser-error`, `.folder-browser-error`, `.modal-footer-spacer`, `.btn-system-browse`, `.btn-system-browse:hover`.
-
 ### [header.css](./header.css)
 
-Owns header presentation. Selectors: `.header`, `.model-title-wrap`, `#modelTitle`, `#modelTitleInput`, `.toolbar`, `.btn`, `.btn:hover`, `.btn-primary`, `.btn-primary:hover`, `.btn-clear`, `.btn-clear:hover`, `.btn.active`, `.btn:disabled, .btn.disabled`, `.btn:disabled:hover, .btn.disabled:hover`.
+Owns header presentation, including Electron-only `.window-drag-region`,
+`.window-controls`, and `.window-control` states for the frameless window. The
+interactive buttons remain outside the draggable region. Also styles the model
+title and command toolbar.
 
 ### [modals.css](./modals.css)
 
@@ -81,7 +80,9 @@ Verify both `/` and `/canvas`: header, sidebar, selection box, context menu and 
 Input: semantic page markup, mode descriptors from the studio registry, and existing Canvas interaction state. Output: a fully dark editor shell with compact application navigation, a model command bar, and a charcoal workspace. No API payloads or model data are changed by these styles.
 
 - `base.css` defines surface, border, text, muted text, and accent tokens; keyboard focus and reduced-motion preferences apply globally.
-- `header.css` renders mode navigation and model actions separately. No brand banner or decorative workspace caption is rendered. Toolbars wrap when space is limited.
+- `header.css` renders mode navigation and model actions separately. In Electron it
+  also styles the custom drag area and window control box; browser pages do not
+  mount those controls. Toolbars wrap when space is limited.
 - `modes.css` styles registry-provided mode buttons. Planned modes remain disabled; the active mode has an underline and `aria-current`.
 - `sidebar.css`, `workspace-tree.css`, and `palette.css` render workspace files, open models, and draggable blocks with consistent spacing. Rows use hover and selection states instead of individual cards. Monospaced category text retains classification without colored badges.
 - `save-button.css` uses a restrained light fill for Save. Clear remains a secondary action with a destructive hover state.
@@ -89,7 +90,7 @@ Input: semantic page markup, mode descriptors from the studio registry, and exis
 
 ### Manual visual and interaction checks
 
-Run `go run .` inside `src`, then inspect both `/` and `/canvas` at 1440px, 1024px, and 640px viewport widths. Confirm a single mode navigation bar, readable project title, dark File dropdown, dark right-click menu and nested submenu, and wrapping edge controls without clipping. Use Tab to verify visible button focus. Open Insert block, expand both category and layer selectors, and test search and custom-layer entry. Check dark native select popups and preview text. Open the folder browser and both edit dialogs; check input and footer visibility. Create a disposable model, drag a block, select an edge, rename the model, switch models, and use Fit View. Verify planned modes stay disabled. Save only into a disposable folder. Enable reduced motion in browser emulation and confirm decorative transitions stop.
+Run `go run .` inside `src`, then inspect both `/` and `/canvas` at 1440px, 1024px, and 640px viewport widths. Confirm a single mode navigation bar, readable project title, dark File dropdown, dark right-click menu and nested submenu, and wrapping edge controls without clipping. Use Tab to verify visible button focus. Open Insert block, expand both category and layer selectors, and test search and custom-layer entry. Check dark native select popups and preview text. Open the native folder picker and both edit dialogs; check input and footer visibility. Create a disposable model, drag a block, select an edge, rename the model, switch models, and use Fit View. Verify planned modes stay disabled. Save only into a disposable folder. Enable reduced motion in browser emulation and confirm decorative transitions stop. In the packaged app, inspect custom controls at normal and maximized sizes and ensure the drag region does not swallow menu or button clicks.
 
 Automated regression checks from the repository root: `node src/static/studio/navigation.test.mjs`, `node src/Canvas/static/js/ui.test.mjs`, and `node src/Canvas/static/js/performance.test.mjs`. These cover navigation and interaction contracts; they do not replace screenshot review.
 

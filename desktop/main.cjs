@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain, session } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, Menu, session } = require('electron');
 const { randomBytes } = require('node:crypto');
 const { spawn } = require('node:child_process');
 const fs = require('node:fs');
@@ -10,6 +10,9 @@ let serverProcess = null;
 let serverUrl = '';
 let allowQuit = false;
 const smokeResultPath = process.env.EIN_THEATER_SMOKE_RESULT || '';
+if (process.env.EIN_THEATER_SMOKE_USER_DATA) {
+  app.setPath('userData', process.env.EIN_THEATER_SMOKE_USER_DATA);
+}
 
 function reportSmoke(payload) {
   if (!smokeResultPath) return;
@@ -104,12 +107,20 @@ function installSecurity(token) {
 
 function createWindow() {
   const smoke = process.env.EIN_THEATER_SMOKE === '1';
+  if (smoke && process.env.EIN_THEATER_SMOKE_FOLDER) {
+    dialog.showOpenDialog = async (_parent, options) => {
+      if (!options.properties?.includes('openDirectory')) throw new Error('native directory picker was not requested');
+      return { canceled: false, filePaths: [process.env.EIN_THEATER_SMOKE_FOLDER] };
+    };
+  }
   const state = readWindowState();
   mainWindow = new BrowserWindow({
     ...state,
     minWidth: 900,
     minHeight: 650,
     show: false,
+    frame: false,
+    autoHideMenuBar: true,
     backgroundColor: '#11151c',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -123,6 +134,13 @@ function createWindow() {
     if (!target.startsWith(serverUrl + '/')) event.preventDefault();
   });
   mainWindow.once('ready-to-show', () => { if (!smoke) mainWindow.show(); });
+  const publishMaximizeState = () => {
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('window:maximize-changed', mainWindow.isMaximized());
+    }
+  };
+  mainWindow.on('maximize', publishMaximizeState);
+  mainWindow.on('unmaximize', publishMaximizeState);
   mainWindow.on('close', saveWindowState);
   mainWindow.loadURL(serverUrl + '/');
   if (smoke) {
@@ -132,12 +150,30 @@ function createWindow() {
     });
     mainWindow.webContents.once('did-finish-load', async () => {
       try {
-        const result = await mainWindow.webContents.executeJavaScript(`(async () => ({
-          title: document.title,
-          hasDesktopBridge: !!window.einDesktop?.selectDirectory,
-          hasLegacyFolderModal: !!document.querySelector('#folderBrowserModal, #shellFolderDialog'),
-          health: await fetch('/api/health').then(response => response.json())
-        }))()`);
+        const result = await mainWindow.webContents.executeJavaScript(`(async () => {
+          for (let i = 0; i < 50 && !window.chooseWorkspace; i++) await new Promise(resolve => setTimeout(resolve, 100));
+          const selection = await window.chooseWorkspace?.();
+          const beforeMaximize = await window.einDesktop.windowControls.isMaximized();
+          const afterMaximize = await window.einDesktop.windowControls.toggleMaximize();
+          const afterRestore = await window.einDesktop.windowControls.toggleMaximize();
+          for (let i = 0; i < 50 && !window.state?.network; i++) await new Promise(resolve => setTimeout(resolve, 100));
+          return {
+            title: document.title,
+            hasDesktopBridge: !!window.einDesktop?.selectDirectory,
+            hasLegacyFolderModal: !!document.querySelector('#folderBrowserModal, #shellFolderDialog'),
+            hasVisNetwork: !!window.vis?.Network,
+            hasCanvasNetwork: !!window.state?.network,
+            hasCustomWindowControls: !!document.querySelector('.window-controls [data-window-action="close"]'),
+            windowStateCycle: [beforeMaximize, afterMaximize, afterRestore],
+            selectedWorkspace: selection?.workingDir || '',
+            health: await fetch('/api/health').then(response => response.json())
+          };
+        })()`);
+        result.hasNativeMenu = Menu.getApplicationMenu() !== null;
+        if (process.env.EIN_THEATER_SMOKE_SCREENSHOT) {
+          const screenshot = await mainWindow.webContents.capturePage();
+          fs.writeFileSync(process.env.EIN_THEATER_SMOKE_SCREENSHOT, screenshot.toPNG());
+        }
         const payload = JSON.stringify({ event: 'smoke', ...result });
         if (smokeResultPath) {
           reportSmoke({ event: 'smoke', ...result });
@@ -170,9 +206,29 @@ ipcMain.handle('runtime:select-python', async () => {
   return result.canceled ? null : result.filePaths[0] || null;
 });
 
+function trustedWindow(event) {
+  if (!mainWindow || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents ||
+      event.senderFrame !== mainWindow.webContents.mainFrame ||
+      !event.senderFrame.url.startsWith(serverUrl + '/')) {
+    throw new Error('untrusted window control request');
+  }
+  return mainWindow;
+}
+
+ipcMain.handle('window:minimize', event => trustedWindow(event).minimize());
+ipcMain.handle('window:toggle-maximize', event => {
+  const window = trustedWindow(event);
+  if (window.isMaximized()) window.unmaximize();
+  else window.maximize();
+  return window.isMaximized();
+});
+ipcMain.handle('window:close', event => trustedWindow(event).close());
+ipcMain.handle('window:is-maximized', event => trustedWindow(event).isMaximized());
+
 app.whenReady().then(async () => {
   reportSmoke({ event: 'smoke-progress', stage: 'electron-ready' });
   app.setAppUserModelId('com.eintheater.desktop');
+  Menu.setApplicationMenu(null);
   const token = randomBytes(32).toString('hex');
   try {
     serverUrl = await startServer(token);

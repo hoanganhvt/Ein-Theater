@@ -9,7 +9,6 @@ studio router selects `handler.HomeHandler` when Canvas is the initial studio mo
 | `header.html` | Canvas action bindings; shared navigation fills `appModeTabs` | File/save controls, model title, toolbar and mode-menu mount. |
 | `workspace.html` | Graph data and sidebar loader | Canvas network, selection overlay and sidebar mount. |
 | `context-menu.html` | Canvas selection/context actions | Context-menu markup. |
-| `folder-browser.html` | Workspace browser state | Folder-selection dialog markup. |
 | `add-node.html` | Layer schema and form values | Node-creation dialog markup. |
 | `edit-node.html` | Selected node parameters | Node-editing dialog markup. |
 | `edit-edge.html` | Selected edge route parameters | Edge-editing dialog markup. |

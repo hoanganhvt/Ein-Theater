@@ -37,10 +37,11 @@ type state struct {
 
 // Manager serializes debounced snapshots of a Store to a versioned JSON file.
 type Manager struct {
-	store *graph.Store
-	path  string
-	mu    sync.Mutex
-	timer *time.Timer
+	store   *graph.Store
+	path    string
+	mu      sync.Mutex
+	writeMu sync.Mutex
+	timer   *time.Timer
 }
 
 func New(dataDir string, store *graph.Store) *Manager {
@@ -50,7 +51,10 @@ func New(dataDir string, store *graph.Store) *Manager {
 func (m *Manager) Load() error {
 	raw, err := os.ReadFile(m.path)
 	if os.IsNotExist(err) {
-		return nil
+		raw, err = os.ReadFile(m.path + ".bak")
+		if os.IsNotExist(err) {
+			return nil
+		}
 	}
 	if err != nil {
 		return err
@@ -134,6 +138,8 @@ func (m *Manager) Schedule() {
 }
 
 func (m *Manager) Flush() error {
+	m.writeMu.Lock()
+	defer m.writeMu.Unlock()
 	m.mu.Lock()
 	if m.timer != nil {
 		m.timer.Stop()

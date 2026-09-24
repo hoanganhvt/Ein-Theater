@@ -20,6 +20,17 @@
 .brand-mark { color: #f0f1ed; text-decoration: none; font-size: 14px; font-weight: 600; letter-spacing: -.055em; margin-right: 22px; white-space: nowrap; }
 .brand-mark span { color: #aabbd8; font-weight: 400; }
 .studio-current-mode { margin-left: auto; color: var(--muted); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+.desktop-app .studio-bar { padding-right: 0; }
+.desktop-app .studio-current-mode { margin-left: 0; margin-right: 14px; }
+.window-drag-region { flex: 1; align-self: stretch; min-width: 16px; -webkit-app-region: drag; }
+.window-controls { display: flex; align-self: stretch; flex: none; -webkit-app-region: no-drag; }
+.window-control { width: 46px; height: 100%; display: grid; place-items: center; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--text); cursor: pointer; }
+.window-control:hover { background: var(--hover); }
+.window-control:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+.window-control-close:hover { background: #c42b38; color: #fff; }
+.window-control svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.35; stroke-linecap: square; }
+.window-control .restore-icon, .window-control.is-maximized .maximize-icon { display: none; }
+.window-control.is-maximized .restore-icon { display: block; }
 .canvas-command-bar { min-height: 38px; padding-top: 4px; padding-bottom: 4px; }
 .studio-bar .menu-btn { font-size: 12px; font-weight: 500; padding: 6px 12px; border: 0; border-radius: 5px; }
 .studio-bar .menu-dropdown-content { top: calc(100% + 8px); min-width: 228px; max-width: min(320px, calc(100vw - 24px)); }
@@ -38,11 +49,3 @@
 .mode-shell h1 { font-size: 32px; letter-spacing: -.05em; margin: 12px 0; }
 .mode-shell p { color: var(--muted); font-size: 13px; line-height: 1.7; }
 .mode-shell-link { display: inline-block; margin-left: 16px; color: var(--accent); text-decoration: none; }
-.shell-folder-dialog { width: min(620px, calc(100vw - 32px)); max-height: 80vh; background: var(--surface-raised); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
-.shell-folder-dialog::backdrop { background: #0009; }
-.shell-folder-bar, .shell-folder-actions { display: flex; gap: 8px; }
-.shell-folder-bar input { flex: 1; min-width: 0; padding: 8px; }
-.shell-folder-list { min-height: 120px; max-height: 45vh; overflow-y: auto; margin: 12px 0; }
-.shell-folder-row { display: block; width: 100%; text-align: left; background: transparent; color: var(--text); border: 0; border-radius: 4px; padding: 8px; cursor: pointer; }
-.shell-folder-row:hover, .shell-folder-row.selected { background: var(--hover); }
-.shell-folder-actions { justify-content: flex-end; }

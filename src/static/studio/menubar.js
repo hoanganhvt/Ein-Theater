@@ -1,5 +1,8 @@
+import { mountWindowControls } from './window-controls.js';
+
 let openMenu = null;
 const bar = document.getElementById('studioMenubar');
+mountWindowControls();
 
 function closeMenu(restoreFocus = false) {
     if (!openMenu) return;

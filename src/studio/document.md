@@ -98,8 +98,8 @@ from both supported launch directories and verify page composition/static assets
 From the repository root, run
 `node src/static/studio/navigation.test.mjs`. Expected: the active mode is marked,
 an available sibling navigates to its URL, and an unavailable mode is disabled.
-Manually launch studio and check Canvas, Data, Code, Train and Debug appear; only
-Canvas is available until the other definitions provide implementations.
+Manually launch studio and check Canvas, Data, Debug, and Code appear. The latter
+three have navigable development shells rather than complete feature editors.
 # Current studio navigation
 
 The application menu is `EinTheater File Edit Mode`. `/api/modes` returns Canvas,

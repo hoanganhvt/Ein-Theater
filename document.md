@@ -1,7 +1,8 @@
 ﻿# Ein Theater: global code flow
 
-This is the project-wide runtime guide. It follows execution from the browser to
-Go, through Python, and back to the UI or saved model files. Folder documents
+This is the project-wide runtime guide. It follows execution from the Electron
+window or development browser to Go, through Python, and back to the UI or saved
+model files. Folder documents
 contain detailed component inputs/outputs, endpoint contracts and focused tests.
 
 Ein Theater is a visual PyTorch model editor. Canvas is the implemented editor.
@@ -13,9 +14,12 @@ code. Starting the server does not start model training.
 
 ```mermaid
 flowchart TD
-    User[User actions] --> UI[Browser: native JavaScript modules]
+    User[User actions] --> UI[Electron window or browser: JavaScript modules]
+    Desktop[Electron main and preload] --> UI
+    Desktop --> Sidecar[Go sidecar on loopback]
     UI --> API[Frontend API wrappers]
     API --> HTTP[Studio router and mode HTTP handlers]
+    Sidecar --> HTTP
     HTTP --> Graph[Go graph utilities and in-memory Store]
     HTTP --> Files[Workspace and model IO utilities]
     HTTP --> Bridge[Go Python bridge]
@@ -32,7 +36,8 @@ flowchart TD
 
 | Layer / entry | Input | Output and ownership |
 | --- | --- | --- |
-| `src/main.go`, `src/Canvas/canvas.go` | Mode definitions, launch directory and optional `PORT` | Independent studio router/server; default port 8080. |
+| `desktop/` | Electron lifecycle, native dialogs and build inputs | Frameless Windows app, authenticated Go sidecar and NSIS installer. See the [desktop guide](desktop/document.md). |
+| `src/main.go`, `src/Canvas/canvas.go` | Mode definitions, resource/data paths and optional `PORT` | Studio server: configured port (8080 default) in browser development; random loopback port in Electron. |
 | `src/studio` | Mode registry and requests | Global index/sidebar dispatch, mode catalog, namespaced API/assets and shared page responses. |
 | `src/Canvas/mode` | Canvas handlers/resources | Canvas registration descriptor; no global route ownership. |
 | `src/Canvas/templates` | Canvas document shells and fragments | Canvas owns both its studio-home variant and standalone page. `src/templates` is reserved for genuinely shared templates. |
@@ -41,6 +46,7 @@ flowchart TD
 | `Canvas/static/js/api` | Feature commands and query data | HTTP calls, decoded results and scheduled shape refreshes. |
 | `Canvas/handler` | HTTP requests | Validation, locking/orchestration, utility calls and HTTP responses. |
 | `Canvas/utils/graph` | Project/graph commands and snapshots | In-memory edits, scoped IDs, wire geometry and metadata reconciliation. |
+| `Canvas/utils/session` | Store mutations and Electron user data | Debounced, versioned desktop session recovery. |
 | `Canvas/utils/workspace`, `modelio` | Directory paths and saved artifacts | Directory listings, folder creation, decoded canvases and model port metadata. |
 | `Canvas/utils/python` | Detached canvas, base directory, optional save target | Python process IO and decoded results/errors. |
 | `Canvas/utils/auto_shape_fitting` | Editable graph and model references | Fitted parameters, tensor metadata, diagnostics and adapted child graphs. |
@@ -82,14 +88,19 @@ input/output contracts, example registration and isolation tests.
   browser session. Most mutations target the active project.
 - **Python:** the shape worker keeps its interpreter alive across requests; each
   analysis receives a graph snapshot. It is not the owner of editable project state.
-- **Disk:** save writes explicit model artifacts. Unsaved projects are in memory
-  and do not survive server restart. Selecting a workspace does not save a graph.
+- **Disk:** Save Model writes explicit model artifacts in the workspace. In Electron,
+  `session-v1.json` in `userData` also recovers unsaved projects after restart.
+  Browser development without a data directory retains only in-memory projects.
+  Selecting a workspace does not export a model.
 
 ## 2. Startup: process to first canvas
 
-1. Run go run . in src. The composition root passes Canvas's definition
-   and three navigable development shells to studio.NewHandler, then starts the server.
-   Standalone Canvas registers just Canvas with Standalone:true.
+1. In Electron, `desktop/main.cjs` launches the Go sidecar with an explicit
+   resource root and user-data directory, waits for JSON `ready`, then loads its
+   random loopback URL with per-run token authentication. In browser development,
+   run `go run .` in `src` on port 8080 by default. The composition root passes
+   Canvas and three navigable development shells to `studio.NewHandler`.
+   Standalone Canvas registers just Canvas with `Standalone:true`.
 2. Studio registers index, mode catalog, sidebar dispatch, shared static files and
    each available mode's page/API/asset namespace. Canvas APIs come from its private
    registrar. Global assets and legacy Canvas assets are explicitly composed.
@@ -109,6 +120,9 @@ input/output contracts, example registration and isolation tests.
    canvas interactions, selection, context menus, clipboard and the save shortcut.
 
 **Output:** an interactive canvas appears before Python shape analysis finishes.
+In Electron, the shared Studio header also mounts custom window controls; the
+default Windows/Electron application menu and titlebar are absent. The browser
+development path retains normal browser chrome.
 
 ## 3. Editing: user command to stored graph
 
@@ -201,7 +215,8 @@ flowchart TD
 ```
 
 - **Frontend input:** active project ID and selected working directory. Without a
-  workspace, the UI opens folder selection instead of starting save.
+  workspace, the UI opens the native Windows folder picker instead of starting
+  generation; the user invokes Save again after selection.
 - **Go handoff:** `SaveModelHandler` sanitizes the project name, snapshots under the
   lock, validates the output directory, then runs a separate generation process.
   The canvas travels on stdin; target/base directories are command arguments.
@@ -220,7 +235,8 @@ flowchart TD
 - **Frontend completion:** refresh workspace files, projects and graph, then show
   status. The bridge returns parsed JSON or the existing raw-output fallback.
 
-Generation errors return HTTP 500; missing/invalid save directories return 400.
+Generation errors return HTTP 500, unavailable Python/PyTorch returns JSON
+`python_unavailable` with HTTP 503, and missing/invalid save directories return 400.
 Unlike shape exchange, generation currently has no explicit subprocess timeout.
 Save generates source; it does not train the generated network.
 
@@ -249,10 +265,12 @@ and defaults, not a fresh shape inference result.
 
 ### Workspace navigation
 
-Workspace handlers resolve query/body input and active-directory fallbacks, then
-call `utils/workspace` for browsing, folder creation or native selection. Confirmed
-selection updates Go workspace state; cancelling the Windows native picker leaves
-it unchanged. Workspace changes and model saving are separate operations.
+`workspace/chooser.js::chooseWorkspace` opens Electron's native directory picker
+through preload, or `/api/workspace/select-native` in Windows browser development.
+A confirmed path is then validated through `/api/workspace/set`, and the sidebar
+is refreshed from `/api/workspace/browse`. Cancellation leaves state unchanged.
+The HTML folder-selection modal is gone; sidebar browsing, model loading and
+folder creation remain. Workspace changes and model saving are separate operations.
 
 ## 7. Code-reading map
 
@@ -261,6 +279,8 @@ Read in execution order rather than reading every file in a folder:
 | Question | Start here | Detailed guide |
 | --- | --- | --- |
 | How does the server start? | `src/main.go`, `src/studio/routes.go`, `src/Canvas/mode/mode.go` | [Source map](src/document.md) |
+| How does the Windows app start? | `desktop/main.cjs`, `desktop/preload.cjs` | [Desktop shell](desktop/document.md) |
+| How is a session restored? | `Canvas/utils/session/session.go`, `handler/persistence.go` | [Session recovery](src/Canvas/utils/session/document.md) |
 | How is the first page rendered? | `src/studio/routes.go`, `src/studio/render.go`, `Canvas/handler/page_handlers.go` | [Templates](src/utils/templates/document.md) |
 | How does browser initialization work? | `static/app.js`, `js/application/bootstrap.js` | [Frontend architecture](src/Canvas/static/js/document.md) |
 | Where does an edit go? | `js/api.js`, `js/api/*`, matching handler, `utils/graph/*` | [HTTP contracts](src/Canvas/handler/document.md), [graph operations](src/Canvas/utils/graph/document.md) |
@@ -278,7 +298,12 @@ Short paths in this table are within `src/Canvas` unless prefixed with `src/`.
 ### Launch
 
 Use the Go toolchain declared in `src/go.mod`. Shape analysis and generation require
-`python` on PATH with PyTorch available. Node.js runs the frontend regression scripts.
+Python 3 with PyTorch; the app detects a configured executable or a supported PATH
+candidate. Canvas editing does not require Python. Node.js runs frontend/Electron tests.
+
+For the Windows app, from `desktop/` run `npm.cmd ci`, `npm.cmd run dev`,
+`npm.cmd test`, or `npm.cmd run dist:win`. The [desktop guide](desktop/document.md)
+details packaging and the clean-VM verification boundary.
 
 From the repository root:
 

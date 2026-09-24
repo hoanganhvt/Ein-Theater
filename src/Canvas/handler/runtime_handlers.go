@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"os"
 
 	"web-app/Canvas/utils/python"
 )
@@ -19,7 +20,11 @@ func RegisterRuntimeRoutes(mux *http.ServeMux) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "version": applicationVersion})
+		mode := "web"
+		if os.Getenv("EIN_THEATER_DESKTOP") == "1" {
+			mode = "desktop"
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "version": applicationVersion, "mode": mode})
 	})
 	mux.HandleFunc("/api/runtime/python", PythonRuntimeHandler)
 }

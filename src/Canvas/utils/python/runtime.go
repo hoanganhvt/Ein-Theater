@@ -112,7 +112,6 @@ func Detect() RuntimeStatus {
 		status := validate(candidate)
 		if status.Available {
 			runtimeConfig.Lock()
-			runtimeConfig.preferred = &candidate
 			runtimeConfig.status = status
 			runtimeConfig.Unlock()
 			return status
@@ -130,10 +129,11 @@ func Detect() RuntimeStatus {
 
 // SetExecutable validates and persists a user-selected python.exe.
 func SetExecutable(path string) (RuntimeStatus, error) {
-	path = filepath.Clean(strings.TrimSpace(path))
+	path = strings.TrimSpace(path)
 	if path == "" {
 		return RuntimeStatus{}, fmt.Errorf("%w: executable path is required", ErrUnavailable)
 	}
+	path = filepath.Clean(path)
 	candidate := Candidate{Executable: path}
 	status := validate(candidate)
 	if !status.Available {

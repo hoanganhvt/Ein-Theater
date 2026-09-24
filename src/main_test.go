@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -39,6 +40,30 @@ func TestStudioModes(t *testing.T) {
 	for _, path := range []string{"/static/studio/menubar.js", "/static/studio/navigation.js", "/static/studio/shell.js", "/static/style.css"} {
 		w = httptest.NewRecorder()
 		app.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
-		if w.Code != 200 || w.Body.Len() == 0 { t.Fatalf("asset %s unavailable: %d", path, w.Code) }
+		if w.Code != 200 || w.Body.Len() == 0 {
+			t.Fatalf("asset %s unavailable: %d", path, w.Code)
+		}
+	}
+}
+
+func TestDesktopAuthMiddleware(t *testing.T) {
+	handler := requireToken(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}), "secret-token")
+	for _, tc := range []struct {
+		token string
+		want  int
+	}{
+		{"", http.StatusUnauthorized},
+		{"wrong-token", http.StatusUnauthorized},
+		{"secret-token", http.StatusNoContent},
+	} {
+		request := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+		request.Header.Set("X-Ein-Theater-Token", tc.token)
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != tc.want {
+			t.Fatalf("token %q returned %d, want %d", tc.token, response.Code, tc.want)
+		}
 	}
 }

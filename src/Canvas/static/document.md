@@ -11,7 +11,7 @@ The UI consists of the studio and standalone page templates, the dynamic Canvas 
 | [js/circuit.js](js/circuit.js) | Geometry, drawing, gestures and edge editing | [js/circuit/](js/circuit/document.md) | Twelve modules with explicit shared runtime state. |
 | [js/graph.js](js/graph.js) | Loading, normalization, dragging, selection and node creation | [js/graph/](js/graph/document.md) | Eight modules; loading delegates data preparation, options and interactions. |
 | [js/modals.js](js/modals.js) | Add/edit node dialogs and parameter persistence | [js/modals/](js/modals/document.md) | Categories, add dialog, edit form, parameter submission and lifecycle. |
-| [js/workspace.js](js/workspace.js) | Workspace explorer, folder browser and model files | [js/workspace/](js/workspace/document.md) | Sidebar, browser, menu, models and notifications. |
+| [js/workspace.js](js/workspace.js) | Workspace explorer, native folder selection and model files | [js/workspace/](js/workspace/document.md) | Chooser, sidebar, menu, models and notifications. |
 | [js/clipboard.js](js/clipboard.js) | Clipboard persistence, operations, UI and shortcuts | [js/clipboard/](js/clipboard/document.md) | Operations retain storage ownership; presentation and shortcuts are separate. |
 | [js/contextMenu.js](js/contextMenu.js) | Right-click menu and deletion | [js/contextMenu/](js/contextMenu/document.md) | Menu orchestration and selection deletion. |
 | [js/schemas.js](js/schemas.js) | Embedded schemas, loading and naming | [js/schemas/](js/schemas/document.md) | Fallback data, registry and labels. |
@@ -40,15 +40,15 @@ The UI consists of the studio and standalone page templates, the dynamic Canvas 
 
 ## Folder ownership and dependency rules
 
-The `js/` root contains compatibility entry points and the small shared state store. Each feature folder owns its implementation and a detailed `document.md`. Public exports and asset URLs are preserved, so existing callers can continue importing `graph.js`, `circuit.js`, and other original paths. Feature-local imports use sibling modules. No bundler, framework, package install or production runtime dependency was added.
+The `js/` root contains compatibility entry points and the small shared state store. Each feature folder owns its implementation and a detailed `document.md`. Public exports and asset URLs are preserved where still applicable; folder selection now uses `chooseWorkspace()` rather than the removed HTML modal exports. Feature-local imports use sibling modules. Electron bundles the existing Vis Network and Inter assets locally for offline distribution; no frontend framework was added.
 
-Shared application state belongs to `js/state.js`. Circuit gesture state belongs to `js/circuit/runtime.js`. Drag baselines, clipboard caches and browser navigation state stay private to their owning features. Data in `modules.json` is separate from rendering code. Global styles use `/static/styles/`; Canvas overrides use `/static/canvas-styles/` so the merged static filesystem cannot accidentally shadow files with the same names.
+Shared application state belongs to `js/state.js`. Circuit gesture state belongs to `js/circuit/runtime.js`. Drag baselines and clipboard caches stay private to their owning features; workspace selection has no browser navigation state. Data in `modules.json` is separate from rendering code. Global styles use `/static/styles/`; Canvas overrides use `/static/canvas-styles/` so the merged static filesystem cannot accidentally shadow files with the same names.
 
 ## Existing behavior and limitations
 
 The studio and standalone templates are intentionally kept as separate variants. Before this refactor, the studio referenced two missing connection-type handlers, `setSelectedEdgeType` and `selectModalEdgeType`; the standalone variant does not expose those controls. This refactor preserves that discrepancy instead of adding new connection semantics. The inline-handler test explicitly records those two exceptions and checks every other handler.
 
-Palette setup now guards individual elements against duplicate event listeners; other sidebar initialization behavior is unchanged. HTML partials must be served through the Go handlers, not opened directly as local files. Vis Network and fonts still use their original external URLs.
+Palette setup guards individual elements against duplicate event listeners. HTML partials must be served through the Go handlers, not opened directly as local files. The HTML folder-selection modal has been removed; Electron opens the Windows directory picker, and Windows browser development calls the Go native-picker endpoint. Vis Network and Inter fonts are served from local bundled assets.
 
 ## Verification
 

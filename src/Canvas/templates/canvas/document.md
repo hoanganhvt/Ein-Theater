@@ -30,12 +30,6 @@ Parameter-editor mount and save/cancel actions.
 
 Owned element IDs: `editLayerModal`, `editLayerTypeBadge`, `editParamsContainer`.
 
-### [folder-browser.html](./folder-browser.html)
-
-Directory-picker dialog, path entry and directory/drive mounts.
-
-Owned element IDs: `selectFolderModal`, `folderPathInput`, `folderDrivesBar`, `folderBrowserList`, `confirmFolderBtn`.
-
 ### [header.html](./header.html)
 
 File menu, title editor, mode navigation and primary actions.

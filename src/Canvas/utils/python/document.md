@@ -9,11 +9,12 @@ store mutex; handlers snapshot state before calling it and reconcile afterward.
 | Component | Input | Output / side effects |
 | --- | --- | --- |
 | `FindGenCodePyPath` (`paths.go`) | Current working directory | Generator path discovered from launch candidates or repository ancestors, normally absolute. If none exists, returns the conventional Canvas-relative path. |
+| `Configure`, `Detect`, `SetExecutable` (`runtime.go`) | Electron data directory, saved candidate or selected executable | Validates Python 3 plus `import torch`, reports version/status, and persists a valid manual choice in `python-v1.json`. |
 | `AnalyzeGraph` (`shapes.go`) | Detached `graph.GraphData`, base directory | Analyzed graph and nil, or error. Empty graphs return unchanged without launching Python. Nonempty graphs use the shared worker. |
 | `shapeWorker`, `pythonShapeWorker` (internal) | Command, stdin/stdout pipes, private mutex | One persistent interpreter. Calls are serialized independently of project state. |
 | `pythonShapeWorker.analyze` | Graph and base directory | Writes one JSON line `{graph, baseDir}`; reads `{graph, error}`. Returns decoded graph or error. Starts Python lazily; transport/JSON failure or a 45-second timeout stops the worker. A Python-reported graph error leaves the worker reusable. |
 | `pythonShapeWorker.stop` | Worker receiver; caller serializes access | Closes stdin, kills/reaps the process and clears its command. No return. |
-| `GenerateModel` (`operations.go`) | Detached graph, cleaned output parent, base directory | `(result map, parsed bool, error)`. Runs `python gen_code.py --save-canvas - --out-dir ... --base-dir ...` with graph JSON on stdin. Parsed JSON returns `parsed=true`; otherwise returns the legacy `{status:"ok", raw, folder}` fallback with `parsed=false`. Serialization/process errors are `fault.Internal`. |
+| `GenerateModel` (`operations.go`) | Detached graph, cleaned output parent, base directory | `(result map, parsed bool, error)`. Runs the selected interpreter with `gen_code.py --save-canvas - --out-dir ... --base-dir ...` and graph JSON on stdin. Parsed JSON returns `parsed=true`; otherwise returns the legacy raw-output fallback. |
 
 Both subprocess paths set `PYTHONDONTWRITEBYTECODE=1`. Generation writes model
 artifacts below the requested output parent. Generation preserves the existing
@@ -23,8 +24,18 @@ handler as per-node diagnostic metadata without discarding the graph.
 
 ## Prerequisites
 
-`python` must be on PATH and `python -c "import torch"` must succeed. A `py` launcher
-alone is insufficient for the Go bridge. Go-only tests do not require Python.
+Python 3 with PyTorch must be available for inference and Save Model, but is not
+required to open or edit a canvas. On Windows, detection tries a saved executable
+first, then `py -3`, `python`, and `python3`; each candidate gets a subprocess
+probe with a 12-second timeout and must import `torch`. On other platforms the
+default order is `python3`, then `python`. A manually selected `python.exe` is
+validated before it is saved and the persistent shape worker is restarted.
+`GET /api/runtime/python` returns availability and version information;
+`POST /api/runtime/python` accepts `{ "path": "..." }`. The UI offers Configure
+Python through the Electron native executable picker. If validation fails, the
+runtime API and Save Model return `python_unavailable`; shape analysis reports a
+node diagnostic without losing the editable graph. Go-only tests do not require
+Python.
 
 ## Test discovery and persistent analysis
 

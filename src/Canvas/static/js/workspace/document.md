@@ -1,60 +1,49 @@
-# Workspace explorer, folder selection and model persistence
+# Workspace selection, explorer, and model persistence
 
 ## Responsibility
 
-`sidebar.js` initializes workspace state and renders the file tree. `browser.js` owns the folder-picker navigation state, typed paths, native picker and folder creation inside the modal. `menu.js` controls the File dropdown. `models.js` saves and loads model packages, refreshes the project list and graph and displays status through `notifications.js`. Paths remain backend-managed; the UI must use API responses for directory and model metadata.
+`chooser.js` is the single workspace-selection flow. In Electron it asks the
+preload bridge to open the Windows directory picker; in browser development on
+Windows it calls the Go native-picker endpoint. The old HTML folder browser and
+its navigation controls have been removed. `sidebar.js` still lists workspace
+files and model folders through `/api/workspace/browse`; the native dialog selects
+only a workspace, not a model to load.
 
-## File-by-file ownership
+| File | Input | Output / responsibility |
+| --- | --- | --- |
+| [chooser.js](chooser.js) | Optional initial path; Electron bridge or native-picker API | `chooseWorkspace()` returns a cancellation result or sets the selected path through `/api/workspace/set`, updates local state, and refreshes the sidebar. |
+| [sidebar.js](sidebar.js) | Current workspace and browse/create-folder responses | Workspace name/path, file list, model-folder actions, and sidebar folder creation. Clicking a regular subfolder reopens the picker with that path as its initial location. |
+| [models.js](models.js) | Active project and workspace or model-folder path | Save/load API calls, project and graph refresh, and status messages. Save with no workspace calls `chooseWorkspace()` first; a subsequent save starts generation. |
+| [menu.js](menu.js) | File-menu events | Dropdown toggling and dismissal. |
+| [notifications.js](notifications.js) | Message text | Transient toast. |
 
-| File | Responsibility |
-| --- | --- |
-| [browser.js](./browser.js) | Folder selection dialog, navigation, native chooser and folder creation. |
-| [menu.js](./menu.js) | File-menu toggling and dismissal. |
-| [models.js](./models.js) | Save/load workflows and project/graph refresh. |
-| [notifications.js](./notifications.js) | Transient toast rendering. |
-| [sidebar.js](./sidebar.js) | Workspace indicators, file tree initialization and sidebar folder creation. |
+The [public workspace entry](../workspace.js) provides existing global handlers
+for template and shell actions. The shared Studio menubar also dispatches
+Open Folder to `window.chooseWorkspace`. Feature modules should import the public
+entry or the narrow sibling export they need; avoid work during module evaluation
+because workspace, sidebar, and model actions reference one another.
 
-## Module contracts
+## Selection contract
 
-### browser.js
+1. Electron `selectDirectory(initialPath)` returns a selected path or `null` on
+   cancellation. Electron uses `openDirectory` and `createDirectory`, and uses an
+   existing initial directory as the default location.
+2. Without the Electron bridge, `POST /api/workspace/select-native` invokes the
+   Windows PowerShell picker. This is the supported `go run .` fallback on Windows.
+3. A selected path is validated by `POST /api/workspace/set`. Only after it
+   succeeds does the UI replace `workingDir`, update the name, and reload files.
+   Cancellation leaves the current workspace unchanged. A missing folder or API
+   failure rejects the operation without committing the selected path to UI state.
+4. `/api/workspace/browse` remains the sidebar's directory/model listing endpoint.
+   `/api/workspace/create-folder` remains the sidebar's folder-creation endpoint.
+   Load Model operates on model folders shown in the sidebar.
 
-Exports: `openSelectFolderModal`, `closeSelectFolderModal`, `browseTo`, `browseParentFolder`, `applyTypedPath`, `confirmSelectFolder`, `browseSystemFolder`, `promptCreateFolderModal`.
+## Verification
 
-Dependencies: [../state.js](../state.js), [../api.js](../api.js), [../utils.js](../utils.js), [./sidebar.js](./sidebar.js), [./menu.js](./menu.js), [./models.js](./models.js).
-
-### menu.js
-
-Exports: `toggleFileMenu`, `closeFileMenu`.
-
-No module dependencies.
-
-### models.js
-
-Exports: `saveActiveModel`, `loadModelFromFolder`.
-
-Dependencies: [../state.js](../state.js), [../api.js](../api.js), [../graph.js](../graph.js), [../projects.js](../projects.js), [./browser.js](./browser.js), [./sidebar.js](./sidebar.js), [./notifications.js](./notifications.js).
-
-### notifications.js
-
-Exports: `showToast`.
-
-No module dependencies.
-
-### sidebar.js
-
-Exports: `initWorkspace`, `loadWorkspace`, `updateWorkspaceUI`, `loadWorkspaceFiles`, `promptCreateFolderSidebar`.
-
-Dependencies: [../state.js](../state.js), [../api.js](../api.js), [../utils.js](../utils.js), [./browser.js](./browser.js), [./menu.js](./menu.js), [./models.js](./models.js).
-
-## Extension and verification
-
-Keep related changes within the owning file above. Other features should normally import the stable [public entry](../workspace.js), while files in this folder use explicit sibling imports. Cross-feature calls should happen inside functions, not during module evaluation, because the editor has mutually dependent UI workflows.
-
-Run from the repository root:
-
-```powershell
-node src/Canvas/static/js/api.test.mjs
-node src/Canvas/static/js/ui.test.mjs
-```
-
-The UI checks cover module linking, existing inline handler contracts, four bend modes, endpoint movement, zoom-aware box selection, wire cancellation and rigid group dragging. Use the browser to verify the affected gesture or dialog as well. See the [frontend architecture](../document.md) for startup, state ownership and known pre-existing limitations.
+From the repository root, run `node src/Canvas/static/js/api.test.mjs` and
+`node src/Canvas/static/js/ui.test.mjs`. The UI suite covers successful selection,
+cancellation, invalid folders, API errors, and the browser fallback. On Windows,
+manually check File > Open Folder, the sidebar change action, empty state, and
+Save with no workspace. Cancel the dialog and verify the workspace is unchanged;
+select a folder and verify the sidebar refreshes. See the [desktop guide](../../../../../desktop/document.md)
+for packaged-app checks.

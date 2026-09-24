@@ -18,6 +18,9 @@ filesystem and Python work run outside that lock.
 | [python](python/document.md) | Detached canvas → Python shape analysis or generated model artifacts. |
 | [fault](fault/document.md) | Failure message/classification → transport-independent task error. |
 
+Session recovery is owned by [session](session/document.md): Electron's data
+directory and the Go graph store become a versioned, debounced JSON snapshot.
+
 From src, run go test ./... and go vet ./.... Graph edits, HTTP contracts,
 templates, static assets and filesystem fixtures run without Python. The persistent
 worker integration test requires python on PATH and PyTorch; verbose output shows
