@@ -1,0 +1,22 @@
+.code-layout { display:flex; flex:1; min-height:0; background:var(--surface-muted); }
+.code-files { width:220px; flex:none; border-right:1px solid var(--border); display:flex; flex-direction:column; min-height:0; background:var(--surface); }
+.code-files-head { display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid var(--border); }
+.code-files-head button,.code-toolbar button,.code-folder { color:var(--text); background:var(--surface-raised); border:1px solid var(--border); border-radius:4px; padding:6px 9px; cursor:pointer; }
+.code-folder { margin:10px; }
+.code-file-list { overflow:auto; flex:1; padding:4px; }
+.code-file-list button { display:block; width:100%; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:7px; color:var(--text); border:0; background:transparent; cursor:pointer; border-radius:4px; }
+.code-file-list button:hover,.code-file-list button.active { background:var(--hover); }
+.code-main { display:flex; flex:1; min-width:0; flex-direction:column; }
+.code-toolbar { display:flex; align-items:center; gap:7px; padding:8px 12px; border-bottom:1px solid var(--border); min-height:49px; }
+.code-toolbar-spacer { flex:1; }
+#fileTitle { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:220px; }
+#dirtyMark { color:var(--accent); min-width:10px; }
+#searchCode { width:130px; padding:6px; border:1px solid var(--border); border-radius:4px; }
+#modelClass { max-width:150px; padding:6px; border:1px solid var(--border); border-radius:4px; }
+.code-toolbar .code-compile { background:var(--accent-soft); border-color:var(--accent); }
+.code-editor { display:flex; flex:1; min-height:0; overflow:hidden; font:13px/1.55 Consolas,Monaco,monospace; }
+.code-lines { min-width:42px; padding:12px 8px; text-align:right; color:var(--muted); white-space:pre; overflow:hidden; user-select:none; border-right:1px solid var(--border); }
+#codeSource { resize:none; flex:1; min-width:0; border:0; outline:0; padding:12px; font:inherit; line-height:inherit; white-space:pre; overflow:auto; tab-size:4; }
+.code-status { min-height:29px; padding:7px 12px; border-top:1px solid var(--border); color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.code-status.error { color:var(--danger); }
+@media(max-width:800px) { .code-files { width:150px; } .code-toolbar { flex-wrap:wrap; } }

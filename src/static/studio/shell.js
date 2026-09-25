@@ -24,8 +24,11 @@ window.chooseWorkspace = async () => {
             if (result.cancelled) return;
             selected = result.workingDir;
         }
+        if (selected === current.workingDir) return;
+        if (window.beforeWorkspaceChange && !window.beforeWorkspaceChange(selected, current)) return;
         await request('/api/workspace/set?path=' + encodeURIComponent(selected), { method: 'POST' });
         await refreshWorkspace();
+        window.dispatchEvent(new CustomEvent('workspacechanged'));
     } catch (cause) {
         window.alert('Could not open folder: ' + cause.message);
     }

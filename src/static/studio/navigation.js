@@ -22,10 +22,11 @@ export async function initModeNavigation() {
                 if (mode.id === active) return;
                 try {
                     await window.waitForCanvasEdits?.();
+                    await window.prepareModeSwitch?.(mode.id);
                     window.location.assign(mode.url);
                 } catch (error) {
-                    console.error('Canvas edit is still unresolved:', error);
-                    alert('Could not finish the current edit. Please try again.');
+                    console.error('Mode switch is unresolved:', error);
+                    alert(error.message || 'Could not finish the current edit. Please try again.');
                 }
             });
             return button;

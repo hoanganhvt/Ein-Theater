@@ -43,6 +43,8 @@ For example, `/api/data` remains the legacy **Canvas graph** endpoint;
 Modes may reuse relative endpoint and asset names without shadowing one another.
 Global static files win over legacy Canvas fallbacks. Registry IDs are trusted
 startup configuration; request values never become template filenames.
+The repository includes Canvas's `vis-network` asset in `src/static/vendor`, so
+direct `go run` sessions can draw without Electron.
 
 ## Implement Data, Code or Debug
 
@@ -72,9 +74,8 @@ func Definition() studio.Mode {
 }
 ```
 
-This boundary does not invent a shared project/job model. Canvas graph state stays
-in Canvas. If modes later share datasets, models or jobs, define those contracts
-in a mode-neutral package rather than importing Canvas's store from another mode.
+Canvas and Code now share the active project in Go. Code stores its per-project
+draft alongside Canvas graph state in the session. Other modes remain independent.
 Page navigation is a full document navigation, not a Canvas sidebar swap or a
 single-page-app lifecycle. Nondefault modes can load without Canvas JavaScript.
 
@@ -98,15 +99,15 @@ from both supported launch directories and verify page composition/static assets
 From the repository root, run
 `node src/static/studio/navigation.test.mjs`. Expected: the active mode is marked,
 an available sibling navigates to its URL, and an unavailable mode is disabled.
-Manually launch studio and check Canvas, Data, Debug, and Code appear. The latter
-three have navigable development shells rather than complete feature editors.
+Manually launch studio and check Canvas, Data, Debug, and Code appear. Data and
+Debug have development shells; Code has a Python editor.
 # Current studio navigation
 
 The application menu is `EinTheater File Edit Mode`. `/api/modes` returns Canvas,
-Data, Debug and Code in that order. Data, Debug and Code currently use `ShellPage`
-with independent routes and clear development status. The standalone Canvas
+Data, Debug and Code in that order. Data and Debug use `ShellPage`; Code has its
+own editor and API. The standalone Canvas
 entry registers Canvas only. `static/studio/menubar.js` owns menu interaction,
 while `navigation.js` fills the Mode dropdown from the registry.
-Canvas waits for pending graph writes before following a Mode link. Run
+Canvas waits for pending graph writes and Code synchronizes its draft before following a Mode link. Run
 `node src/static/studio/menubar.test.mjs` and
 `node src/static/studio/navigation.test.mjs` for menu behavior.

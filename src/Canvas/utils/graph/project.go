@@ -8,6 +8,12 @@ import (
 // Project holds all state for one model canvas.
 type Project struct {
 	BaseDir          string
+	SourcePath       string
+	CodePath         string
+	CodeDraft        string
+	CodeSavedSource  string
+	CodeHash         string
+	CodeDraftSet     bool
 	NodeOrder        []string
 	ID               string
 	Name             string

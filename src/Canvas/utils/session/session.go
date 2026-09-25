@@ -15,15 +15,21 @@ import (
 const currentVersion = 1
 
 type projectState struct {
-	ID         string                `json:"id"`
-	Name       string                `json:"name"`
-	BaseDir    string                `json:"baseDir,omitempty"`
-	Nodes      map[string]graph.Node `json:"nodes"`
-	Edges      map[string]graph.Edge `json:"edges"`
-	NodeOrder  []string              `json:"nodeOrder"`
-	EdgeOrder  []string              `json:"edgeOrder"`
-	NextNodeID int                   `json:"nextNodeId"`
-	NextEdgeID int                   `json:"nextEdgeId"`
+	ID              string                `json:"id"`
+	Name            string                `json:"name"`
+	BaseDir         string                `json:"baseDir,omitempty"`
+	SourcePath      string                `json:"sourcePath,omitempty"`
+	CodePath        string                `json:"codePath,omitempty"`
+	CodeDraft       string                `json:"codeDraft,omitempty"`
+	CodeSavedSource string                `json:"codeSavedSource,omitempty"`
+	CodeHash        string                `json:"codeHash,omitempty"`
+	CodeDraftSet    bool                  `json:"codeDraftSet,omitempty"`
+	Nodes           map[string]graph.Node `json:"nodes"`
+	Edges           map[string]graph.Edge `json:"edges"`
+	NodeOrder       []string              `json:"nodeOrder"`
+	EdgeOrder       []string              `json:"edgeOrder"`
+	NextNodeID      int                   `json:"nextNodeId"`
+	NextEdgeID      int                   `json:"nextEdgeId"`
 }
 
 type state struct {
@@ -84,7 +90,9 @@ func (m *Manager) Load() error {
 			item.Edges = make(map[string]graph.Edge)
 		}
 		projects[item.ID] = &graph.Project{
-			ID: item.ID, Name: item.Name, BaseDir: item.BaseDir,
+			ID: item.ID, Name: item.Name, BaseDir: item.BaseDir, SourcePath: item.SourcePath,
+			CodePath: item.CodePath, CodeDraft: item.CodeDraft, CodeSavedSource: item.CodeSavedSource,
+			CodeHash: item.CodeHash, CodeDraftSet: item.CodeDraftSet,
 			Nodes: item.Nodes, Edges: item.Edges,
 			NodeOrder: item.NodeOrder, EdgeOrder: item.EdgeOrder,
 			NextNodeID: item.NextNodeID, NextEdgeID: item.NextEdgeID,
@@ -159,7 +167,9 @@ func (m *Manager) Flush() error {
 			continue
 		}
 		saved.Projects = append(saved.Projects, projectState{
-			ID: p.ID, Name: p.Name, BaseDir: p.BaseDir,
+			ID: p.ID, Name: p.Name, BaseDir: p.BaseDir, SourcePath: p.SourcePath,
+			CodePath: p.CodePath, CodeDraft: p.CodeDraft, CodeSavedSource: p.CodeSavedSource,
+			CodeHash: p.CodeHash, CodeDraftSet: p.CodeDraftSet,
 			Nodes: p.Nodes, Edges: p.Edges,
 			NodeOrder: append([]string(nil), p.NodeOrder...), EdgeOrder: append([]string(nil), p.EdgeOrder...),
 			NextNodeID: p.NextNodeID, NextEdgeID: p.NextEdgeID,

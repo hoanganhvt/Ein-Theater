@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Code · EinTheater</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/code/editor.css">
+</head>
+<body data-studio-mode="code">
+  <header class="studio-bar" id="studioMenubar">
+    <a class="brand-mark" href="/">Ein<span>Theater</span></a>
+    <div class="menu-dropdown"><button type="button" class="menu-btn" id="fileMenuBtn" aria-expanded="false" aria-controls="fileMenuDropdown">File</button>
+      <div class="menu-dropdown-content" id="fileMenuDropdown">
+        <button type="button" class="menu-item" data-command="open-folder">Open Folder…</button>
+        <button type="button" class="menu-item" data-command="save">Save Code <span class="menu-badge">Ctrl+S</span></button>
+        <div class="menu-separator"></div><div class="menu-item-info"><span class="menu-info-label">Workspace</span><span class="menu-info-val" id="menuWorkingDir">None</span></div>
+      </div>
+    </div>
+    <div class="menu-dropdown"><button type="button" class="menu-btn" id="modeMenuBtn" aria-expanded="false" aria-controls="modeMenuDropdown">Mode</button>
+      <nav class="menu-dropdown-content mode-menu" id="modeMenuDropdown" aria-label="Workspace modes"><div id="appModeTabs"></div></nav>
+    </div>
+    <span class="studio-current-mode">Code</span>
+  </header>
+  <main class="code-layout">
+    <aside class="code-files" aria-label="Python files">
+      <div class="code-files-head"><strong>Python files</strong><button id="newFile" title="New Python file">＋</button></div>
+      <button id="shellOpenFolder" class="code-folder">Open Folder…</button>
+      <div id="fileList" class="code-file-list"></div>
+    </aside>
+    <section class="code-main">
+      <div class="code-toolbar">
+        <span id="fileTitle">No file open</span><span id="dirtyMark" aria-label="Unsaved changes"></span>
+        <div class="code-toolbar-spacer"></div>
+        <input id="searchCode" type="search" placeholder="Find in code" aria-label="Find in code">
+        <button id="findNext">Find</button>
+        <button id="deleteFile" title="Delete current file">Delete</button>
+        <button id="saveCode">Save</button>
+        <button id="configurePython" hidden>Configure Python</button>
+        <select id="modelClass" aria-label="Model class"><option value="">Select class</option></select>
+        <button id="compileCode" class="code-compile">Compile</button>
+      </div>
+      <div class="code-editor"><div id="lineNumbers" class="code-lines" aria-hidden="true">1</div><textarea id="codeSource" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Python source code"></textarea></div>
+      <div id="codeStatus" class="code-status" role="status">Open a Python file or create one.</div>
+    </section>
+  </main>
+  <script type="module" src="/static/studio/navigation.js"></script>
+  <script type="module" src="/static/studio/menubar.js"></script>
+  <script type="module" src="/static/studio/shell.js"></script>
+  <script type="module" src="/static/code/editor.js"></script>
+</body></html>

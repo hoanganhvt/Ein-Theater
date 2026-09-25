@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 
-let buttons = [], destination = null, ready;
-globalThis.window = { location: { assign: url => { destination = url; } } };
+let buttons = [], destination = null, ready, prepared = false;
+globalThis.window = {
+    location: { assign: url => { assert.equal(prepared, true); destination = url; } },
+    prepareModeSwitch: async () => { prepared = true; }
+};
 globalThis.document = {
     readyState: 'loading',
     body: { dataset: { studioMode: 'canvas' } },

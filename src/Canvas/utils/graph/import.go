@@ -34,6 +34,7 @@ func (s *Store) ImportGraph(graphData GraphData, cleanFolder string) *Project {
 	p.Nodes = make(map[string]Node)
 	p.Edges = make(map[string]Edge)
 	p.BaseDir, _ = filepath.Abs(cleanFolder)
+	p.SourcePath = ""
 	p.NodeOrder = nil
 
 	for _, n := range graphData.Nodes {

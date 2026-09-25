@@ -27,13 +27,14 @@ func DataHandler(w http.ResponseWriter, r *http.Request) {
 	snapshot := p.PrepareSnapshot()
 	revision := p.SemanticRevision
 	baseDir := p.BaseDir
+	compiledSource := p.SourcePath != ""
 	if baseDir == "" {
 		baseDir = store.WorkingDir
 	}
 	store.Mu.Unlock()
 	editMu.Unlock()
 	snapshotMS := float64(time.Since(started).Microseconds()) / 1000
-	if r.URL.Query().Get("analyze") == "false" {
+	if r.URL.Query().Get("analyze") == "false" || compiledSource {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Server-Timing", fmt.Sprintf("snapshot;dur=%.3f", snapshotMS))
 		json.NewEncoder(w).Encode(snapshot)

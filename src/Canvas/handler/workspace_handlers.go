@@ -125,10 +125,6 @@ func SelectNativeFolderHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	store.Mu.Lock()
-	store.WorkingDir = cleanPath
-	store.Mu.Unlock()
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"cancelled":  false,

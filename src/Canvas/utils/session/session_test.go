@@ -25,6 +25,10 @@ func TestSessionRoundTripAndMissingWorkspace(t *testing.T) {
 	second := store.CreateProject("Second")
 	second.Nodes["linear_0"] = graph.Node{ID: "linear_0", Label: "Linear"}
 	second.NodeOrder = []string{"linear_0"}
+	second.CodePath = filepath.Join(workspace, "model.py")
+	second.CodeDraft = "unsaved Python"
+	second.CodeSavedSource = "saved Python"
+	second.CodeDraftSet = true
 	store.Mu.Unlock()
 
 	manager := New(dir, store)
@@ -40,6 +44,9 @@ func TestSessionRoundTripAndMissingWorkspace(t *testing.T) {
 	}
 	if restored.Projects[first.ID].Nodes["input_0"].Label != "Input" || restored.Projects[second.ID].Nodes["linear_0"].Label != "Linear" {
 		t.Fatal("unsaved canvas contents were not restored")
+	}
+	if restored.Projects[second.ID].CodePath != second.CodePath || restored.Projects[second.ID].CodeDraft != "unsaved Python" || !restored.Projects[second.ID].CodeDraftSet {
+		t.Fatal("active project Code draft was not restored")
 	}
 	if len(restored.Projects[first.ID].UndoStack) != 0 {
 		t.Fatal("undo history must not persist")

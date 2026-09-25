@@ -37,7 +37,7 @@ func TestStudioModes(t *testing.T) {
 			t.Fatalf("mode %s unavailable: %d", mode.ID, w.Code)
 		}
 	}
-	for _, path := range []string{"/static/studio/menubar.js", "/static/studio/navigation.js", "/static/studio/shell.js", "/static/style.css"} {
+	for _, path := range []string{"/static/studio/menubar.js", "/static/studio/navigation.js", "/static/studio/shell.js", "/static/style.css", "/static/vendor/vis-network.min.js", "/static/code/editor.js", "/static/code/editor.css"} {
 		w = httptest.NewRecorder()
 		app.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
 		if w.Code != 200 || w.Body.Len() == 0 {
