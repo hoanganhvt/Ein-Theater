@@ -31,6 +31,11 @@ the external task, reacquire the lock, then use `ApplyAnalysis` or
 | `AddEdgeReq`, `UpdateEdgeReq` | Endpoints or ID, lines, edge type, fold mode/custom fold | Connection or route update commands. |
 | `PasteGraphReq`, `PasteGraphResp` | Nodes, edges, `dx`, `dy` | Pasted nodes and internal edges with remapped IDs. |
 
+`Project` also owns the Code file association and synchronized editor draft.
+`Store.CurrentProjectID` selects the same project in Code and Canvas. Graph
+operations do not derive nodes from source until the explicit Compile action.
+See the [Code mode guide](../../../Code/document.md).
+
 ## Operations: input and output
 
 | File / component | Input | Output and side effects |

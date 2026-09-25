@@ -17,6 +17,7 @@ and encode responses. Task algorithms and data ownership live in
 | Shared rendering | Mode-owned template path | src/studio.ServeTemplate performs GET/HEAD validation, composition and response writes. |
 | error_handler.go: writeError | ResponseWriter and task error | Plain-text 400 for fault.Invalid, otherwise 500. Endpoint-specific graph errors are mapped by their handlers. |
 | persistence.go | Optional data directory and mutating requests | Restores and schedules debounced desktop session snapshots; flushes at shutdown. |
+| code_document.go, code_import.go | Active Code path/draft and validated FX graph | Bind Code files to the global active project, synchronize drafts, and import compiled graphs. See the [Code mode contract](../../Code/document.md). |
 | runtime_handlers.go | Health/Python runtime requests | Process-level JSON health, interpreter detection and manual configuration. |
 
 Every public handler takes (http.ResponseWriter, *http.Request) and returns no Go
@@ -86,7 +87,7 @@ Concurrent drag/routing edits survive analysis; semantic edits reject stale resu
 | WorkspaceHandler: /api/workspace | Any | {workingDir,name}; unset name is None. |
 | SetWorkspaceHandler: /api/workspace/set | POST; path query, then JSON {path} | WorkspaceResponse; 400 for blank, missing or nondirectory path. |
 | BrowseWorkspaceHandler: /api/workspace/browse | Any; dir query, falling back to active workspace | BrowseResponse with current/parent/drives/folders/files. Uses workspace.Browse for filesystem work. |
-| SelectNativeFolderHandler: /api/workspace/select-native | POST | {cancelled:true}, or {cancelled:false,workingDir,name} and workspace update. Invalid selected folder returns 400, picker failure 500. Windows interactive feature. |
+| SelectNativeFolderHandler: /api/workspace/select-native | POST | {cancelled:true}, or {cancelled:false,workingDir,name}. The caller applies the selection with `/api/workspace/set`; invalid selected folder returns 400 and picker failure returns 500. Windows interactive feature. |
 | CreateFolderHandler: /api/workspace/create-folder | POST; JSON {dir,name}, then query fallbacks; dir defaults to workspace | {status,path,name,parent}; task errors map to 400/500. |
 
 ## Model handlers (model_handlers.go)

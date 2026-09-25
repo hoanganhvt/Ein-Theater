@@ -46,7 +46,7 @@ startup configuration; request values never become template filenames.
 The repository includes Canvas's `vis-network` asset in `src/static/vendor`, so
 direct `go run` sessions can draw without Electron.
 
-## Implement Data, Code or Debug
+## Implement Data or Debug
 
 1. Create a feature directory, e.g. `src/Data/handler`, `templates`, `static` and
    task-specific `utils`. Keep its state and workflows out of Canvas packages.
@@ -60,6 +60,10 @@ direct `go run` sessions can draw without Electron.
    module. Available modes navigate to their pages.
 5. Add mode-local HTTP/task tests, folder documentation with input/output/error
    contracts, and an integration test through `studio.NewHandler`.
+
+Code mode is implemented. Its [architecture and behavior guide](../Code/document.md)
+describes the shared active project, draft synchronization, file operations, and
+compile boundary.
 
 Example descriptor (after implementing the referenced Data handlers):
 
