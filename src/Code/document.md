@@ -30,13 +30,17 @@ flowchart LR
 
 ### Enter Code and choose a file
 
-On page load, the editor requests `GET /api/code/active`. Go reads the current project. If that project has a synchronized draft, it returns the draft. Otherwise it reads the associated `.py` file when one exists in the selected workspace. With no associated file, Code opens an empty buffer for the active Canvas project. The editor then lists workspace `.py` files and scans the current buffer for candidate model classes.
+On page load, the editor requests `GET /api/code/active`. Go reads the current project. A Canvas model saved or loaded from a folder is associated with its `<folder>/<folder>.py` file; older sessions discover that file from `BaseDir` when entering Code. If the project has a synchronized draft, Code returns the draft. Otherwise it reads the associated `.py` file when one exists in the selected workspace. With no associated file, Code opens an empty buffer for the active Canvas project. The editor then lists workspace `.py` files not already represented in Models and scans the current buffer for candidate model classes.
 
 Opening an existing file checks that the file can be read, synchronizes the current buffer, calls `POST /api/code/active/bind`, and reloads the active document. Binding selects an existing project for that path. If no project owns the path, it attaches the path to the current project when that project has no Code path; otherwise it creates and activates a new project. Choosing a new filename follows the same binding flow. The file itself is created only when Save succeeds. Switching files preserves each project's synchronized draft.
+
+Code also shows the shared model list. Selecting a model synchronizes the current draft, calls `POST /api/projects/switch`, and loads the selected model's Code buffer. Canvas uses the same active project ID, so returning there opens the model last selected in Code.
 
 ### Edit, switch modes, and recover
 
 The editor tracks unsaved changes by comparing the textarea value with `savedSource`. An edit followed by an exact revert is clean. Line numbers, Tab indentation, and basic find run locally. Class scanning is delayed after input; it reads the current buffer without executing model source.
+
+Python syntax colors run offline without an editor dependency. An escaped, aria-hidden `pre/code` layer mirrors the textarea and scrolls with it; the textarea remains responsible for input, selection, and accessibility. Keywords, strings (including multiline and unfinished strings), numbers, and comments update on load and edits, including paste, Tab, undo, and redo. F-strings receive a single string color rather than separate expression colors. Forced-colors mode uses plain textarea text. Highlighting never changes the source sent to Save, Compile, or draft synchronization.
 
 Selecting another mode calls `window.prepareModeSwitch`, which sends the current buffer and baseline to `PUT /api/code/active`. The shared navigation code waits for that request before changing pages. The Go handler rejects a stale project ID or a path that no longer belongs to the active project with HTTP 409. On synchronization failure, navigation stays on Code and shows the error. A successful mode switch suppresses the browser's unload warning because the draft is retained. Returning to Code loads the draft from the active Go project. Canvas displays its current graph; changing modes does not transform either representation.
 
@@ -64,7 +68,7 @@ The `projectId` field on `GET /api/code/file` reports an existing **compiled** a
 
 | Route | Request | Success | Main failures |
 | --- | --- | --- | --- |
-| `GET /api/code/files` | No body | `{files:[...]}` for workspace `.py` files | 400 without workspace; 500 on traversal error |
+| `GET /api/code/files` | No body | `{files:[...]}` for workspace `.py` files not represented in Models | 400 without workspace; 500 on traversal error |
 | `GET /api/code/file?path=...` | Relative `.py` path | `{path,source,hash,projectId}` | 400 invalid or missing path; 413 over 1 MiB |
 | `PUT /api/code/file` | `{path,source,expectedHash}` | `{path,hash}` | 400 invalid input/path; 409 external change; 413 over 1 MiB |
 | `DELETE /api/code/file` | `{path,expectedHash}` | `{deleted:true}` | 400 invalid or missing path; 409 external change |

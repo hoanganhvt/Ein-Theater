@@ -1,5 +1,28 @@
 const el = id => document.getElementById(id);
 const source = el('codeSource');
+const pythonKeywords = new Set('False None True and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield'.split(' '));
+function highlightPython(text) {
+    const escape = value => value.replace(/[&<>]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[char]));
+    // ponytail: lexical colors only; use a Python parser if f-string expressions need separate colors.
+    const tokens = /#[^\n]*|(?:\b(?:br|rb|fr|rf|r|u|b|f))?(?:"""(?:\\[\s\S]|(?!""")[^\\])*?(?:"""|$)|'''(?:\\[\s\S]|(?!''')[^\\])*?(?:'''|$)|"(?:\\[\s\S]|[^"\\\n])*(?:"|(?=\n)|$)|'(?:\\[\s\S]|[^'\\\n])*(?:'|(?=\n)|$))|\b0(?:x(?:_?[\da-f])+|o(?:_?[0-7])+|b(?:_?[01])+)|(?:\b\d(?:_?\d)*(?:\.(?:\d(?:_?\d)*)?)?|\.\d(?:_?\d)*)(?:e[+-]?\d(?:_?\d)*)?j?|[\p{L}_][\p{L}\p{N}_]*/giu;
+    let html = '', end = 0;
+    for (const match of text.matchAll(tokens)) {
+        const token = match[0];
+        const kind = token.startsWith('#') ? 'comment' : /['"]/.test(token) ? 'string'
+            : /^[\d.]/.test(token) ? 'number' : pythonKeywords.has(token) ? 'keyword' : '';
+        html += escape(text.slice(end, match.index));
+        html += kind ? `<span class="code-${kind}">${escape(token)}</span>` : escape(token);
+        end = match.index + token.length;
+    }
+    return html + escape(text.slice(end));
+}
+function syncScroll() {
+    // Reserve the textarea's horizontal scrollbar height so the gutter can reach the last line.
+    el('lineNumbers').style.paddingBottom = `${12 + source.offsetHeight - source.clientHeight}px`;
+    el('lineNumbers').scrollTop = source.scrollTop;
+    el('codeHighlight').scrollTop = source.scrollTop;
+    el('codeHighlight').scrollLeft = source.scrollLeft;
+}
 let path = '';
 let savedSource = '';
 let savedHash = '';
@@ -24,7 +47,7 @@ async function loadActive() {
     savedSource = data.savedSource || '';
     savedHash = data.hash || '';
     replaceRequired = !!data.replaceRequired;
-    title(); await listFiles(); await scanClasses();
+    title(); await Promise.all([listProjects(), listFiles(), scanClasses()]);
     status(path ? `Working on ${path} in ${projectName}` : `Working on ${projectName}. Create or open a Python file.`);
 }
 
@@ -38,12 +61,38 @@ const json = (method, body) => ({ method, headers: { 'Content-Type': 'applicatio
 const dirty = () => source.value !== savedSource;
 function status(message, error = false) { el('codeStatus').textContent = message; el('codeStatus').classList.toggle('error', error); }
 function lines() {
+    el('codeHighlightText').innerHTML = highlightPython(source.value) + '\u200b';
     el('lineNumbers').textContent = Array.from({ length: source.value.split('\n').length }, (_, i) => i + 1).join('\n');
-    el('lineNumbers').scrollTop = source.scrollTop;
+    syncScroll();
     el('dirtyMark').textContent = dirty() ? '●' : '';
 }
 function title() { el('fileTitle').textContent = path || projectName || 'No file open'; document.title = `${path || 'Code'} · EinTheater`; lines(); }
 function mayLeave() { return !dirty() || confirm('Discard unsaved code changes?'); }
+async function listProjects() {
+    const list = el('codeProjectList');
+    try {
+        const data = await request('/api/projects');
+        list.replaceChildren(...data.projects.map(project => {
+            const button = document.createElement('button');
+            button.textContent = project.name;
+            button.title = project.name;
+            button.classList.toggle('active', project.id === data.current);
+            if (project.id === data.current) button.setAttribute('aria-current', 'true');
+            button.addEventListener('click', () => void switchProject(project.id));
+            return button;
+        }));
+    } catch (error) { list.replaceChildren(); status(error.message, true); }
+}
+async function switchProject(id) {
+    if (busy || id === projectId) return;
+    busy = true;
+    try {
+        await syncDraft();
+        await request('/api/projects/switch?id=' + encodeURIComponent(id), { method: 'POST' });
+        await loadActive();
+    } catch (error) { status(error.message, true); }
+    finally { busy = false; }
+}
 async function listFiles() {
     const list = el('fileList');
     try {
@@ -158,7 +207,7 @@ el('findNext').addEventListener('click', () => {
     if (at >= 0) { source.focus(); source.setSelectionRange(at, at + term.length); }
 });
 el('searchCode').addEventListener('keydown', event => { if (event.key === 'Enter') el('findNext').click(); });
-source.addEventListener('scroll', () => { el('lineNumbers').scrollTop = source.scrollTop; });
+source.addEventListener('scroll', syncScroll);
 let scanTimer;
 source.addEventListener('input', () => { lines(); clearTimeout(scanTimer); scanTimer = setTimeout(() => void scanClasses(), 400); });
 source.addEventListener('keydown', event => {

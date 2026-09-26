@@ -1,6 +1,8 @@
 # Ein Theater
 
-Design PyTorch models visually. Build and connect blocks on the Canvas, then save editable model data and generated Python code. Data, Debug, and Code modes are under development.
+Design PyTorch models visually. Build and connect blocks on the Canvas, then save editable model data and generated Python code. Code mode edits workspace Python files and compiles traceable `nn.Module` classes into Canvas projects. Data and Debug modes are under development.
+
+Code and Canvas share the active project. Switching modes keeps the current Code draft in the Go session without saving a Python file or compiling a graph. The [Code mode guide](src/Code/document.md) documents the editor, APIs, project state, compile flow, limitations, and tests.
 
 ![Ein Theater Canvas](./assets/Demo_image.png)
 

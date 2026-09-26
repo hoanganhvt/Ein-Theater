@@ -46,9 +46,22 @@ function readWindowState() {
 
 function saveWindowState() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
-  const bounds = mainWindow.getBounds();
-  fs.mkdirSync(app.getPath('userData'), { recursive: true });
-  fs.writeFileSync(path.join(app.getPath('userData'), 'window-state.json'), JSON.stringify(bounds));
+  try {
+    const bounds = mainWindow.getBounds();
+    fs.mkdirSync(app.getPath('userData'), { recursive: true });
+    fs.writeFileSync(path.join(app.getPath('userData'), 'window-state.json'), JSON.stringify(bounds));
+  } catch (error) {
+    console.error('Could not save window state:', error);
+  }
+}
+
+function logShutdown(stage) {
+  console.info('Shutdown:', stage);
+  try {
+    fs.appendFileSync(path.join(app.getPath('userData'), 'shutdown.log'), `${new Date().toISOString()} ${stage}\n`);
+  } catch (error) {
+    console.error('Could not write shutdown log:', error);
+  }
 }
 
 function startServer(token) {
@@ -107,6 +120,7 @@ function installSecurity(token) {
 
 function createWindow() {
   const smoke = process.env.EIN_THEATER_SMOKE === '1';
+  if (smoke) reportSmoke({ event: 'smoke-progress', stage: 'window-start' });
   if (smoke && process.env.EIN_THEATER_SMOKE_FOLDER) {
     dialog.showOpenDialog = async (_parent, options) => {
       if (!options.properties?.includes('openDirectory')) throw new Error('native directory picker was not requested');
@@ -129,6 +143,7 @@ function createWindow() {
       sandbox: true
     }
   });
+  if (smoke) reportSmoke({ event: 'smoke-progress', stage: 'window-created' });
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   mainWindow.webContents.on('will-navigate', (event, target) => {
     if (!target.startsWith(serverUrl + '/')) event.preventDefault();
@@ -141,14 +156,24 @@ function createWindow() {
   };
   mainWindow.on('maximize', publishMaximizeState);
   mainWindow.on('unmaximize', publishMaximizeState);
-  mainWindow.on('close', saveWindowState);
-  mainWindow.loadURL(serverUrl + '/');
+  mainWindow.on('close', () => { logShutdown('window-close'); saveWindowState(); });
+  mainWindow.on('closed', () => { logShutdown('window-closed'); mainWindow = null; });
+  mainWindow.webContents.on('will-prevent-unload', event => {
+    logShutdown('beforeunload-blocked');
+    const choice = dialog.showMessageBoxSync(mainWindow, {
+      type: 'warning', buttons: ['Cancel', 'Discard and close'], defaultId: 0, cancelId: 0,
+      title: 'Unsaved Code changes', message: 'Discard unsaved Code changes and close?'
+    });
+    if (choice === 1) event.preventDefault();
+  });
   if (smoke) {
-    mainWindow.webContents.once('did-fail-load', (_event, code, description) => {
+    mainWindow.webContents.on('did-fail-load', (_event, code, description) => {
+      if (code === -3) return; // ERR_ABORTED: the Canvas load was replaced by Code navigation.
       reportSmoke({ event: 'smoke-error', stage: 'load', code, description, serverUrl });
       app.quit();
     });
     mainWindow.webContents.once('did-finish-load', async () => {
+      reportSmoke({ event: 'smoke-progress', stage: 'canvas-loaded' });
       try {
         const result = await mainWindow.webContents.executeJavaScript(`(async () => {
           for (let i = 0; i < 50 && !window.chooseWorkspace; i++) await new Promise(resolve => setTimeout(resolve, 100));
@@ -170,24 +195,68 @@ function createWindow() {
           };
         })()`);
         result.hasNativeMenu = Menu.getApplicationMenu() !== null;
+        result.hasCodeConverter = fs.existsSync(path.join(locations().resources, 'Code', 'utils', 'compile.py'));
+        reportSmoke({ event: 'smoke-progress', stage: 'canvas-checked' });
+        if (process.env.EIN_THEATER_SMOKE_CANVAS === '1') {
+          if (process.env.EIN_THEATER_SMOKE_SCREENSHOT) {
+            const screenshot = await mainWindow.webContents.capturePage();
+            fs.writeFileSync(process.env.EIN_THEATER_SMOKE_SCREENSHOT, screenshot.toPNG());
+          }
+          const serverPid = serverProcess?.pid;
+          mainWindow.once('closed', () => reportSmoke({ event: 'smoke', ...result, closeVerified: true, serverPid }));
+          reportSmoke({ event: 'smoke-progress', stage: 'canvas-close-requested' });
+          mainWindow.close(); // Same native window-close path as Alt+F4.
+          return;
+        }
+        await mainWindow.loadURL(serverUrl + '/code');
+        reportSmoke({ event: 'smoke-progress', stage: 'code-loaded' });
+        result.codeMode = await mainWindow.webContents.executeJavaScript(`(async () => {
+          for (let i = 0; i < 50 && !document.querySelector('.window-controls'); i++) await new Promise(resolve => setTimeout(resolve, 100));
+          const created = await fetch('/api/code/file', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: 'desktop-smoke.py', source: 'class Model: pass' }) });
+          const saved = await created.json();
+          const opened = await fetch('/api/code/file?path=desktop-smoke.py').then(response => response.json());
+          const removed = await fetch('/api/code/file', { method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: 'desktop-smoke.py', expectedHash: saved.hash }) });
+          return {
+            page: document.body.dataset.studioMode,
+            hasEditor: !!document.querySelector('#codeSource'),
+            hasCompile: !!document.querySelector('#compileCode'),
+            hasPythonConfig: !!document.querySelector('#configurePython'),
+            hasWindowControls: !!document.querySelector('.window-controls [data-window-action="close"]'),
+            fileRoundTrip: created.ok && opened.source === 'class Model: pass' && removed.ok
+          };
+        })()`);
+        reportSmoke({ event: 'smoke-progress', stage: 'code-checked' });
+        if (process.env.EIN_THEATER_SMOKE_DIRTY === '1') {
+          await mainWindow.webContents.executeJavaScript(`document.querySelector('#codeSource').value += '\\n# unsaved'`);
+          let confirmSeen;
+          const prompted = new Promise(resolve => { confirmSeen = resolve; });
+          dialog.showMessageBoxSync = () => { confirmSeen(); return 0; };
+          await mainWindow.webContents.executeJavaScript(`document.querySelector('[data-window-action="close"]').click()`);
+          await prompted;
+          result.cancelKeptWindow = !mainWindow.isDestroyed();
+          result.cancelKeptServer = await mainWindow.webContents.executeJavaScript(`fetch('/api/health').then(response => response.ok)`);
+          dialog.showMessageBoxSync = () => { result.confirmedDiscard = true; return 1; };
+        }
         if (process.env.EIN_THEATER_SMOKE_SCREENSHOT) {
           const screenshot = await mainWindow.webContents.capturePage();
           fs.writeFileSync(process.env.EIN_THEATER_SMOKE_SCREENSHOT, screenshot.toPNG());
         }
-        const payload = JSON.stringify({ event: 'smoke', ...result });
-        if (smokeResultPath) {
-          reportSmoke({ event: 'smoke', ...result });
-        } else {
-          process.stdout.write(payload + '\n');
-        }
+        const serverPid = serverProcess?.pid;
+        mainWindow.once('closed', () => reportSmoke({ event: 'smoke', ...result, closeVerified: true, serverPid }));
+        reportSmoke({ event: 'smoke-progress', stage: 'close-requested' });
+        await mainWindow.webContents.executeJavaScript(`document.querySelector('[data-window-action="close"]').click()`);
       } catch (error) {
         reportSmoke({ event: 'smoke-error', stage: 'renderer', error: error.stack || error.message });
         process.stderr.write(error.stack + '\n');
         process.exitCode = 1;
       }
-      app.quit();
+      if (process.exitCode) app.quit();
     });
   }
+  if (smoke) reportSmoke({ event: 'smoke-progress', stage: 'canvas-requested' });
+  mainWindow.loadURL(serverUrl + '/');
 }
 
 ipcMain.handle('workspace:select-directory', async (_event, initialPath) => {
@@ -222,7 +291,7 @@ ipcMain.handle('window:toggle-maximize', event => {
   else window.maximize();
   return window.isMaximized();
 });
-ipcMain.handle('window:close', event => trustedWindow(event).close());
+ipcMain.handle('window:close', event => { logShutdown('close-ipc'); trustedWindow(event).close(); });
 ipcMain.handle('window:is-maximized', event => trustedWindow(event).isMaximized());
 
 app.whenReady().then(async () => {
@@ -248,9 +317,10 @@ app.on('before-quit', event => {
   if (allowQuit || !serverProcess) return;
   event.preventDefault();
   allowQuit = true;
+  logShutdown('go-stop-requested');
   saveWindowState();
   const child = serverProcess;
-  const force = setTimeout(() => child.kill(), 5500);
-  child.once('exit', () => { clearTimeout(force); app.quit(); });
-  child.stdin.end();
+  const force = setTimeout(() => { logShutdown('go-stop-timeout'); child.kill(); app.quit(); }, 5500);
+  child.once('exit', () => { clearTimeout(force); logShutdown('go-stopped'); app.quit(); });
+  try { child.stdin.end(); } catch (error) { console.error('Could not stop Go server:', error); clearTimeout(force); child.kill(); app.quit(); }
 });

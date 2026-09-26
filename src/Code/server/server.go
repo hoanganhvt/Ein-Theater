@@ -100,6 +100,7 @@ func files(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	list := []string{}
+	modelFiles := handler.ModelCodePaths()
 	err = filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -110,7 +111,7 @@ func files(w http.ResponseWriter, r *http.Request) {
 			}
 			return nil
 		}
-		if entry.Type()&os.ModeSymlink != 0 || filepath.Ext(path) != ".py" {
+		if entry.Type()&os.ModeSymlink != 0 || filepath.Ext(path) != ".py" || modelFiles[path] {
 			return nil
 		}
 		rel, err := filepath.Rel(root, path)

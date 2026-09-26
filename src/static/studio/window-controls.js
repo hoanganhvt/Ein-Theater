@@ -37,7 +37,9 @@ export function mountWindowControls() {
     };
     controls.querySelector('[data-window-action="minimize"]').addEventListener('click', () => bridge.minimize());
     maximizeButton.addEventListener('click', () => bridge.toggleMaximize().then(updateMaximized));
-    controls.querySelector('[data-window-action="close"]').addEventListener('click', () => bridge.close());
+    controls.querySelector('[data-window-action="close"]').addEventListener('click', () => {
+        bridge.close().catch(error => { console.error('Could not close window:', error); alert(error.message || 'Could not close window.'); });
+    });
     bridge.onMaximizeChange(updateMaximized);
     void bridge.isMaximized().then(updateMaximized);
 }

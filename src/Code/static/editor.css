@@ -6,6 +6,7 @@
 .code-file-list { overflow:auto; flex:1; padding:4px; }
 .code-file-list button { display:block; width:100%; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:7px; color:var(--text); border:0; background:transparent; cursor:pointer; border-radius:4px; }
 .code-file-list button:hover,.code-file-list button.active { background:var(--hover); }
+.code-project-list { flex:none; max-height:30%; border-bottom:1px solid var(--border); }
 .code-main { display:flex; flex:1; min-width:0; flex-direction:column; }
 .code-toolbar { display:flex; align-items:center; gap:7px; padding:8px 12px; border-bottom:1px solid var(--border); min-height:49px; }
 .code-toolbar-spacer { flex:1; }
@@ -16,7 +17,17 @@
 .code-toolbar .code-compile { background:var(--accent-soft); border-color:var(--accent); }
 .code-editor { display:flex; flex:1; min-height:0; overflow:hidden; font:13px/1.55 Consolas,Monaco,monospace; }
 .code-lines { min-width:42px; padding:12px 8px; text-align:right; color:var(--muted); white-space:pre; overflow:hidden; user-select:none; border-right:1px solid var(--border); }
-#codeSource { resize:none; flex:1; min-width:0; border:0; outline:0; padding:12px; font:inherit; line-height:inherit; white-space:pre; overflow:auto; tab-size:4; }
+.code-input { position:relative; flex:1; min-width:0; min-height:0; }
+#codeSource,#codeHighlight { position:absolute; inset:0; width:100%; height:100%; box-sizing:border-box; margin:0; border:0; padding:12px; font:inherit; letter-spacing:normal; white-space:pre; overflow:scroll; tab-size:4; }
+#codeHighlight { pointer-events:none; color:var(--text); background:var(--surface-muted); }
+#codeHighlightText { font:inherit; }
+#codeSource { resize:none; outline:0; color:transparent; background:transparent; caret-color:var(--text); }
+#codeSource::selection { color:var(--text); background:var(--accent-soft); }
+.code-keyword { color:#c7a4e8; }
+.code-string { color:#a8c995; }
+.code-number { color:#e5b885; }
+.code-comment { color:#939ba6; }
+@media(forced-colors:active) { #codeSource { color:CanvasText; caret-color:CanvasText; } #codeHighlight { visibility:hidden; } }
 .code-status { min-height:29px; padding:7px 12px; border-top:1px solid var(--border); color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .code-status.error { color:var(--danger); }
 @media(max-width:800px) { .code-files { width:150px; } .code-toolbar { flex-wrap:wrap; } }

@@ -22,7 +22,9 @@
     <span class="studio-current-mode">Code</span>
   </header>
   <main class="code-layout">
-    <aside class="code-files" aria-label="Python files">
+    <aside class="code-files" aria-label="Models and Python files">
+      <div class="code-files-head"><strong>Models</strong></div>
+      <div id="codeProjectList" class="code-file-list code-project-list" aria-label="Models"></div>
       <div class="code-files-head"><strong>Python files</strong><button id="newFile" title="New Python file">＋</button></div>
       <button id="shellOpenFolder" class="code-folder">Open Folder…</button>
       <div id="fileList" class="code-file-list"></div>
@@ -39,7 +41,7 @@
         <select id="modelClass" aria-label="Model class"><option value="">Select class</option></select>
         <button id="compileCode" class="code-compile">Compile</button>
       </div>
-      <div class="code-editor"><div id="lineNumbers" class="code-lines" aria-hidden="true">1</div><textarea id="codeSource" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Python source code"></textarea></div>
+      <div class="code-editor"><div id="lineNumbers" class="code-lines" aria-hidden="true">1</div><div class="code-input"><pre id="codeHighlight" aria-hidden="true"><code id="codeHighlightText"></code></pre><textarea id="codeSource" wrap="off" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Python source code"></textarea></div></div>
       <div id="codeStatus" class="code-status" role="status">Open a Python file or create one.</div>
     </section>
   </main>

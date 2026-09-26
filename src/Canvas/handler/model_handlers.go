@@ -102,7 +102,9 @@ func SaveModelHandler(w http.ResponseWriter, r *http.Request) {
 	savedFolder, _ := filepath.Abs(filepath.Join(cleanTarget, graphPayload.Name))
 	if saved, readErr := modelio.ReadModelCanvas(savedFolder); readErr == nil {
 		store.Mu.Lock()
-		p.AdoptSavedIntegrations(graphPayload, saved, savedFolder)
+		if p.AdoptSavedIntegrations(graphPayload, saved, savedFolder) {
+			associateModelCode(p, savedFolder)
+		}
 		store.Mu.Unlock()
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -155,6 +157,7 @@ func LoadModelHandler(w http.ResponseWriter, r *http.Request) {
 	defer store.Mu.Unlock()
 
 	p := store.ImportGraph(graphData, cleanFolder)
+	associateModelCode(p, p.BaseDir)
 	w.Header().Set("Server-Timing", fmt.Sprintf("read_decode;dur=%.3f, import;dur=%.3f", decodeMS, float64(time.Since(importStarted).Microseconds())/1000))
 
 	w.Header().Set("Content-Type", "application/json")

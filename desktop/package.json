@@ -39,7 +39,10 @@
       { "from": "../src/Canvas/templates", "to": "app-src/Canvas/templates" },
       { "from": "../src/Canvas/static", "to": "app-src/Canvas/static" },
       { "from": "../src/Canvas/data", "to": "app-src/Canvas/data" },
-      { "from": "../src/Canvas/utils", "to": "app-src/Canvas/utils", "filter": ["**/*.py"] }
+      { "from": "../src/Canvas/utils", "to": "app-src/Canvas/utils", "filter": ["**/*.py"] },
+      { "from": "../src/Code/templates", "to": "app-src/Code/templates" },
+      { "from": "../src/Code/static", "to": "app-src/Code/static" },
+      { "from": "../src/Code/utils", "to": "app-src/Code/utils", "filter": ["**/*.py"] }
     ],
     "win": {
       "icon": "build/icon.png",

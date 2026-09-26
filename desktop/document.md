@@ -27,6 +27,9 @@ to that origin; Go rejects missing or wrong tokens. The window appears only afte
 the server is ready. Closing Electron closes sidecar stdin, which triggers Go's
 graceful shutdown and session flush. In browser development, `go run .` continues
 to use the configured `PORT` (8080 by default) without desktop token auth.
+Shutdown stages are recorded in `userData/shutdown.log`. If saving window bounds fails,
+the error is logged and the app still closes. A Go server that does not stop within
+5.5 seconds is terminated so Electron can exit.
 
 `BrowserWindow` uses `contextIsolation`, `sandbox`, and disabled Node integration.
 The app denies popups, navigation away from its loopback origin, and permission
@@ -43,6 +46,8 @@ trusted main frame. Maximize changes update the button label and icon. Browser
 development has neither the bridge nor these custom controls and keeps the
 browser's native chrome. The related renderer code is documented in the
 [Studio UI guide](../src/static/studio/document.md).
+If Code has unsaved changes, closing the window presents a discard confirmation;
+Cancel leaves the window and server running. Close IPC failures are shown in the UI.
 
 `workspace:select-directory` opens the Windows directory picker with
 `openDirectory` and `createDirectory`; an existing initial path becomes its
@@ -58,12 +63,16 @@ The sidecar stores session recovery in `userData/session-v1.json`; Electron stor
 window bounds in `userData/window-state.json`. A configured Python executable is
 stored in `userData/python-v1.json`. These are distinct from saved model artifacts
 in the chosen workspace. Session recovery includes projects and graphs, but not
-undo/redo history; see the [session contract](../src/Canvas/utils/session/document.md).
+undo/redo history. Recovery also includes each project's synchronized Code draft
+and Python file association. A mode switch synchronizes the draft to Go without
+saving the `.py` file or compiling Canvas. See the
+[Code mode flow](../src/Code/document.md) and
+[session contract](../src/Canvas/utils/session/document.md).
 
 Python and PyTorch are **not** bundled. Detection validates the saved executable
 or, on Windows, `py -3`, `python`, and `python3`. Without an importable PyTorch,
 canvas editing still works, but inference and Save Model cannot run. The UI
-offers Configure Python, using the Windows executable picker. See the
+offers Configure Python on Canvas and Code mode, using the Windows executable picker. Code mode's bundled converter can list classes and compile a model once Python/PyTorch is configured. See the
 [Python bridge guide](../src/Canvas/utils/python/document.md).
 
 ## Build and verify
@@ -83,7 +92,7 @@ file. The installer is per-user, does not require elevation, and is currently
 unsigned; Windows SmartScreen may warn. Build output is ignored by Git. The
 packaged smoke checks loading, bundled assets, workspace selection through a
 test dialog stub, absence of the HTML folder modal/native menu, custom controls,
-maximize/restore, and `/api/health`. It does **not** replace a clean Windows VM
+maximize/restore, `/api/health`, Code mode assets, and Code mode file create/read/delete. It does **not** replace a clean Windows VM
 install or a manual real-dialog/minimize/close test. In a clean VM, also verify
 offline launch, Unicode/space-containing paths, no-Python behavior, Python plus
 PyTorch inference and save, and recovery after reopening the app.

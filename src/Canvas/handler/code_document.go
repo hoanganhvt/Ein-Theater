@@ -1,10 +1,79 @@
 package handler
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
+	"os"
 	"path/filepath"
 	"web-app/Canvas/utils/graph"
+	"web-app/Canvas/utils/naming"
 )
+
+// modelCodePath returns the Python file generated beside a saved model graph.
+func modelCodePath(folder string) string {
+	if folder == "" {
+		return ""
+	}
+	name := filepath.Base(folder)
+	for _, candidate := range []string{name, naming.FixModelName(name)} {
+		full := filepath.Join(folder, candidate+".py")
+		info, err := os.Lstat(full)
+		if err == nil && info.Mode().IsRegular() {
+			return full
+		}
+	}
+	return ""
+}
+
+// associateModelCode is called with the store locked. A dirty draft survives
+// Canvas saves; an unchanged draft reloads the newly generated file on entry.
+func associateModelCode(p *graph.Project, folder string) {
+	full := modelCodePath(folder)
+	if full == "" {
+		return
+	}
+	previous := p.CodePath
+	if previous == "" {
+		previous = p.SourcePath
+	}
+	if previous == full && p.CodeDraftSet && p.CodeDraft != p.CodeSavedSource {
+		return
+	}
+	if previous != full && p.CodeDraftSet && p.CodeDraft != p.CodeSavedSource {
+		raw, err := os.ReadFile(full)
+		if err != nil {
+			return
+		}
+		sum := sha256.Sum256(raw)
+		p.CodeSavedSource, p.CodeHash = string(raw), hex.EncodeToString(sum[:])
+	} else {
+		p.CodeDraft, p.CodeSavedSource, p.CodeHash, p.CodeDraftSet = "", "", "", false
+	}
+	p.CodePath = full
+}
+
+// ModelCodePaths reports files already represented by a model in Code mode.
+func ModelCodePaths() map[string]bool {
+	store.Mu.Lock()
+	defer store.Mu.Unlock()
+	paths := make(map[string]bool)
+	for _, p := range store.Projects {
+		if p == nil {
+			continue
+		}
+		if p.CodePath == "" && p.SourcePath == "" {
+			associateModelCode(p, p.BaseDir)
+		}
+		if p.CodePath != "" {
+			paths[p.CodePath] = true
+		}
+		if p.SourcePath != "" {
+			paths[p.SourcePath] = true
+		}
+	}
+	return paths
+}
 
 type CodeDocument struct {
 	ProjectID       string
@@ -34,7 +103,11 @@ func documentOf(p *graph.Project) CodeDocument {
 func ActiveCodeDocument() CodeDocument {
 	store.Mu.Lock()
 	defer store.Mu.Unlock()
-	return documentOf(store.Current())
+	p := store.Current()
+	if p.CodePath == "" && p.SourcePath == "" {
+		associateModelCode(p, p.BaseDir)
+	}
+	return documentOf(p)
 }
 
 // BindCodeDocument activates an existing file's project or associates the file
@@ -44,6 +117,9 @@ func BindCodeDocument(full string) CodeDocument {
 	defer store.Mu.Unlock()
 	for _, id := range store.ProjectOrder {
 		p := store.Projects[id]
+		if p != nil && p.CodePath == "" && p.SourcePath == "" {
+			associateModelCode(p, p.BaseDir)
+		}
 		if p != nil && (p.CodePath == full || p.SourcePath == full) {
 			p.CodePath = full
 			store.CurrentProjectID = id

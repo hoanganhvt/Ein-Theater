@@ -80,6 +80,9 @@ func TestWorkspaceModelRoundTrip(t *testing.T) {
 	if len(store.Projects) != 1 {
 		t.Fatal("loading the same model created duplicate projects")
 	}
+	if doc := ActiveCodeDocument(); doc.Path != filepath.Join(folder, "demo.py") {
+		t.Fatalf("loaded model did not bind its Python file: %+v", doc)
+	}
 	if w = request("POST", "/api/loadModel", `{"path":"`+strings.ReplaceAll(filepath.Join(dir, "missing"), `\`, `\\`)+`"}`); w.Code != 400 {
 		t.Fatalf("missing model: %d", w.Code)
 	}

@@ -83,13 +83,15 @@ input/output contracts, example registration and isolation tests.
   editor mode, selection-related references and workspace UI state. It renders
   the server graph and maintains transient interaction state.
 - **Go:** `handler/state.go` creates one `graph.Store`. The store owns project maps,
-  tab order, active project, counters and working directory. It starts with one
-  empty project. This state is shared by requests to the server, not isolated per
-  browser session. Most mutations target the active project.
+  tab order, active project, counters, working directory, and synchronized Code
+  drafts. It starts with one empty project. This state is shared by requests to
+  the server, not isolated per browser session. Code and Canvas use the same
+  active project. Most mutations target that project.
 - **Python:** the shape worker keeps its interpreter alive across requests; each
   analysis receives a graph snapshot. It is not the owner of editable project state.
 - **Disk:** Save Model writes explicit model artifacts in the workspace. In Electron,
-  `session-v1.json` in `userData` also recovers unsaved projects after restart.
+  `session-v1.json` in `userData` also recovers unsaved projects and synchronized
+  Code drafts after restart.
   Browser development without a data directory retains only in-memory projects.
   Selecting a workspace does not export a model.
 
