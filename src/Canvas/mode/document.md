@@ -10,8 +10,8 @@ routes and adds no graph state.
 | `Home` | Studio `/` or `/index` when Canvas is default | `handler.HomeHandler` renders Canvas-owned `Canvas/templates/studio.html`. |
 | API / assets | Relative mode request | APIs mount at `/api/canvas/*`; assets at `/static/canvas/*`. The explicit legacy API registrar and legacy-static flag preserve flat Canvas URLs. |
 
-`src/main.go` includes this definition alongside Data, Code, and Debug shell
-entries. `src/Canvas/canvas.go` includes only this definition with `Standalone:true`.
+`src/main.go` includes this definition alongside the developing Code mode and
+the Data and Debug shell entries. `src/Canvas/canvas.go` includes only this definition with `Standalone:true`.
 Both entry points use the same studio router. Handler tests can still use
 `handler.RegisterRoutes` to mount just legacy Canvas APIs without application pages.
 

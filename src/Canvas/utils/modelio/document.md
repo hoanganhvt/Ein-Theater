@@ -2,7 +2,8 @@
 
 This Go package reads saved model artifacts and extracts port metadata. It never
 executes model Python files and does not mutate the active project. The handler
-passes loaded data to `graph.Store.ImportGraph` under the store lock.
+passes loaded data to `graph.Store.ImportGraph` under the store lock, then
+associates the existing Python companion with the imported project for Code mode.
 
 | Component | Input | Output / failure |
 | --- | --- | --- |

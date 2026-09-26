@@ -3,9 +3,10 @@
 Canvas is Ein Theater's implemented visual PyTorch model editor. Users build a
 graph of blocks and connections, inspect inferred tensor metadata, manage
 multiple projects, and save editable JSON plus generated Python model source.
-Data, Debug, and Code are separate navigable Studio shells. The global runtime
-flow is in the [project guide](../../document.md); Canvas-specific contracts
-live in the folder guides below.
+Code is a separate, still developing mode with a Python editor and supported
+compile flow. Data and Debug have development shells. The global runtime flow
+is in the [project guide](../../document.md); Canvas-specific contracts live
+in the folder guides below.
 
 ## Entry points and ownership
 
@@ -39,7 +40,8 @@ session recovery; browser development can still run `go run .` from `src`.
 4. Save Model snapshots the active project, invokes the configured Python/PyTorch
    generator, and writes `<workspace>/<model>/<model>.json` and `<model>.py`.
    Load Model reads a selected model folder from the sidebar and imports its
-   editable graph without executing the saved Python companion.
+   editable graph without executing the saved Python companion. Save and Load
+   associate that Python file with the same project so Code opens it from Models.
 5. In Electron, a debounced `session-v1.json` in `userData` recovers projects,
    graph contents, project order, and the workspace after reopening. Viewport
    state and window bounds are stored separately. Undo/redo history is not

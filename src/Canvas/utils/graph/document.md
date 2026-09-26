@@ -11,9 +11,11 @@ reading or changing those fields or a contained `Project`. Methods do not lock
 internally, so a handler can perform a complete transaction under one lock.
 Independent, privately owned projects need no external lock.
 
-Release the lock before Python or filesystem IO. Capture a `GraphSnapshot`, run
-the external task, reacquire the lock, then use `ApplyAnalysis` or
-`AdoptSavedIntegrations`. A stale result cannot replace newer semantic edits.
+Release the lock before Python or long-running filesystem IO. Capture a
+`GraphSnapshot`, run the external task, reacquire the lock, then use
+`ApplyAnalysis` or `AdoptSavedIntegrations`. The handler checks for a model's
+Python companion while associating its Code path under the store lock. A stale
+analysis or save result cannot replace newer semantic edits.
 
 ## Data contracts
 

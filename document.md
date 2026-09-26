@@ -5,8 +5,9 @@ window or development browser to Go, through Python, and back to the UI or saved
 model files. Folder documents
 contain detailed component inputs/outputs, endpoint contracts and focused tests.
 
-Ein Theater is a visual PyTorch model editor. Canvas is the implemented editor.
-Data, Debug and Code have navigable studio shells that identify their features as in development.
+Ein Theater is a visual PyTorch model editor. Canvas is the main editor. Code
+mode is still in development but has a Python editor and a supported compile
+flow into Canvas. Data and Debug have navigable development shells.
 The current application edits graphs, analyzes tensor shapes and generates model
 code. Starting the server does not start model training.
 
@@ -39,6 +40,7 @@ flowchart TD
 | `desktop/` | Electron lifecycle, native dialogs and build inputs | Frameless Windows app, authenticated Go sidecar and NSIS installer. See the [desktop guide](desktop/document.md). |
 | `src/main.go`, `src/Canvas/canvas.go` | Mode definitions, resource/data paths and optional `PORT` | Studio server: configured port (8080 default) in browser development; random loopback port in Electron. |
 | `src/studio` | Mode registry and requests | Global index/sidebar dispatch, mode catalog, namespaced API/assets and shared page responses. |
+| `src/Code` | Python text, workspace files and active project | Developing Code editor, draft synchronization and supported PyTorch-to-Canvas conversion. See the [Code guide](src/Code/document.md). |
 | `src/Canvas/mode` | Canvas handlers/resources | Canvas registration descriptor; no global route ownership. |
 | `src/Canvas/templates` | Canvas document shells and fragments | Canvas owns both its studio-home variant and standalone page. `src/templates` is reserved for genuinely shared templates. |
 | `src/static`, `src/Canvas/static` | Browser asset requests | Shared/Canvas CSS and native ES modules, served without a bundler. |
@@ -67,13 +69,14 @@ own their page/sidebar content, relative API routes and asset filesystem.
 - Mode APIs use /api/<id>/*; assets use /static/<id>/*; pages use /<id>.
 - Canvas retains flat legacy URLs for existing clients. In particular,
   /api/data is the Canvas graph endpoint, while /api/data/* belongs to future Data mode.
-- GET /api/modes supplies the shared Mode menu. Canvas, Data, Debug and Code are
-  navigable; the latter three currently display shells, not feature editors.
+- GET /api/modes supplies the shared Mode menu. Canvas and the developing Code
+  editor are navigable; Data and Debug display development shells.
 - A mode owns its complete page and JavaScript lifecycle. Switching modes navigates
   to another page, not merely to another sidebar inside the Canvas editor.
 
-To implement Data, Debug or Code, replace its shell registration in main.go with
-its own mode definition. Do not add feature routes to Canvas or studio. See the
+To implement Data or Debug, replace its shell registration in main.go with
+its own mode definition. Keep new Code features in its existing mode directory.
+Do not add feature routes to Canvas or studio. See the
 [mode contract and implementation checklist](src/studio/document.md), including
 input/output contracts, example registration and isolation tests.
 
@@ -101,7 +104,7 @@ input/output contracts, example registration and isolation tests.
    resource root and user-data directory, waits for JSON `ready`, then loads its
    random loopback URL with per-run token authentication. In browser development,
    run `go run .` in `src` on port 8080 by default. The composition root passes
-   Canvas and three navigable development shells to `studio.NewHandler`.
+   Canvas, the developing Code mode, and two development shells to `studio.NewHandler`.
    Standalone Canvas registers just Canvas with `Standalone:true`.
 2. Studio registers index, mode catalog, sidebar dispatch, shared static files and
    each available mode's page/API/asset namespace. Canvas APIs come from its private
@@ -233,7 +236,9 @@ flowchart TD
   source before writing artifacts. The subsequent filesystem writes are sequential;
   this is not a transactional filesystem commit.
 - **Reconciliation:** Go reads the saved canvas and adopts generated integration
-  references only if the original semantic snapshot still matches. Newer edits survive.
+  references only if the original semantic snapshot still matches. It also binds
+  the generated `.py` file to that project for Code mode. Newer edits survive;
+  an unsaved Code draft is retained and a clean Code buffer reloads from disk.
 - **Frontend completion:** refresh workspace files, projects and graph, then show
   status. The bridge returns parsed JSON or the existing raw-output fallback.
 
@@ -254,7 +259,8 @@ filename fallbacks. It accepts a wrapped `canvas` object or legacy graph JSON.
 Under the store lock, `ImportGraph` reuses an empty or same-name project where
 possible, otherwise creates a project. It restores nodes/edges, labels, ordering,
 relative model/weight references and missing geometry. The response contains model
-name, project ID and counts. Loading JSON does not execute the Python companion.
+name, project ID and counts. Loading JSON does not execute the Python companion;
+it associates that companion file with the same project for Code mode.
 
 ### Inspect or add an integrated model
 
@@ -274,7 +280,20 @@ is refreshed from `/api/workspace/browse`. Cancellation leaves state unchanged.
 The HTML folder-selection modal is gone; sidebar browsing, model loading and
 folder creation remain. Workspace changes and model saving are separate operations.
 
-## 7. Code-reading map
+## 7. Code mode: project and Python file
+
+Code mode currently offers a Python editor, file Save, class discovery and
+compilation of supported PyTorch models into Canvas. It remains under development;
+the [Code guide](src/Code/document.md) describes supported FX operations and limits.
+The active model ID lives in the shared Go store, so changing models in Code also
+changes the model shown on returning to Canvas. Switching modes synchronizes a
+draft without saving or compiling. A saved Canvas model opens its generated
+`<model>/<model>.py` from Models; files already associated with models are omitted
+from the separate Python files list. Older desktop sessions find the file from
+the model's saved folder when entering Code. If the file is absent, Code does not
+create one on mode switch.
+
+## 8. Code-reading map
 
 Read in execution order rather than reading every file in a folder:
 
@@ -291,11 +310,12 @@ Read in execution order rather than reading every file in a folder:
 | How are model files produced? | `generate code/gen_code.py`, `model_storage.py`, `source_renderer.py`, `fx_builder.py` | [Generation](src/Canvas/utils/generate%20code/document.md) |
 | How is canvas data converted? | `read_canvas/canvas.py` and its input/layer/graph helpers | [Conversion](src/Canvas/utils/read_canvas/document.md) |
 | How are model files restored? | `handler/model_handlers.go`, `utils/modelio`, `utils/graph/import.go` | [Model IO](src/Canvas/utils/modelio/document.md) |
+| How does Code open or compile a model? | `src/Code/server/server.go`, `src/Canvas/handler/code_document.go`, `code_import.go` | [Code mode](src/Code/document.md) |
 | Where are other utilities documented? | `src/Canvas/utils/document.md` | [Utility category index](src/Canvas/utils/document.md) |
 
 Short paths in this table are within `src/Canvas` unless prefixed with `src/`.
 
-## 8. Run and verify the major flows
+## 9. Run and verify the major flows
 
 ### Launch
 

@@ -92,10 +92,13 @@ file. The installer is per-user, does not require elevation, and is currently
 unsigned; Windows SmartScreen may warn. Build output is ignored by Git. The
 packaged smoke checks loading, bundled assets, workspace selection through a
 test dialog stub, absence of the HTML folder modal/native menu, custom controls,
-maximize/restore, `/api/health`, Code mode assets, and Code mode file create/read/delete. It does **not** replace a clean Windows VM
-install or a manual real-dialog/minimize/close test. In a clean VM, also verify
-offline launch, Unicode/space-containing paths, no-Python behavior, Python plus
-PyTorch inference and save, and recovery after reopening the app.
+maximize/restore, `/api/health`, Code mode assets, and Code file create/read/delete.
+It clicks Close, verifies Electron and Go exit, and checks saved window bounds and
+session state. The `--dirty` variant checks Cancel and Discard for unsaved Code;
+`--canvas` checks the native Canvas close path. These checks do **not** replace a
+clean Windows VM install or manual real-dialog/minimize/close testing. In a clean
+VM, also verify offline launch, Unicode/space-containing paths, no-Python behavior,
+Python plus PyTorch inference and save, and recovery after reopening the app.
 
 Version 0.1.0 does not include code signing, auto-update, ARM64, file
 associations, telemetry, or crash reporting.

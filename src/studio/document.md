@@ -104,12 +104,12 @@ From the repository root, run
 `node src/static/studio/navigation.test.mjs`. Expected: the active mode is marked,
 an available sibling navigates to its URL, and an unavailable mode is disabled.
 Manually launch studio and check Canvas, Data, Debug, and Code appear. Data and
-Debug have development shells; Code has a Python editor.
+Debug have development shells; Code is still developing and has a Python editor.
 # Current studio navigation
 
 The application menu is `EinTheater File Edit Mode`. `/api/modes` returns Canvas,
-Data, Debug and Code in that order. Data and Debug use `ShellPage`; Code has its
-own editor and API. The standalone Canvas
+Data, Debug and Code in that order. Data and Debug use `ShellPage`; the developing
+Code mode has its own editor and API. The standalone Canvas
 entry registers Canvas only. `static/studio/menubar.js` owns menu interaction,
 while `navigation.js` fills the Mode dropdown from the registry.
 Canvas waits for pending graph writes and Code synchronizes its draft before following a Mode link. Run

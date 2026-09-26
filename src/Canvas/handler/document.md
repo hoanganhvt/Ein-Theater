@@ -17,7 +17,7 @@ and encode responses. Task algorithms and data ownership live in
 | Shared rendering | Mode-owned template path | src/studio.ServeTemplate performs GET/HEAD validation, composition and response writes. |
 | error_handler.go: writeError | ResponseWriter and task error | Plain-text 400 for fault.Invalid, otherwise 500. Endpoint-specific graph errors are mapped by their handlers. |
 | persistence.go | Optional data directory and mutating requests | Restores and schedules debounced desktop session snapshots; flushes at shutdown. |
-| code_document.go, code_import.go | Active Code path/draft and validated FX graph | Bind Code files to the global active project, synchronize drafts, and import compiled graphs. See the [Code mode contract](../../Code/document.md). |
+| code_document.go, code_import.go | Active Code path/draft and validated FX graph | Associate saved model Python files, recover legacy associations from `BaseDir`, synchronize drafts, and import compiled graphs into the shared project. See the [Code mode contract](../../Code/document.md). |
 | runtime_handlers.go | Health/Python runtime requests | Process-level JSON health, interpreter detection and manual configuration. |
 
 Every public handler takes (http.ResponseWriter, *http.Request) and returns no Go
@@ -99,8 +99,11 @@ Concurrent drag/routing edits survive analysis; semantic edits reject stale resu
 | InspectModelHandler: /api/workspace/inspect-model | Any; path query, then JSON {path} | Model/port metadata. Missing companion file returns 200 with isModel:false and an error field. Invalid folder/JSON returns 400; read failure 500. |
 
 SaveModelHandler snapshots under lock, runs Python unlocked and conditionally
-adopts saved references after reacquiring the lock. It never replaces a newer
-semantic edit with an older save snapshot.
+adopts saved references after reacquiring the lock. When accepted, it binds the
+generated `.py` file to the same project. LoadModelHandler binds the existing
+companion file after import. A dirty Code draft survives Canvas Save; a clean
+buffer reloads the new file. Canvas Save does not replace a newer semantic edit
+with an older save snapshot.
 
 ## Process runtime routes (runtime_handlers.go)
 

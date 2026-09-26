@@ -4,7 +4,7 @@ The [global code-flow guide](../document.md) is the project-wide architecture
 reference. It explains startup, state ownership, graph editing, asynchronous shape
 analysis, Python generation, save/load, concurrency and end-to-end tests.
 
-See [studio registration and expansion](studio/document.md) for adding Data, Code, and Debug. Shared Go resources live in [utils](utils/document.md); Canvas exports its [mode adapter](Canvas/mode/document.md). The [desktop shell](../desktop/document.md) starts this source as an authenticated Windows sidecar.
+See [studio registration and expansion](studio/document.md) for adding Data and Debug or extending the developing Code mode. Shared Go resources live in [utils](utils/document.md); Canvas exports its [mode adapter](Canvas/mode/document.md). The [desktop shell](../desktop/document.md) starts this source as an authenticated Windows sidecar.
 
 ## Read the source in runtime order
 
@@ -34,6 +34,7 @@ flowchart TD
 | [HTTP handlers](Canvas/handler/document.md) | HTTP requests | Validated utility calls and responses. |
 | [Categorized utilities](Canvas/utils/document.md) | Graph commands, paths and snapshots | Graph state, file IO, HTML composition and Python orchestration. |
 | [Session recovery](Canvas/utils/session/document.md) | Electron user-data directory and store mutations | Desktop project/workspace snapshots and restore. |
+| [Code mode](Code/document.md) | Active model, Python source and workspace files | Draft editing, file Save and supported PyTorch-to-Canvas compilation. |
 | [Python shape analysis](Canvas/utils/auto_shape_fitting/document.md) | Canvas and base directory | Fitted parameters, tensor diagnostics and adapted submodels. |
 | [Python generation](Canvas/utils/generate%20code/document.md) | Validated canvas/computational graph | Model JSON and executable Python source. |
 
@@ -48,7 +49,9 @@ flowchart TD
 - **Save:** `saveActiveModel` → `SaveModelHandler` → snapshot → generation subprocess
   → infer/validate → canvas conversion → FX/source rendering → artifact writes → UI refresh.
 - **Load:** `loadModelFromFolder` → `LoadModelHandler` → `modelio.Load` →
-  `Store.ImportGraph` → project/graph refresh.
+  `Store.ImportGraph` → associate the model's `.py` file → project/graph refresh.
+- **Code:** select the shared active project → load its bound `.py` or draft →
+  Save to a workspace file or Compile a supported class into the same Canvas project.
 - **Open workspace:** `chooseWorkspace` → Electron directory dialog (or Windows
   development fallback) → `/api/workspace/set` → sidebar refresh.
 - **Desktop recovery:** `ConfigurePersistence` → session load → debounced mutation

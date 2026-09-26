@@ -1,6 +1,6 @@
 # Code mode: architecture and behavior
 
-Code mode edits workspace Python files and converts supported PyTorch models into editable Canvas graphs. Code and Canvas share one active project in the Go process. Switching modes transfers the current Code buffer into that project's session; it does not save a Python file or compile a graph. **Save**, **Compile**, and **switch mode** are separate operations.
+Code mode is still in development. Its current editor edits workspace Python files and converts supported PyTorch models into editable Canvas graphs. Code and Canvas share one active project in the Go process. Switching modes transfers the current Code buffer into that project's session; it does not save a Python file or compile a graph. **Save**, **Compile**, and **switch mode** are separate operations.
 
 ## Ownership and entry points
 
@@ -30,11 +30,13 @@ flowchart LR
 
 ### Enter Code and choose a file
 
-On page load, the editor requests `GET /api/code/active`. Go reads the current project. A Canvas model saved or loaded from a folder is associated with its `<folder>/<folder>.py` file; older sessions discover that file from `BaseDir` when entering Code. If the project has a synchronized draft, Code returns the draft. Otherwise it reads the associated `.py` file when one exists in the selected workspace. With no associated file, Code opens an empty buffer for the active Canvas project. The editor then lists workspace `.py` files not already represented in Models and scans the current buffer for candidate model classes.
+On page load, the editor requests `GET /api/code/active`. Go reads the current project. A Canvas model saved or loaded from a folder is associated with its `<folder>/<folder>.py` file; older sessions discover that file from `BaseDir` when entering Code. If the project has a synchronized draft, Code returns the draft. Otherwise it reads the associated `.py` file when one exists in the selected workspace. With no associated file, Code opens an empty buffer for the active Canvas project and creates no folder or file. The editor then lists workspace `.py` files not already represented in Models and scans the current buffer for candidate model classes.
 
 Opening an existing file checks that the file can be read, synchronizes the current buffer, calls `POST /api/code/active/bind`, and reloads the active document. Binding selects an existing project for that path. If no project owns the path, it attaches the path to the current project when that project has no Code path; otherwise it creates and activates a new project. Choosing a new filename follows the same binding flow. The file itself is created only when Save succeeds. Switching files preserves each project's synchronized draft.
 
 Code also shows the shared model list. Selecting a model synchronizes the current draft, calls `POST /api/projects/switch`, and loads the selected model's Code buffer. Canvas uses the same active project ID, so returning there opens the model last selected in Code.
+
+Canvas Save and Load bind a model's generated Python file to that project. On a later Canvas Save, a dirty Code draft is preserved; when the same file is regenerated, its old hash remains so a later Code Save detects the disk change. A clean synchronized buffer is cleared so the regenerated file is read next time. If an older project has no Code path, Code finds an existing companion file from the saved model folder. Opening that path reuses the project. `GET /api/code/files` omits Python files already represented in Models; other workspace Python files remain available there.
 
 ### Edit, switch modes, and recover
 
@@ -59,6 +61,8 @@ Compile uses the textarea content, including unsaved changes. It requires a sele
 Go launches the configured Python runtime with the converter script, source text, class name, and file path. The converter executes the trusted source, constructs the class with no arguments, and calls `torch.fx.symbolic_trace`. After conversion, Go validates the returned nodes and edges. It then replaces the associated project's graph under the store mutex, updates its source association, resets graph history, makes the project active, synchronizes the Code draft, and opens Canvas. A syntax, runtime, trace, unsupported-operation, timeout, or graph-validation failure leaves the existing graph unchanged. Replacing a graph discards its prior Canvas node edits after confirmation.
 
 The generated graph contains topology and recoverable layer constructor parameters. It does not include trained weights and does not provide source-code round trips from Canvas edits. Canvas serves compiled graphs as snapshots without automatic shape fitting, so inferred dimensions cannot silently rewrite the imported structure.
+
+The editor currently provides basic Python syntax colors, line numbers, search and Tab indentation. It does not provide autocomplete or automatic bracket closing. Compile supports the FX subset below; unsupported Python/PyTorch operations return an error rather than a partial Canvas graph.
 
 ## HTTP contract
 
@@ -112,6 +116,6 @@ node static/studio/navigation.test.mjs
 python -m unittest Code/utils/test_compile.py
 ```
 
-Python tests that require PyTorch skip when it is unavailable. For a manual end-to-end check, select a workspace, create a Code file, edit it without saving, switch to Canvas and back, and verify the same draft and active project. Save and reopen the file, then compile an `Input → Linear → ReLU` model, inspect nodes and parameters in Canvas, switch back, and verify the Code buffer. Repeat after editing Canvas nodes to confirm replacement before recompilation; verify that a failed compile leaves that graph intact. In desktop, restart the app after a synchronized mode switch and verify session recovery.
+Python tests that require PyTorch skip when it is unavailable. For a manual end-to-end check, select a workspace, create a Code file, edit it without saving, switch to Canvas and back, and verify the same draft and active project. Save and reopen the file, then compile an `Input → Linear → ReLU` model, inspect nodes and parameters in Canvas, switch back, and verify the Code buffer. Save or load a Canvas model and check that selecting it in Models opens its generated `.py` without a duplicate entry in Python files; then switch models and verify each draft. Repeat after editing Canvas nodes to confirm replacement before recompilation; verify that a failed compile leaves that graph intact. In desktop, restart the app after a synchronized mode switch and verify session recovery.
 
 The desktop package includes the Code page, scripts, converter, Canvas palette, Go sidecar, and offline UI assets. Python and PyTorch must be installed separately. See the [desktop guide](../../desktop/document.md) for build and packaging steps.

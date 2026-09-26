@@ -30,6 +30,8 @@ separate from this Go session file.
 Code mode synchronizes its buffer to the active project before a mode switch,
 file switch, and after Save or Compile. The middleware schedules that updated
 project state for persistence. Typing alone does not schedule a session write.
+Older sessions without a Code path can still open a saved model's companion
+`<folder>.py` file: Code discovers it from the restored `BaseDir` if it exists.
 See the [Code mode flow](../../../Code/document.md) for the distinct draft,
 workspace file, and compiled graph operations.
 
