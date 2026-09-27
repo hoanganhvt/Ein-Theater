@@ -111,13 +111,13 @@ export async function loadWorkspaceFiles(dirPath) {
         // Render subfolders
         folders.forEach(f => {
             const item = document.createElement('div');
-            item.className = 'workspace-file-item is-folder' + (f.isModel ? ' is-model-folder' : '');
+            item.className = 'workspace-file-item is-folder' + (f.isModel ? ' is-model-folder' : '') + (f.isDataset ? ' is-dataset-folder' : '');
             item.title = f.isModel 
                 ? `Model: "${f.name}" – Click to load onto canvas` 
-                : f.path;
+                : f.isDataset ? `Dataset: "${f.name}" - Click to open Data mode` : (f.error || f.path);
             
-            const icon = f.isModel ? '&#9671;' : '&#9649;';
-            const badgeHtml = f.isModel ? `<span class="model-badge" title="Verified PyTorch Model Folder">Model</span>` : '';
+            const icon = f.isModel ? '&#9671;' : f.isDataset ? '&#9638;' : '&#9649;';
+            const badgeHtml = f.isModel ? `<span class="model-badge" title="Verified PyTorch Model Folder">Model</span>` : f.isDataset ? `<span class="model-badge">Data</span>` : f.error ? `<span class="model-badge">Invalid</span>` : '';
             
             item.innerHTML = `
                 <span class="file-icon">${icon}</span>
@@ -147,6 +147,8 @@ export async function loadWorkspaceFiles(dirPath) {
             item.addEventListener('click', async () => {
                 if (f.isModel) {
                     await loadModelFromFolder(f.path);
+                } else if (f.isDataset) {
+                    window.location.assign('/data?folder=' + encodeURIComponent(f.name));
                 } else {
                     chooseWorkspace(f.path);
                 }

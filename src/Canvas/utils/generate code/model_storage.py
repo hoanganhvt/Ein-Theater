@@ -43,13 +43,14 @@ def save_model_to_folder(canvas_data, output_dir=None, **kwargs):
     if adapted_folders is None:
         adapted_folders = []
 
-    raw_name = data.get('name', 'Untitled_Model').strip() or 'Untitled_Model'
+    raw_name = data.get('name', 'Untitled Model').strip() or 'Untitled Model'
     safe_name = fix_model_name(raw_name)
 
     if output_dir is None:
         output_dir = os.getcwd()
 
-    target_folder = os.path.join(output_dir, safe_name)
+    folder_name = kwargs.get('folder_name') or safe_name
+    target_folder = os.path.join(output_dir, folder_name)
     for node in data.get('nodes', []):
         adapted = node.pop('adaptedModel', None)
         if adapted is None:
@@ -61,8 +62,9 @@ def save_model_to_folder(canvas_data, output_dir=None, **kwargs):
         base_name = re.sub(r'(?:_adapted_[0-9a-f]{16})+$', '', base_name)
         variant_name = f'{base_name}_adapted_{digest}'
         adapted['name'] = variant_name
-        child = save_model_to_folder(adapted, target_folder, _plan=plan,
-                                     _depth=depth + 1, _adapted_folders=adapted_folders)
+        child_folder = f'Model_{variant_name}' if kwargs.get('prefix_nested') else None
+        child = save_model_to_folder(adapted, target_folder, _plan=plan, folder_name=child_folder,
+                                     prefix_nested=kwargs.get('prefix_nested'), _depth=depth + 1, _adapted_folders=adapted_folders)
         params['model_name'] = variant_name
         params['model_path'] = os.path.abspath(child['folder'])
         params['weights_path'] = ''
@@ -102,8 +104,8 @@ def save_model_to_folder(canvas_data, output_dir=None, **kwargs):
     # 3. Generate final PyTorch code
     py_code = generate_code_from_json(final_graph_str, model_name=safe_name, base_dir=target_folder)
 
-    json_file_path = os.path.join(target_folder, f"{safe_name}.json")
-    py_file_path = os.path.join(target_folder, f"{safe_name}.py")
+    json_file_path = os.path.join(target_folder, f"{folder_name}.json")
+    py_file_path = os.path.join(target_folder, f"{folder_name}.py")
 
     ast.parse(py_code)
     plan.append((target_folder, json_file_path, final_graph_str, py_file_path, py_code))
@@ -118,9 +120,9 @@ def save_model_to_folder(canvas_data, output_dir=None, **kwargs):
     return {
         'status': 'ok',
         'folder': target_folder,
-        'folderName': safe_name,
+        'folderName': folder_name,
         'jsonFile': json_file_path,
         'pyFile': py_file_path,
-        'modelName': safe_name,
+        'modelName': raw_name,
         'adaptedModels': list(dict.fromkeys(adapted_folders)) if root_save else []
     }

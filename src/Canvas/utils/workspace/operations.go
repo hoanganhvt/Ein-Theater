@@ -3,6 +3,7 @@
 package workspace
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -51,14 +52,31 @@ func Browse(targetDir string) (BrowseResponse, error) {
 		fullPath := filepath.Join(targetDir, name)
 		if entry.IsDir() {
 			isModel := false
+			isDataset := false
+			folderError := ""
 			modelName := name
-			if naming.IsValidModelFolderName(name) {
+			if strings.HasPrefix(name, "Data_") {
+				var manifest struct {
+					SchemaVersion int      `json:"schemaVersion"`
+					ID            string   `json:"id"`
+					Pipelines     []string `json:"pipelines"`
+				}
+				raw, err := os.ReadFile(filepath.Join(fullPath, "dataset.json"))
+				if err == nil && json.Unmarshal(raw, &manifest) == nil && manifest.SchemaVersion == 1 && manifest.ID != "" && manifest.Pipelines != nil {
+					isDataset = true
+				} else {
+					folderError = "Invalid Data_ folder: dataset.json is missing or invalid"
+				}
+			} else if strings.HasPrefix(name, "Model_") || naming.IsValidModelFolderName(name) {
 				pyFile := filepath.Join(fullPath, name+".py")
 				jsonFile := filepath.Join(fullPath, name+".json")
 				if fiPy, errPy := os.Stat(pyFile); errPy == nil && !fiPy.IsDir() {
 					if fiJSON, errJSON := os.Stat(jsonFile); errJSON == nil && !fiJSON.IsDir() {
 						isModel = true
 					}
+				}
+				if !isModel && strings.HasPrefix(name, "Model_") {
+					folderError = "Invalid Model_ folder: companion JSON and Python files are required"
 				}
 			} else {
 				fixed := naming.FixModelName(name)
@@ -87,6 +105,8 @@ func Browse(targetDir string) (BrowseResponse, error) {
 				Path:      fullPath,
 				IsDir:     true,
 				IsModel:   isModel,
+				IsDataset: isDataset,
+				Error:     folderError,
 				ModelName: modelName,
 			})
 		} else {
@@ -146,8 +166,8 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
 // CreateFolder validates the parent and creates a named directory.
 func CreateFolder(dir, name string) (map[string]interface{}, error) {
 	name = strings.TrimSpace(name)
-	if name == "" {
-		return nil, fault.Invalid("Folder name is required")
+	if _, err := naming.ValidateDisplayName(name); err != nil {
+		return nil, fault.Invalid(err.Error())
 	}
 
 	if dir == "" {

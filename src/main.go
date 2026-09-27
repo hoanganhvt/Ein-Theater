@@ -17,6 +17,7 @@ import (
 	canvas "web-app/Canvas/mode"
 	"web-app/Canvas/utils/python"
 	code "web-app/Code/mode"
+	data "web-app/Data/mode"
 	"web-app/studio"
 )
 
@@ -126,7 +127,7 @@ func studioConfig() studio.Config {
 		DefaultMode: "canvas",
 		Modes: []studio.Mode{
 			canvas.Definition(),
-			{ID: "data", Name: "Data", Page: studio.ShellPage("data", "Data")},
+			data.Definition(),
 			{ID: "debug", Name: "Debug", Page: studio.ShellPage("debug", "Debug")},
 			code.Definition(),
 		},

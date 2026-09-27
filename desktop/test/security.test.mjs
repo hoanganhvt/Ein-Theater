@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 const preload = readFileSync(new URL('../preload.cjs', import.meta.url), 'utf8');
 assert.match(preload, /selectDirectory/);
 assert.match(preload, /selectPythonExecutable/);
+assert.match(preload, /selectDataSource/);
 assert.match(preload, /windowControls/);
 assert.doesNotMatch(preload, /require\(['"](?:node:)?fs/);
 assert.doesNotMatch(preload, /process\./);

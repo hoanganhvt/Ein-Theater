@@ -3,10 +3,27 @@ package python
 import (
 	"context"
 	"fmt"
+	"io"
 	"os/exec"
 	"strings"
 	"time"
 )
+
+// StartTool starts the first configured Python interpreter that is available.
+// It does not require PyTorch, so data-only tools can run in a smaller environment.
+func StartTool(script, workDir string, args []string, stdout, stderr io.Writer) (*exec.Cmd, error) {
+	var failures []string
+	for _, candidate := range candidates() {
+		cmd := command(candidate, append([]string{"-B", script}, args...)...)
+		cmd.Dir, cmd.Stdout, cmd.Stderr = workDir, stdout, stderr
+		if err := cmd.Start(); err == nil {
+			return cmd, nil
+		} else {
+			failures = append(failures, fmt.Sprintf("%s: %v", candidate.Executable, err))
+		}
+	}
+	return nil, fmt.Errorf("%w: %s", ErrUnavailable, strings.Join(failures, "; "))
+}
 
 // RunCodeTool uses the configured Python interpreter and bounds source execution.
 func RunCodeTool(script, workDir, mode, input string, timeout time.Duration) ([]byte, error) {

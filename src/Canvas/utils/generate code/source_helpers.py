@@ -1,4 +1,6 @@
 """Render integrated-model imports and generated example inputs."""
+import os
+
 if __package__:
     from .model_paths import to_relative_path
 else:
@@ -15,19 +17,21 @@ def render_imports(nodes, base_dir):
                 seen_integrated.add(sub_name)
                 rel_path = to_relative_path(sub_path, base_dir=base_dir)
                 norm_path = rel_path.replace('\\', '/')
-                if norm_path in ('', '.', './'):
-                    integrated_imports.append(f"from {sub_name} import {sub_name}")
-                else:
-                    integrated_imports.append(
-                        f"_sub_dir = os.path.normpath(os.path.join(_curr_dir, r'{norm_path}'))\n"
-                        f"if _sub_dir not in sys.path:\n"
-                        f"    sys.path.insert(0, _sub_dir)\n"
-                        f"from {sub_name} import {sub_name}"
-                    )
+                module_name = sub_name if norm_path in ('', '.', './') else os.path.basename(norm_path.rstrip('/'))
+                index = len(integrated_imports)
+                integrated_imports.append(
+                    f"_sub_dir_{index} = os.path.normpath(os.path.join(_curr_dir, {norm_path!r}))\n"
+                    f"_sub_spec_{index} = importlib.util.spec_from_file_location('ein_sub_{index}', os.path.join(_sub_dir_{index}, {module_name + '.py'!r}))\n"
+                    f"if _sub_spec_{index} is None or _sub_spec_{index}.loader is None:\n"
+                    f"    raise ImportError('Cannot load integrated model: {module_name}')\n"
+                    f"_sub_module_{index} = importlib.util.module_from_spec(_sub_spec_{index})\n"
+                    f"_sub_spec_{index}.loader.exec_module(_sub_module_{index})\n"
+                    f"{sub_name} = getattr(_sub_module_{index}, {sub_name!r})"
+                )
 
     imports = "import torch\nimport torch.nn as nn\n"
     if integrated_imports:
-        imports += "import sys\nimport os\n\n_curr_dir = os.path.dirname(os.path.abspath(__file__))\n\n"
+        imports += "import importlib.util\nimport os\n\n_curr_dir = os.path.dirname(os.path.abspath(__file__))\n\n"
         imports += "\n".join(integrated_imports) + "\n\n"
     else:
         imports += "\n"

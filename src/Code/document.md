@@ -1,6 +1,8 @@
 # Code mode: architecture and behavior
 
-Code mode is still in development. Its current editor edits workspace Python files and converts supported PyTorch models into editable Canvas graphs. Code and Canvas share one active project in the Go process. Switching modes transfers the current Code buffer into that project's session; it does not save a Python file or compile a graph. **Save**, **Compile**, and **switch mode** are separate operations.
+Code mode edits workspace Python files, converts supported PyTorch models into Canvas graphs, and edits structured Data pipelines or custom blocks opened from Data mode. Code and Canvas share one active model project in the Go process; Data documents remain owned by their `Data_` folder. Switching modes synchronizes a draft without applying it. **Save**, **Compile/Apply**, and **switch mode** are separate operations.
+
+When opened with `dataFolder` and `pipeline` query parameters, Code loads `pipeline.py` through the Data API. **Apply to Data** parses the restricted declarative syntax without execution, checks the graph revision and source hash, updates `pipeline.json`, and returns canonical Python. A `module=custom/*.py` parameter edits arbitrary custom-block source with syntax and hash checks. Custom drafts must be saved before switching modes; pipeline drafts are recoverable in Data mode.
 
 ## Ownership and entry points
 

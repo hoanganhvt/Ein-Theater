@@ -1,8 +1,10 @@
 # Ein Theater
 
-Design PyTorch models visually. Build and connect blocks on the Canvas, then save editable model data and generated Python code. Code mode is still in development: its current Python editor can edit workspace files and compile supported `nn.Module` classes into Canvas projects. Data and Debug currently have development shells.
+Design PyTorch models and prepare datasets visually. Canvas builds models, Data builds local versioned pipelines for tables, text, images, audio, video, and raw arrays, and Code edits model, pipeline, or custom-block Python. Debug currently has a development shell.
 
 Code and Canvas share the active project. A Canvas model saved or loaded from a folder opens its generated Python file in Code; the same file does not appear again in the Python files list. Switching modes keeps the current Code draft in the Go session without saving a Python file or compiling a graph. The [Code mode guide](src/Code/document.md) documents the implemented behavior and limits.
+
+New model folders use `Model_<name>` and new datasets use `Data_<name>`. Legacy model folders remain supported. The [Data mode guide](src/Data/document.md) documents pipeline storage, block execution, Code synchronization, splitting, caching, exports, and optional dependencies.
 
 ![Ein Theater Canvas](./assets/Demo_image.png)
 

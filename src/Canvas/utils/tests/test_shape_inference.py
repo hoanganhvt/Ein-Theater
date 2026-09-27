@@ -172,8 +172,10 @@ class IntegratedTests(unittest.TestCase):
             self.assertEqual(result, infer_shapes(graph))
             graph['nodes'] += [source('second_input', '12'), node('second_model', 'IntegratedModel', model_path=str(Path(root)/'middle'), model_name='middle'), node('second_output', 'nn.Linear', out_features=5)]
             graph['edges'] += [dict(id='e2', **{'from':'second_input', 'to':'second_model'}), dict(id='e3', **{'from':'second_model', 'to':'second_output'})]
-            saved = save_model_to_folder(graph, root)
+            saved = save_model_to_folder(graph, root, folder_name='Model_parent', prefix_nested=True)
             self.assertEqual(len(saved['adaptedModels']), 4)
+            self.assertEqual(len(set(saved['adaptedModels'])), 4)
+            self.assertTrue(all(Path(folder).name.startswith('Model_') for folder in saved['adaptedModels']))
             model = load_generated(saved)
             self.assertEqual([list(t.shape) for t in model(torch.zeros(2,8), torch.zeros(2,12))], [[2,2], [2,5]])
             widths = {m.in_features for m in model.modules() if isinstance(m, nn.Linear)}
@@ -182,7 +184,7 @@ class IntegratedTests(unittest.TestCase):
             self.assertFalse(any(n.get('adaptedModel') for n in reloaded['nodes']))
             self.assertEqual(original, (Path(root)/'encoder/encoder.json').read_bytes())
             self.assertEqual('# original source\n', (Path(root)/'encoder/encoder.py').read_text())
-            self.assertEqual(saved['adaptedModels'], save_model_to_folder(graph, root)['adaptedModels'])
+            self.assertEqual(saved['adaptedModels'], save_model_to_folder(graph, root, folder_name='Model_parent', prefix_nested=True)['adaptedModels'])
 
     def test_multi_input_order_and_recursive_reference(self):
         with tempfile.TemporaryDirectory() as root:

@@ -11,6 +11,8 @@ type DirectoryItem struct {
 	IsDir     bool   `json:"isDir"`
 	Size      int64  `json:"size,omitempty"`
 	IsModel   bool   `json:"isModel"`
+	IsDataset bool   `json:"isDataset"`
+	Error     string `json:"error,omitempty"`
 	ModelName string `json:"modelName,omitempty"`
 }
 

@@ -10,7 +10,7 @@ import (
 )
 
 // GenerateModel writes the model through Python. The boolean indicates a parsed JSON response.
-func GenerateModel(graphPayload graph.GraphData, cleanTarget, baseDir string) (map[string]interface{}, bool, error) {
+func GenerateModel(graphPayload graph.GraphData, cleanTarget, baseDir string, folderNames ...string) (map[string]interface{}, bool, error) {
 	canvasBytes, err := json.Marshal(graphPayload)
 	if err != nil {
 		return nil, false, fault.Internal("Failed to serialize canvas data: " + err.Error())
@@ -18,6 +18,9 @@ func GenerateModel(graphPayload graph.GraphData, cleanTarget, baseDir string) (m
 
 	genCodePyPath := FindGenCodePyPath()
 	cmdArgs := []string{genCodePyPath, "--save-canvas", "-", "--out-dir", cleanTarget, "--base-dir", baseDir}
+	if len(folderNames) > 0 && folderNames[0] != "" {
+		cmdArgs = append(cmdArgs, "--folder-name", folderNames[0])
+	}
 	run := func(candidate Candidate) ([]byte, error) {
 		cmd := command(candidate, cmdArgs...)
 		// Build a reader per attempt because the first process consumes its input.
@@ -44,7 +47,12 @@ func GenerateModel(graphPayload graph.GraphData, cleanTarget, baseDir string) (m
 		return map[string]interface{}{
 			"status": "ok",
 			"raw":    outStr,
-			"folder": filepath.Join(cleanTarget, graphPayload.Name),
+			"folder": filepath.Join(cleanTarget, func() string {
+				if len(folderNames) > 0 {
+					return folderNames[0]
+				}
+				return graphPayload.Name
+			}()),
 		}, false, nil
 	}
 

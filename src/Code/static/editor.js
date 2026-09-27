@@ -1,5 +1,12 @@
 const el = id => document.getElementById(id);
 const source = el('codeSource');
+const query = typeof URLSearchParams === 'undefined' ? { has: () => false, get: () => null } : new URLSearchParams(window.location.search || '');
+const dataContext = query.has('dataFolder');
+const dataFolder = query.get('dataFolder') || '';
+let dataPipeline = query.get('pipeline') || 'prepare';
+const dataModule = query.get('module') || '';
+let dataGraph = null;
+let dataManifest = null;
 const pythonKeywords = new Set('False None True and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield'.split(' '));
 function highlightPython(text) {
     const escape = value => value.replace(/[&<>]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[char]));
@@ -33,12 +40,33 @@ let busy = false;
 let navigatingWithDraft = false;
 
 async function syncDraft() {
+    if (dataContext) {
+        if (dataModule) { if (dirty()) throw new Error('Save the custom block before switching modes'); return; }
+        if (!dataGraph) return;
+        await request('/api/data/pipelines', json('POST', { draft: true, folder: dataFolder, pipeline: dataPipeline, graph: dataGraph,
+            source: source.value, baseRevision: dataGraph.revision, baseHash: savedHash, codeDirty: dirty() }));
+        return;
+    }
     if (!projectId) return;
     await request('/api/code/active', json('PUT', {
         projectId, path, source: source.value, savedSource, hash: savedHash
     }));
 }
 async function loadActive() {
+    if (dataContext) {
+        const suffix = `folder=${encodeURIComponent(dataFolder)}&pipeline=${encodeURIComponent(dataPipeline)}${dataModule ? '&module=' + encodeURIComponent(dataModule) : ''}`;
+        const data = await request('/api/data/pipelines?' + suffix);
+        dataGraph = data.graph || null;
+        dataManifest = data.dataset || dataManifest;
+        path = dataModule || `${dataFolder}/pipelines/${dataPipeline}/pipeline.py`;
+        projectName = dataModule ? `Custom block · ${dataPipeline}` : `Pipeline · ${dataPipeline}`;
+        source.value = data.draft?.source || data.source || '';
+        savedSource = data.source || '';
+        savedHash = data.hash || '';
+        title(); await Promise.all([listProjects(), listFiles()]);
+        status(data.draft ? 'Recovered synchronized Data draft.' : `Editing ${projectName}`);
+        return;
+    }
     const data = await request('/api/code/active');
     projectId = data.projectId;
     projectName = data.projectName || '';
@@ -71,6 +99,17 @@ function mayLeave() { return !dirty() || confirm('Discard unsaved code changes?'
 async function listProjects() {
     const list = el('codeProjectList');
     try {
+        if (dataContext) {
+            const names = dataManifest?.pipelines || [dataPipeline];
+            list.replaceChildren(...names.map(name => {
+                const button = document.createElement('button');
+                button.textContent = name;
+                button.classList.toggle('active', name === dataPipeline);
+                button.onclick = () => { if (name !== dataPipeline && mayLeave()) location.assign(`/code?dataFolder=${encodeURIComponent(dataFolder)}&pipeline=${encodeURIComponent(name)}`); };
+                return button;
+            }));
+            return;
+        }
         const data = await request('/api/projects');
         list.replaceChildren(...data.projects.map(project => {
             const button = document.createElement('button');
@@ -96,6 +135,7 @@ async function switchProject(id) {
 async function listFiles() {
     const list = el('fileList');
     try {
+        if (dataContext) { list.replaceChildren(); return; }
         const data = await request('/api/code/files');
         list.replaceChildren(...data.files.map(name => {
             const button = document.createElement('button');
@@ -108,6 +148,7 @@ async function listFiles() {
     } catch (error) { list.replaceChildren(); status(error.message, true); }
 }
 async function checkPython() {
+    if (dataContext) return;
     try {
         const runtime = await request('/api/runtime/python');
         el('configurePython').hidden = !!runtime.available;
@@ -116,6 +157,7 @@ async function checkPython() {
 }
 async function scanClasses() {
     const select = el('modelClass');
+    if (dataContext) return;
     const scannedPath = path, scannedSource = source.value;
     if (!scannedPath || !scannedSource.trim()) { select.replaceChildren(new Option('Select class', '')); return; }
     try {
@@ -141,6 +183,17 @@ async function save() {
     if (!path || busy) return;
     busy = true;
     try {
+        if (dataContext) {
+            const savingSource = source.value;
+            if (dataModule) {
+                const data = await request('/api/data/pipelines', json('PUT', { folder: dataFolder, pipeline: dataPipeline, module: dataModule, source: savingSource, expectedHash: savedHash }));
+                savedSource = savingSource; savedHash = data.hash; title(); status(`Saved ${dataModule}`); return;
+            }
+            const parsed = await request('/api/data/code/parse', json('POST', { source: savingSource }));
+            const data = await request('/api/data/pipelines', json('PUT', { folder: dataFolder, pipeline: dataPipeline, graph: parsed.graph, expectedRevision: dataGraph.revision, expectedHash: savedHash }));
+            dataGraph = data.graph; source.value = data.source; savedSource = data.source; savedHash = data.hash;
+            title(); status('Applied code to Data pipeline.'); return;
+        }
         const savingSource = source.value;
         const data = await request('/api/code/file', json('PUT', { path, source: savingSource, expectedHash: savedHash }));
         savedSource = savingSource; savedHash = data.hash; await syncDraft(); title(); await listFiles(); status(`Saved ${path}`);
@@ -148,6 +201,11 @@ async function save() {
     finally { busy = false; }
 }
 async function compile() {
+    if (dataContext) {
+        await save();
+        if (!dataModule && !dirty()) { navigatingWithDraft = true; location.assign(`/data?folder=${encodeURIComponent(dataFolder)}`); }
+        return;
+    }
     if (!path || busy) return;
     await scanClasses();
     let replace = false;
@@ -230,6 +288,12 @@ window.addEventListener('workspacechanged', () => {
     void loadActive().catch(error => status(error.message, true));
 });
 title(); void (async () => {
+    if (dataContext) {
+        el('documentListTitle').textContent = 'Pipelines';
+        el('fileListTitle').textContent = dataModule ? 'Custom block' : 'Structured Data code';
+        el('newFile').hidden = true; el('deleteFile').hidden = true; el('configurePython').hidden = true; el('modelClass').hidden = true;
+        el('compileCode').textContent = dataModule ? 'Save custom block' : 'Apply to Data';
+    }
     try { await loadActive(); } catch (error) { status(error.message, true); }
     await checkPython();
 })();

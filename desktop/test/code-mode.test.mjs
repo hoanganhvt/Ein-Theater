@@ -10,6 +10,10 @@ for (const name of ['Code/templates', 'Code/static', 'Code/utils']) {
   assert.equal(resources.get(`app-src/${name}`), `../src/${name}`);
   assert.ok(existsSync(path.join(desktop, '..', 'src', name)));
 }
+for (const name of ['Data/templates', 'Data/static', 'Data/utils']) {
+  assert.equal(resources.get(`app-src/${name}`), `../src/${name}`);
+  assert.ok(existsSync(path.join(desktop, '..', 'src', name)));
+}
 assert.ok(existsSync(path.join(desktop, '..', 'src', 'Code', 'utils', 'compile.py')));
 assert.match(readFileSync(path.join(desktop, 'main.cjs'), 'utf8'), /result\.codeMode/);
 console.log('Desktop Code mode resource checks passed');

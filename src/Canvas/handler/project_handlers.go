@@ -22,9 +22,12 @@ func ListProjectsHandler(w http.ResponseWriter, r *http.Request) {
 func CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")
 	if name == "" {
-		name = "Untitled_Model"
-	} else if !naming.IsValidModelFolderName(name) {
-		name = naming.FixModelName(name)
+		name = "Untitled Model"
+	} else if valid, err := naming.ValidateDisplayName(name); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	} else {
+		name = valid
 	}
 	store.Mu.Lock()
 	defer store.Mu.Unlock()
@@ -71,9 +74,12 @@ func RenameModelHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "name is required", http.StatusBadRequest)
 		return
 	}
-	if !naming.IsValidModelFolderName(name) {
-		name = naming.FixModelName(name)
+	valid, err := naming.ValidateDisplayName(name)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
+	name = valid
 	store.Mu.Lock()
 	store.Current().Name = name
 	store.Mu.Unlock()

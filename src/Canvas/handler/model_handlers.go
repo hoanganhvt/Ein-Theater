@@ -54,15 +54,24 @@ func SaveModelHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !naming.IsValidModelFolderName(p.Name) {
-		p.Name = naming.FixModelName(p.Name)
-	}
-
 	// Python performs fresh graph adaptation and validation before generation.
 	p.ReindexEdges()
 	graphPayload := p.GraphSnapshot()
 	baseDir := p.BaseDir
-	if baseDir == "" {
+	isNewModel := baseDir == ""
+	folderName := ""
+	if baseDir != "" {
+		folderName = filepath.Base(baseDir)
+	} else {
+		var nameErr error
+		folderName, nameErr = naming.ModelFolderName(p.Name)
+		if nameErr != nil {
+			store.Mu.Unlock()
+			http.Error(w, nameErr.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+	if isNewModel {
 		baseDir = store.WorkingDir
 	}
 	store.Mu.Unlock()
@@ -86,7 +95,16 @@ func SaveModelHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, parsed, err := python.GenerateModel(graphPayload, cleanTarget, baseDir)
+	if isNewModel {
+		entries, _ := os.ReadDir(cleanTarget)
+		for _, entry := range entries {
+			if entry.IsDir() && strings.EqualFold(entry.Name(), folderName) {
+				http.Error(w, "Model folder already exists", http.StatusConflict)
+				return
+			}
+		}
+	}
+	result, parsed, err := python.GenerateModel(graphPayload, cleanTarget, baseDir, folderName)
 	if err != nil {
 		writeError(w, err)
 		return
@@ -99,7 +117,7 @@ func SaveModelHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Only adopt the generated references if the canvas has not changed while
 	// Python was running. Never replace newer edits with an older save snapshot.
-	savedFolder, _ := filepath.Abs(filepath.Join(cleanTarget, graphPayload.Name))
+	savedFolder, _ := filepath.Abs(filepath.Join(cleanTarget, folderName))
 	if saved, readErr := modelio.ReadModelCanvas(savedFolder); readErr == nil {
 		store.Mu.Lock()
 		if p.AdoptSavedIntegrations(graphPayload, saved, savedFolder) {

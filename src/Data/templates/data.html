@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Data · EinTheater</title>
+  <script src="/static/vendor/vis-network.min.js"></script>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/data/data.css">
+</head>
+<body data-studio-mode="data">
+  <header class="studio-bar" id="studioMenubar">
+    <a class="brand-mark" href="/">Ein<span>Theater</span></a>
+    <div class="menu-dropdown"><button class="menu-btn" id="fileMenuBtn">File</button><div class="menu-dropdown-content" id="fileMenuDropdown">
+      <button class="menu-item" data-command="open-folder">Open Folder…</button><button class="menu-item" id="savePipeline">Save Pipeline <span class="menu-badge">Ctrl+S</span></button>
+      <div class="menu-separator"></div><div class="menu-item-info"><span class="menu-info-label">Workspace</span><span class="menu-info-val" id="menuWorkingDir">None</span></div>
+    </div></div>
+    <div class="menu-dropdown"><button class="menu-btn" id="modeMenuBtn">Mode</button><nav class="menu-dropdown-content mode-menu" id="modeMenuDropdown"><div id="appModeTabs"></div></nav></div>
+    <span class="studio-current-mode">Data</span>
+    <div class="data-actions"><button id="undo" title="Undo (Ctrl+Z)">Undo</button><button id="redo" title="Redo (Ctrl+Y)">Redo</button><button id="arrange" title="Auto arrange">Arrange</button><button id="openCode">Open in Code</button><button id="bindModel">Bind Model</button><select id="errorPolicy" title="Data error policy"><option value="stop">Stop on error</option><option value="quarantine">Quarantine bad samples</option></select><button id="preview">Preview</button><button id="run" class="primary">Run & Export</button><button id="cancelRun" hidden>Cancel</button></div>
+  </header>
+  <main class="data-layout">
+    <aside class="data-sidebar">
+      <div class="pane-head"><strong>Datasets</strong><button id="newDataset" title="New dataset">＋</button></div><div id="datasets" class="data-list"></div>
+      <div class="pane-head"><strong>Pipelines</strong><button id="clonePipeline" title="Clone pipeline">＋</button></div><div id="pipelines" class="data-list"></div>
+      <div class="pane-head"><strong>Sources</strong><button id="addFileSource" title="Register file">＋ File</button><button id="addFolderSource" title="Register folder">＋ Folder</button></div><div id="sources" class="data-list"></div>
+      <div class="pane-head"><strong>Blocks</strong><input id="blockSearch" type="search" placeholder="Search"></div><div id="blocks" class="block-list"></div>
+    </aside>
+    <section class="data-canvas-wrap"><div id="dataCanvas" tabindex="0" aria-label="Data pipeline canvas"></div><div id="dataMinimap" aria-hidden="true"></div><div id="canvasHint">Drag blocks here, then connect their ports.</div></section>
+    <aside class="data-inspector">
+      <div class="pane-head"><strong>Inspector</strong></div><div id="inspector" class="inspector-empty">Select a block.</div>
+      <div class="pane-head"><strong>Preview & Runs</strong></div><div id="runStatus" role="status">Ready.</div><div id="previewData"></div><div id="runHistory"></div>
+    </aside>
+  </main>
+  <script type="module" src="/static/studio/navigation.js"></script><script type="module" src="/static/studio/menubar.js"></script><script type="module" src="/static/studio/shell.js"></script>
+  <script type="module" src="/static/data/data.js"></script>
+</body></html>

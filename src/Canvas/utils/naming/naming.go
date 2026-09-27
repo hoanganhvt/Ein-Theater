@@ -3,8 +3,45 @@
 package naming
 
 import (
+	"fmt"
+	"path/filepath"
 	"strings"
+	"unicode/utf8"
 )
+
+// ValidateDisplayName accepts Unicode display names while rejecting names that
+// cannot safely become a direct child folder on Windows.
+func ValidateDisplayName(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" || name == "." || name == ".." || strings.HasSuffix(name, ".") || strings.ContainsAny(name, `<>:"/\|?*`) {
+		return "", fmt.Errorf("name is empty or contains invalid folder characters")
+	}
+	for _, r := range name {
+		if r < 32 {
+			return "", fmt.Errorf("name contains a control character")
+		}
+	}
+	reserved := strings.ToUpper(strings.Split(name, ".")[0])
+	if reserved == "CON" || reserved == "PRN" || reserved == "AUX" || reserved == "NUL" ||
+		(len(reserved) == 4 && (strings.HasPrefix(reserved, "COM") || strings.HasPrefix(reserved, "LPT")) && reserved[3] >= '1' && reserved[3] <= '9') {
+		return "", fmt.Errorf("name is reserved by Windows")
+	}
+	if utf8.RuneCountInString(name) > 100 {
+		return "", fmt.Errorf("name exceeds 100 characters")
+	}
+	return name, nil
+}
+
+func ModelFolderName(displayName string) (string, error) {
+	name, err := ValidateDisplayName(displayName)
+	if err != nil {
+		return "", err
+	}
+	return "Model_" + name, nil
+}
+
+// SameName reports Windows-style case-insensitive folder equality.
+func SameName(a, b string) bool { return strings.EqualFold(filepath.Clean(a), filepath.Clean(b)) }
 
 // IsValidModelFolderName checks whether a folder name satisfies:
 // 1. Only normal Latin characters (a-z, A-Z) and numbers (0-9) (and optional underscore)

@@ -275,6 +275,16 @@ ipcMain.handle('runtime:select-python', async () => {
   return result.canceled ? null : result.filePaths[0] || null;
 });
 
+ipcMain.handle('data:select-source', async (event, kind) => {
+  trustedWindow(event);
+  const folder = kind === 'folder';
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: folder ? 'Select Data Folder' : 'Select Data File',
+    properties: [folder ? 'openDirectory' : 'openFile']
+  });
+  return result.canceled ? null : result.filePaths[0] || null;
+});
+
 function trustedWindow(event) {
   if (!mainWindow || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents ||
       event.senderFrame !== mainWindow.webContents.mainFrame ||
